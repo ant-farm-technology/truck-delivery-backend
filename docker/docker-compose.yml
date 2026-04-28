@@ -203,6 +203,155 @@ services:
     networks:
       - truck-observability
 
+  # ══════════════════════════════════════════════════════
+  # APPLICATION SERVICES
+  # ══════════════════════════════════════════════════════
+
+  shipment-service:
+    build:
+      context: ..
+      dockerfile: src/Services/Shipment/TruckDelivery.Shipment.Api/Dockerfile
+    container_name: truck-shipment
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      ConnectionStrings__ShipmentDb: "Server=mysql;Port=3306;Database=truck_shipment;User=${MYSQL_USER};Password=${MYSQL_PASSWORD};"
+      ConnectionStrings__MySQL: "Server=mysql;Port=3306;Database=truck_shipment;User=${MYSQL_USER};Password=${MYSQL_PASSWORD};"
+      ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD}"
+      ConnectionStrings__MongoDB: "mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017"
+      Kafka__BootstrapServers: "kafka:9092"
+      Kafka__GroupId: "shipment-service"
+      Services__RouteService: "http://route-service:8084"
+      Services__OptimizerService: "http://optimizer-service:8085"
+      Jwt__SecretKey: "${JWT_SECRET_KEY}"
+      Jwt__Issuer: "truck-delivery"
+      Jwt__Audience: "truck-delivery-api"
+      Otel__Endpoint: "http://tempo:4317"
+    ports:
+      - "8086:8086"
+    networks:
+      - truck-data
+      - truck-messaging
+      - truck-observability
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8086/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  tracking-service:
+    build:
+      context: ..
+      dockerfile: src/Services/Tracking/TruckDelivery.Tracking.Api/Dockerfile
+    container_name: truck-tracking
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      ConnectionStrings__MongoDB: "mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017"
+      ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD}"
+      Kafka__BootstrapServers: "kafka:9092"
+      Kafka__GroupId: "tracking-service"
+      Jwt__SecretKey: "${JWT_SECRET_KEY}"
+      Jwt__Issuer: "truck-delivery"
+      Jwt__Audience: "truck-delivery-api"
+      Otel__Endpoint: "http://tempo:4317"
+    ports:
+      - "8087:8087"
+    networks:
+      - truck-data
+      - truck-messaging
+      - truck-observability
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8087/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  notification-service:
+    build:
+      context: ..
+      dockerfile: src/Services/Notification/TruckDelivery.Notification.Api/Dockerfile
+    container_name: truck-notification
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      ConnectionStrings__NotificationDb: "Server=mysql;Port=3306;Database=truck_notification;User=${MYSQL_USER};Password=${MYSQL_PASSWORD};"
+      ConnectionStrings__MySQL: "Server=mysql;Port=3306;Database=truck_notification;User=${MYSQL_USER};Password=${MYSQL_PASSWORD};"
+      ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD}"
+      Kafka__BootstrapServers: "kafka:9092"
+      Kafka__GroupId: "notification-service"
+      Otel__Endpoint: "http://tempo:4317"
+    ports:
+      - "8088:8088"
+    networks:
+      - truck-data
+      - truck-messaging
+      - truck-observability
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8088/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  payment-service:
+    build:
+      context: ..
+      dockerfile: src/Services/Payment/TruckDelivery.Payment.Api/Dockerfile
+    container_name: truck-payment
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      ConnectionStrings__PaymentDb: "Server=mysql;Port=3306;Database=truck_payment;User=${MYSQL_USER};Password=${MYSQL_PASSWORD};"
+      ConnectionStrings__MySQL: "Server=mysql;Port=3306;Database=truck_payment;User=${MYSQL_USER};Password=${MYSQL_PASSWORD};"
+      ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD}"
+      Kafka__BootstrapServers: "kafka:9092"
+      Kafka__GroupId: "payment-service"
+      Jwt__SecretKey: "${JWT_SECRET_KEY}"
+      Jwt__Issuer: "truck-delivery"
+      Jwt__Audience: "truck-delivery-api"
+      Otel__Endpoint: "http://tempo:4317"
+    ports:
+      - "8089:8089"
+    networks:
+      - truck-data
+      - truck-messaging
+      - truck-observability
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8089/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
   grafana:
     image: grafana/grafana:11.2.0
     container_name: truck-grafana

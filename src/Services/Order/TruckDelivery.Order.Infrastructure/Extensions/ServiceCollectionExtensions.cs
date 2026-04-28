@@ -5,6 +5,8 @@ using TruckDelivery.Order.Domain.Repositories;
 using TruckDelivery.Order.Infrastructure.Persistence;
 using TruckDelivery.Order.Infrastructure.Repositories;
 using TruckDelivery.Shared.Common.Persistence;
+using TruckDelivery.Shared.Infrastructure.Messaging.Outbox;
+using TruckDelivery.Shared.Infrastructure.Persistence.Outbox;
 
 namespace TruckDelivery.Order.Infrastructure.Extensions;
 
@@ -22,6 +24,8 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IOrderRepository, OrderRepository>();
+        services.AddScoped<IOutboxRepository, OutboxRepository<OrderDbContext>>();
+        services.AddHostedService<OutboxProcessor<OrderDbContext>>();
 
         return services;
     }

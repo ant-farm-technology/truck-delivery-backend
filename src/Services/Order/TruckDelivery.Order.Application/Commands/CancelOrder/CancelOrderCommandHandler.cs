@@ -1,16 +1,17 @@
+using System.Text.Json;
 using MediatR;
 using TruckDelivery.Order.Application.IntegrationEvents;
 using TruckDelivery.Order.Domain.Repositories;
 using TruckDelivery.Shared.Common.Persistence;
 using TruckDelivery.Shared.Common.Primitives;
-using TruckDelivery.Shared.Infrastructure.Messaging;
+using TruckDelivery.Shared.Infrastructure.Persistence.Outbox;
 
 namespace TruckDelivery.Order.Application.Commands.CancelOrder;
 
 public sealed class CancelOrderCommandHandler(
     IOrderRepository orderRepository,
     IUnitOfWork unitOfWork,
-    IEventBus eventBus)
+    IOutboxRepository outboxRepository)
     : IRequestHandler<CancelOrderCommand, Result>
 {
     public async Task<Result> Handle(CancelOrderCommand request, CancellationToken ct)
@@ -27,9 +28,15 @@ public sealed class CancelOrderCommandHandler(
             return cancelResult;
 
         orderRepository.Update(order);
-        await unitOfWork.SaveChangesAsync(ct);
 
-        await eventBus.PublishAsync(new OrderCancelledEvent(order.Id, order.CustomerId, request.Reason), ct);
+        var @event = new OrderCancelledEvent(order.Id, order.CustomerId, request.Reason);
+        await outboxRepository.AddAsync(OutboxMessage.Create(
+            eventType: nameof(OrderCancelledEvent),
+            topic: "order.order.cancelled",
+            partitionKey: order.Id.ToString(),
+            payload: JsonSerializer.Serialize(@event)), ct);
+
+        await unitOfWork.SaveChangesAsync(ct);
 
         return Result.Success();
     }

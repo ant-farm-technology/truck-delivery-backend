@@ -1,17 +1,18 @@
+using System.Text.Json;
 using MediatR;
 using TruckDelivery.Order.Application.IntegrationEvents;
 using TruckDelivery.Order.Domain.Repositories;
 using TruckDelivery.Order.Domain.ValueObjects;
 using TruckDelivery.Shared.Common.Persistence;
 using TruckDelivery.Shared.Common.Primitives;
-using TruckDelivery.Shared.Infrastructure.Messaging;
+using TruckDelivery.Shared.Infrastructure.Persistence.Outbox;
 
 namespace TruckDelivery.Order.Application.Commands.CreateOrder;
 
 public sealed class CreateOrderCommandHandler(
     IOrderRepository orderRepository,
     IUnitOfWork unitOfWork,
-    IEventBus eventBus)
+    IOutboxRepository outboxRepository)
     : IRequestHandler<CreateOrderCommand, Result<CreateOrderResult>>
 {
     public async Task<Result<CreateOrderResult>> Handle(CreateOrderCommand request, CancellationToken ct)
@@ -52,9 +53,8 @@ public sealed class CreateOrderCommandHandler(
 
         var order = orderResult.Value;
         await orderRepository.AddAsync(order, ct);
-        await unitOfWork.SaveChangesAsync(ct);
 
-        await eventBus.PublishAsync(new OrderCreatedEvent(
+        var @event = new OrderCreatedEvent(
             order.Id,
             order.CustomerId,
             order.PickupAddress.City,
@@ -62,7 +62,15 @@ public sealed class CreateOrderCommandHandler(
             order.DeliveryAddress.City,
             order.DeliveryAddress.Province,
             order.TotalWeightKg,
-            order.TotalVolumeCbm), ct);
+            order.TotalVolumeCbm);
+
+        await outboxRepository.AddAsync(OutboxMessage.Create(
+            eventType: nameof(OrderCreatedEvent),
+            topic: "order.order.created",
+            partitionKey: order.Id.ToString(),
+            payload: JsonSerializer.Serialize(@event)), ct);
+
+        await unitOfWork.SaveChangesAsync(ct);
 
         return Result.Success(new CreateOrderResult(order.Id, order.CreatedAt));
     }

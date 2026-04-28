@@ -15,6 +15,7 @@ namespace TruckDelivery.Driver.Application.Consumers;
 
 public sealed class UserRegisteredConsumer(
     IConsumer<string, string> consumer,
+    IProducer<string, string> producer,
     IIdempotencyStore idempotencyStore,
     IMediator mediator,
     ILogger<UserRegisteredConsumer> logger)
@@ -23,6 +24,7 @@ public sealed class UserRegisteredConsumer(
     private static readonly ActivitySource ActivitySource = new("TruckDelivery.Kafka.Consumer");
     private static readonly TextMapPropagator Propagator = Propagators.DefaultTextMapPropagator;
     private const string Topic = "userregistered";
+    private const string DlqTopic = "userregistered.dlq";
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -31,9 +33,10 @@ public sealed class UserRegisteredConsumer(
 
         while (!stoppingToken.IsCancellationRequested)
         {
+            ConsumeResult<string, string>? result = null;
             try
             {
-                var result = consumer.Consume(stoppingToken);
+                result = consumer.Consume(stoppingToken);
                 await ProcessAsync(result, stoppingToken);
                 consumer.Commit(result);
             }
@@ -43,7 +46,12 @@ public sealed class UserRegisteredConsumer(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Unhandled error consuming from {Topic}", Topic);
+                logger.LogError(ex, "Failed to process message from {Topic}", Topic);
+                if (result is not null)
+                {
+                    await RouteToDlqAsync(result, ex, stoppingToken);
+                    consumer.Commit(result);
+                }
             }
         }
 
@@ -67,7 +75,8 @@ public sealed class UserRegisteredConsumer(
         var @event = JsonSerializer.Deserialize<UserRegisteredEvent>(result.Message.Value);
         if (@event is null)
         {
-            logger.LogWarning("Failed to deserialize UserRegisteredEvent");
+            logger.LogWarning("Failed to deserialize UserRegisteredEvent, routing to DLQ");
+            await RouteToDlqAsync(result, new InvalidOperationException("Deserialization failed"), ct);
             return;
         }
 
@@ -92,5 +101,31 @@ public sealed class UserRegisteredConsumer(
         await idempotencyStore.MarkProcessedAsync(@event.MessageId, ct);
 
         logger.LogInformation("Registered driver profile for UserId={UserId}", @event.UserId);
+    }
+
+    private async Task RouteToDlqAsync(ConsumeResult<string, string> result, Exception ex, CancellationToken ct)
+    {
+        try
+        {
+            var dlqHeaders = new Headers();
+            foreach (var h in result.Message.Headers)
+                dlqHeaders.Add(h.Key, h.GetValueBytes());
+            dlqHeaders.Add("x-dlq-reason", Encoding.UTF8.GetBytes(ex.Message));
+            dlqHeaders.Add("x-dlq-source-topic", Encoding.UTF8.GetBytes(Topic));
+            dlqHeaders.Add("x-dlq-timestamp", Encoding.UTF8.GetBytes(DateTime.UtcNow.ToString("O")));
+
+            await producer.ProduceAsync(DlqTopic, new Message<string, string>
+            {
+                Key = result.Message.Key,
+                Value = result.Message.Value,
+                Headers = dlqHeaders
+            }, ct);
+
+            logger.LogWarning("Routed failed message to DLQ topic={DlqTopic} Key={Key}", DlqTopic, result.Message.Key);
+        }
+        catch (Exception dlqEx)
+        {
+            logger.LogCritical(dlqEx, "Failed to route message to DLQ — message will be lost! Key={Key}", result.Message.Key);
+        }
     }
 }

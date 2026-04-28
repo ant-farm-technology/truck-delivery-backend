@@ -1,16 +1,17 @@
+using System.Text.Json;
 using MediatR;
 using TruckDelivery.Driver.Application.IntegrationEvents;
 using TruckDelivery.Driver.Domain.Repositories;
 using TruckDelivery.Shared.Common.Persistence;
 using TruckDelivery.Shared.Common.Primitives;
-using TruckDelivery.Shared.Infrastructure.Messaging;
+using TruckDelivery.Shared.Infrastructure.Persistence.Outbox;
 
 namespace TruckDelivery.Driver.Application.Commands.RegisterDriver;
 
 public sealed class RegisterDriverCommandHandler(
     IDriverRepository driverRepository,
     IUnitOfWork unitOfWork,
-    IEventBus eventBus)
+    IOutboxRepository outboxRepository)
     : IRequestHandler<RegisterDriverCommand, Result>
 {
     public async Task<Result> Handle(RegisterDriverCommand request, CancellationToken ct)
@@ -31,13 +32,20 @@ public sealed class RegisterDriverCommandHandler(
 
         var driver = driverResult.Value;
         await driverRepository.AddAsync(driver, ct);
-        await unitOfWork.SaveChangesAsync(ct);
 
-        await eventBus.PublishAsync(new DriverRegisteredEvent(
+        var @event = new DriverRegisteredEvent(
             driver.Id,
             driver.Email,
             $"{driver.FirstName} {driver.LastName}",
-            driver.PhoneNumber), ct);
+            driver.PhoneNumber);
+
+        await outboxRepository.AddAsync(OutboxMessage.Create(
+            eventType: nameof(DriverRegisteredEvent),
+            topic: "driver.driver.registered",
+            partitionKey: driver.Id.ToString(),
+            payload: JsonSerializer.Serialize(@event)), ct);
+
+        await unitOfWork.SaveChangesAsync(ct);
 
         return Result.Success();
     }

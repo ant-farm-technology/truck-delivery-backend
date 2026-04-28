@@ -8,8 +8,8 @@ using TruckDelivery.Identity.Infrastructure.Authentication;
 using TruckDelivery.Identity.Infrastructure.Persistence;
 using TruckDelivery.Identity.Infrastructure.Repositories;
 using TruckDelivery.Shared.Common.Persistence;
-using TruckDelivery.Shared.Infrastructure.Messaging;
-using TruckDelivery.Shared.Infrastructure.Messaging.Kafka;
+using TruckDelivery.Shared.Infrastructure.Messaging.Outbox;
+using TruckDelivery.Shared.Infrastructure.Persistence.Outbox;
 
 namespace TruckDelivery.Identity.Infrastructure.Extensions;
 
@@ -25,10 +25,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IJwtService, JwtService>();
+        services.AddScoped<IOutboxRepository, OutboxRepository<IdentityDbContext>>();
 
         var bootstrapServers = configuration["Kafka:BootstrapServers"] ?? throw new InvalidOperationException("Kafka:BootstrapServers not configured");
         services.AddSingleton(_ => new ProducerBuilder<string, string>(new ProducerConfig { BootstrapServers = bootstrapServers }).Build());
-        services.AddScoped<IEventBus, KafkaEventBus>();
+        services.AddHostedService<OutboxProcessor<IdentityDbContext>>();
 
         return services;
     }

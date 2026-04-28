@@ -9,6 +9,8 @@ using TruckDelivery.Driver.Infrastructure.Repositories;
 using TruckDelivery.Shared.Common.Persistence;
 using TruckDelivery.Shared.Infrastructure.Messaging;
 using TruckDelivery.Shared.Infrastructure.Messaging.Kafka;
+using TruckDelivery.Shared.Infrastructure.Messaging.Outbox;
+using TruckDelivery.Shared.Infrastructure.Persistence.Outbox;
 
 namespace TruckDelivery.Driver.Infrastructure.Extensions;
 
@@ -27,6 +29,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IDriverRepository, DriverRepository>();
         services.AddScoped<IVehicleRepository, VehicleRepository>();
+        services.AddScoped<IOutboxRepository, OutboxRepository<DriverDbContext>>();
 
         var bootstrapServers = configuration["Kafka:BootstrapServers"]
             ?? throw new InvalidOperationException("Kafka:BootstrapServers not configured");
@@ -50,6 +53,7 @@ public static class ServiceCollectionExtensions
             .Build());
 
         services.AddHostedService<UserRegisteredConsumer>();
+        services.AddHostedService<OutboxProcessor<DriverDbContext>>();
 
         return services;
     }
