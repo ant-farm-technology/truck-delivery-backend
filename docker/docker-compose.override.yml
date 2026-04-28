@@ -1,0 +1,72 @@
+name: truck-delivery
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Dev-only tools — NOT for production
+# Auto-loaded by docker compose when present in same directory
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: truck-kafka-ui
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_CLUSTERS_0_NAME: truck-delivery
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      AUTH_TYPE: disabled
+    ports:
+      - "8090:8080"
+    networks:
+      - truck-messaging
+
+  mongo-express:
+    image: mongo-express:1.0.2
+    container_name: truck-mongo-express
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_USER}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_PASSWORD}
+      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017/
+      ME_CONFIG_BASICAUTH: "false"
+    ports:
+      - "8091:8081"
+    networks:
+      - truck-data
+
+  adminer:
+    image: adminer:4.8.1
+    container_name: truck-adminer
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      ADMINER_DEFAULT_SERVER: mysql
+      ADMINER_DESIGN: dracula
+    ports:
+      - "8092:8080"
+    networks:
+      - truck-data
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: truck-redis-commander
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_HOSTS: "truck-redis:redis:6379:0:${REDIS_PASSWORD}"
+      HTTP_USER: admin
+      HTTP_PASSWORD: admin
+    ports:
+      - "8093:8081"
+    networks:
+      - truck-data

@@ -1,0 +1,30 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/Gateway/">
+    <Project Path="src/Gateway/TruckDelivery.Gateway/TruckDelivery.Gateway.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/" />
+  <Folder Name="/src/Services/Driver/">
+    <Project Path="src/Services/Driver/TruckDelivery.Driver.Api/TruckDelivery.Driver.Api.csproj" />
+    <Project Path="src/Services/Driver/TruckDelivery.Driver.Application/TruckDelivery.Driver.Application.csproj" />
+    <Project Path="src/Services/Driver/TruckDelivery.Driver.Domain/TruckDelivery.Driver.Domain.csproj" />
+    <Project Path="src/Services/Driver/TruckDelivery.Driver.Infrastructure/TruckDelivery.Driver.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Identity/">
+    <Project Path="src/Services/Identity/TruckDelivery.Identity.Api/TruckDelivery.Identity.Api.csproj" />
+    <Project Path="src/Services/Identity/TruckDelivery.Identity.Application/TruckDelivery.Identity.Application.csproj" />
+    <Project Path="src/Services/Identity/TruckDelivery.Identity.Domain/TruckDelivery.Identity.Domain.csproj" />
+    <Project Path="src/Services/Identity/TruckDelivery.Identity.Infrastructure/TruckDelivery.Identity.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Order/">
+    <Project Path="src/Services/Order/TruckDelivery.Order.Api/TruckDelivery.Order.Api.csproj" />
+    <Project Path="src/Services/Order/TruckDelivery.Order.Application/TruckDelivery.Order.Application.csproj" />
+    <Project Path="src/Services/Order/TruckDelivery.Order.Domain/TruckDelivery.Order.Domain.csproj" />
+    <Project Path="src/Services/Order/TruckDelivery.Order.Infrastructure/TruckDelivery.Order.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Shared/">
+    <Project Path="src/Shared/TruckDelivery.Shared.Common/TruckDelivery.Shared.Common.csproj" />
+    <Project Path="src/Shared/TruckDelivery.Shared.Contracts/TruckDelivery.Shared.Contracts.csproj" />
+    <Project Path="src/Shared/TruckDelivery.Shared.Infrastructure/TruckDelivery.Shared.Infrastructure.csproj" />
+  </Folder>
+</Solution>

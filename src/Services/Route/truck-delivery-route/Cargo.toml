@@ -1,0 +1,29 @@
+[package]
+name = "truck-delivery-route"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "truck-delivery-route"
+path = "src/main.rs"
+
+[dependencies]
+axum = { version = "0.7", features = ["json"] }
+tokio = { version = "1", features = ["full"] }
+sqlx = { version = "0.8", features = ["postgres", "runtime-tokio-rustls", "uuid", "chrono"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+anyhow = "1"
+thiserror = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
+tracing-opentelemetry = "0.23"
+opentelemetry = "0.22"
+opentelemetry_sdk = { version = "0.22", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.15", features = ["grpc-tonic"] }
+config = "0.14"
+tower-http = { version = "0.5", features = ["trace", "cors"] }
+axum-prometheus = "0.7"
+redis = { version = "0.25", features = ["tokio-comp", "connection-manager"] }
