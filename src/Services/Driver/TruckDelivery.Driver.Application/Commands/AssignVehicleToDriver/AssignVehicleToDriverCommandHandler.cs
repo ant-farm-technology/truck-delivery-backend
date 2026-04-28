@@ -1,9 +1,10 @@
+using System.Text.Json;
 using MediatR;
 using TruckDelivery.Driver.Application.IntegrationEvents;
 using TruckDelivery.Driver.Domain.Repositories;
 using TruckDelivery.Shared.Common.Persistence;
 using TruckDelivery.Shared.Common.Primitives;
-using TruckDelivery.Shared.Infrastructure.Messaging;
+using TruckDelivery.Shared.Infrastructure.Persistence.Outbox;
 
 namespace TruckDelivery.Driver.Application.Commands.AssignVehicleToDriver;
 
@@ -11,7 +12,7 @@ public sealed class AssignVehicleToDriverCommandHandler(
     IDriverRepository driverRepository,
     IVehicleRepository vehicleRepository,
     IUnitOfWork unitOfWork,
-    IEventBus eventBus)
+    IOutboxRepository outboxRepository)
     : IRequestHandler<AssignVehicleToDriverCommand, Result>
 {
     public async Task<Result> Handle(AssignVehicleToDriverCommand request, CancellationToken ct)
@@ -37,10 +38,17 @@ public sealed class AssignVehicleToDriverCommandHandler(
 
         driverRepository.Update(driver);
         vehicleRepository.Update(vehicle);
-        await unitOfWork.SaveChangesAsync(ct);
 
-        await eventBus.PublishAsync(new VehicleAssignedToDriverEvent(
-            vehicle.Id, driver.Id, vehicle.Type.ToString(), vehicle.MaxWeightKg), ct);
+        var @event = new VehicleAssignedToDriverEvent(
+            vehicle.Id, driver.Id, vehicle.Type.ToString(), vehicle.MaxWeightKg);
+
+        await outboxRepository.AddAsync(OutboxMessage.Create(
+            eventType: nameof(VehicleAssignedToDriverEvent),
+            topic: "driver.vehicle.assigned",
+            partitionKey: driver.Id.ToString(),
+            payload: JsonSerializer.Serialize(@event)), ct);
+
+        await unitOfWork.SaveChangesAsync(ct);
 
         return Result.Success();
     }

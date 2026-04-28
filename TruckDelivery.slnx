@@ -22,6 +22,18 @@
     <Project Path="src/Services/Order/TruckDelivery.Order.Domain/TruckDelivery.Order.Domain.csproj" />
     <Project Path="src/Services/Order/TruckDelivery.Order.Infrastructure/TruckDelivery.Order.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Services/Shipment/">
+    <Project Path="src/Services/Shipment/TruckDelivery.Shipment.Api/TruckDelivery.Shipment.Api.csproj" />
+    <Project Path="src/Services/Shipment/TruckDelivery.Shipment.Application/TruckDelivery.Shipment.Application.csproj" />
+    <Project Path="src/Services/Shipment/TruckDelivery.Shipment.Domain/TruckDelivery.Shipment.Domain.csproj" />
+    <Project Path="src/Services/Shipment/TruckDelivery.Shipment.Infrastructure/TruckDelivery.Shipment.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Tracking/">
+    <Project Path="src/Services/Tracking/TruckDelivery.Tracking.Api/TruckDelivery.Tracking.Api.csproj" />
+    <Project Path="src/Services/Tracking/TruckDelivery.Tracking.Application/TruckDelivery.Tracking.Application.csproj" />
+    <Project Path="src/Services/Tracking/TruckDelivery.Tracking.Domain/TruckDelivery.Tracking.Domain.csproj" />
+    <Project Path="src/Services/Tracking/TruckDelivery.Tracking.Infrastructure/TruckDelivery.Tracking.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/src/Shared/">
     <Project Path="src/Shared/TruckDelivery.Shared.Common/TruckDelivery.Shared.Common.csproj" />
     <Project Path="src/Shared/TruckDelivery.Shared.Contracts/TruckDelivery.Shared.Contracts.csproj" />
