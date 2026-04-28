@@ -72,14 +72,21 @@ public static class ServiceCollectionExtensions
             ?? throw new InvalidOperationException("Kafka:BootstrapServers not configured");
         var groupId = configuration["Kafka:GroupId"] ?? "shipment-service";
 
-        // Each consumer needs its own IConsumer instance (separate group offset tracking)
-        services.AddSingleton<IConsumer<string, string>>(_ =>
-            new ConsumerBuilder<string, string>(new ConsumerConfig
+        // Each BackgroundService consumer creates its own IConsumer via ConsumerConfig
+        services.AddSingleton(new ConsumerConfig
+        {
+            BootstrapServers = bootstrapServers,
+            GroupId = groupId,
+            AutoOffsetReset = AutoOffsetReset.Earliest,
+            EnableAutoCommit = false
+        });
+
+        services.AddSingleton<IProducer<string, string>>(_ =>
+            new ProducerBuilder<string, string>(new ProducerConfig
             {
                 BootstrapServers = bootstrapServers,
-                GroupId = groupId,
-                AutoOffsetReset = AutoOffsetReset.Earliest,
-                EnableAutoCommit = false
+                Acks = Acks.Leader,
+                EnableIdempotence = true
             }).Build());
 
         services.AddHostedService<OrderCreatedConsumer>();

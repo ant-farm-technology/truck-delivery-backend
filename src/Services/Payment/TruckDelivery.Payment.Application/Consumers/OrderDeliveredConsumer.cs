@@ -3,28 +3,28 @@ using System.Text;
 using System.Text.Json;
 using Confluent.Kafka;
 using MediatR;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry;
 using OpenTelemetry.Context.Propagation;
-using TruckDelivery.Tracking.Application.Commands.StartTracking;
-using TruckDelivery.Tracking.Application.IntegrationEvents;
+using TruckDelivery.Payment.Application.Commands.CreatePayment;
+using TruckDelivery.Payment.Application.IntegrationEvents;
 using TruckDelivery.Shared.Infrastructure.Messaging.Kafka.Idempotency;
 
-namespace TruckDelivery.Tracking.Application.Consumers;
+namespace TruckDelivery.Payment.Application.Consumers;
 
-public sealed class ShipmentStartedConsumer(
+// Triggered when a shipment is completed — creates and immediately processes payment
+public sealed class OrderDeliveredConsumer(
     ConsumerConfig consumerConfig,
     IProducer<string, string> producer,
-    IIdempotencyStore idempotencyStore,
-    IMediator mediator,
-    ILogger<ShipmentStartedConsumer> logger)
-    : BackgroundService
+    IServiceScopeFactory scopeFactory,
+    ILogger<OrderDeliveredConsumer> logger) : BackgroundService
 {
     private static readonly ActivitySource ActivitySource = new("TruckDelivery.Kafka.Consumer");
     private static readonly TextMapPropagator Propagator = Propagators.DefaultTextMapPropagator;
-    private const string Topic = "shipment.shipment.started";
-    private const string DlqTopic = "shipment.shipment.started.dlq";
+    private const string Topic = "shipment.shipment.completed";
+    private const string DlqTopic = "shipment.shipment.completed.dlq";
 
     private readonly IConsumer<string, string> _consumer =
         new ConsumerBuilder<string, string>(consumerConfig).Build();
@@ -58,12 +58,6 @@ public sealed class ShipmentStartedConsumer(
         _consumer.Close();
     }
 
-    public override void Dispose()
-    {
-        _consumer.Dispose();
-        base.Dispose();
-    }
-
     private async Task ProcessAsync(ConsumeResult<string, string> result, CancellationToken ct)
     {
         var parentContext = Propagator.Extract(default, result.Message.Headers,
@@ -74,15 +68,17 @@ public sealed class ShipmentStartedConsumer(
             });
         Baggage.Current = parentContext.Baggage;
 
-        using var activity = ActivitySource.StartActivity(
-            $"consume {Topic}", ActivityKind.Consumer, parentContext.ActivityContext);
+        using var activity = ActivitySource.StartActivity($"consume {Topic}", ActivityKind.Consumer, parentContext.ActivityContext);
 
-        var @event = JsonSerializer.Deserialize<ShipmentStartedEvent>(result.Message.Value);
+        var @event = JsonSerializer.Deserialize<OrderDeliveredEvent>(result.Message.Value);
         if (@event is null)
         {
             await RouteToDlqAsync(result, new InvalidOperationException("Deserialization failed"), ct);
             return;
         }
+
+        using var scope = scopeFactory.CreateScope();
+        var idempotencyStore = scope.ServiceProvider.GetRequiredService<IIdempotencyStore>();
 
         if (await idempotencyStore.HasProcessedAsync(@event.MessageId, ct))
         {
@@ -90,17 +86,19 @@ public sealed class ShipmentStartedConsumer(
             return;
         }
 
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
         var commandResult = await mediator.Send(
-            new StartTrackingCommand(@event.ShipmentId, @event.OrderId, @event.DriverId), ct);
+            new CreatePaymentCommand(@event.OrderId, @event.CustomerId, @event.TotalFee, @event.Currency), ct);
 
         if (commandResult.IsFailure)
         {
+            logger.LogWarning("CreatePayment failed: {Error}", commandResult.Error.Description);
             await RouteToDlqAsync(result, new InvalidOperationException(commandResult.Error.Description), ct);
             return;
         }
 
         await idempotencyStore.MarkProcessedAsync(@event.MessageId, ct);
-        logger.LogInformation("Tracking started for ShipmentId={ShipmentId}", @event.ShipmentId);
+        logger.LogInformation("Payment created for OrderId={OrderId} PaymentId={PaymentId}", @event.OrderId, commandResult.Value);
     }
 
     private async Task RouteToDlqAsync(ConsumeResult<string, string> result, Exception ex, CancellationToken ct)
@@ -121,5 +119,11 @@ public sealed class ShipmentStartedConsumer(
         {
             logger.LogCritical(dlqEx, "Failed to route to DLQ — message will be lost!");
         }
+    }
+
+    public override void Dispose()
+    {
+        _consumer.Dispose();
+        base.Dispose();
     }
 }

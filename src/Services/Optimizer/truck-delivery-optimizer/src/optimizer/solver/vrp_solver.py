@@ -56,12 +56,11 @@ class VrpSolver:
         transit_cb_idx = routing.RegisterTransitCallback(distance_callback)
         routing.SetArcCostEvaluatorOfAllVehicles(transit_cb_idx)
 
-        # Weight capacity constraint
+        # Weight capacity constraint — precompute to avoid O(n) inside callback.
+        precomputed_demands = _build_demands(data, num_locations)
+
         def weight_demand_callback(idx: int) -> int:
-            node = manager.IndexToNode(idx)
-            # nodes list maps location index → demand (positive for pickup, negative for delivery)
-            demands = _build_demands(data, num_locations)
-            return demands[node]
+            return precomputed_demands[manager.IndexToNode(idx)]
 
         weight_cb_idx = routing.RegisterUnaryTransitCallback(weight_demand_callback)
         routing.AddDimensionWithVehicleCapacity(
@@ -275,8 +274,6 @@ def _build_response(
     elapsed_ms: float,
     strategy: str,
 ) -> OptimizeResponse:
-    order_id_map = {i * 2: o.order_id for i, o in enumerate(request.orders)}
-
     assignments: list[DriverAssignment] = []
     for route in result.routes:
         vehicle = data.vehicles[route.vehicle_index]

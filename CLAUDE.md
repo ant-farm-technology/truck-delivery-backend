@@ -22,7 +22,7 @@ Solution file: `TruckDelivery.slnx` (16 .NET projects + 1 Rust crate).
 - Monitoring: Prometheus
 - Tracing: OpenTelemetry OTLP → Grafana Tempo
 - Dashboard: Grafana
-- Realtime: SignalR (WebSocket) — planned for Tracking service
+- Realtime: SignalR (WebSocket) — Tracking service (`/hubs/tracking`)
 
 ---
 
@@ -35,24 +35,28 @@ Solution file: `TruckDelivery.slnx` (16 .NET projects + 1 Rust crate).
 | Order | .NET 10 | :8082 | ✅ Done | MySQL (`truck_order`) |
 | Driver/Vehicle | .NET 10 | :8083 | ✅ Done | MySQL (`truck_driver`) |
 | Route | Rust / axum | :8084 | ✅ Done | PostGIS |
-| Optimizer | Python / FastAPI | :8085 | 🔲 Planned | None |
-| Shipment | .NET 10 | :8086 | 🔲 Planned | MySQL (`truck_shipment`) + MongoDB |
-| Tracking | .NET 10 + SignalR | :8087 | 🔲 Planned | MongoDB (`truck_tracking`) |
-| Notification | .NET 10 | :8088 | 🔲 Planned | MySQL (`truck_notification`) |
-| Payment | .NET 10 | :8089 | 🔲 Planned | MySQL (`truck_payment`) |
+| Optimizer | Python / FastAPI | :8085 | ✅ Done | None |
+| Shipment | .NET 10 | :8086 | ✅ Done | MySQL (`truck_shipment`) + MongoDB |
+| Tracking | .NET 10 + SignalR | :8087 | ✅ Done | MongoDB (`truck_tracking`) |
+| Notification | .NET 10 | :8088 | ✅ Done | MySQL (`truck_notification`) |
+| Payment | .NET 10 | :8089 | ✅ Done | MySQL (`truck_payment`) |
 
 ### What's Done in Completed Services
 - **Identity:** RegisterUser, Login, RefreshToken commands; JWT service; EFCore User aggregate; `UserRegisteredEvent` → Kafka topic `userregistered`
 - **Driver:** RegisterDriver, RegisterVehicle, AssignVehicleToDriver, UpdateDriverStatus commands; GetDriverById, GetVehicleById, ListAvailableDrivers queries; `UserRegisteredConsumer` (consumes `userregistered`); publishes `DriverRegisteredEvent`, `DriverStatusChangedEvent`, `VehicleAssignedToDriverEvent`
 - **Order:** CreateOrder, CancelOrder commands; GetOrderById, ListOrdersByCustomer queries; publishes `OrderCreatedEvent` → topic `order.order.created`, `OrderCancelledEvent`
-- **Route (Rust):** A\* pathfinding, Haversine fallback; `/route`, `/matrix`, `/nearby-drivers` endpoints; PostGIS migrations (`driver_locations`, `road_network` tables); Redis cache; OpenTelemetry
+- **Route (Rust):** A\* pathfinding, Haversine fallback; `/route`, `/matrix`, `/nearby-drivers`, `/drivers/:id/location` endpoints; PostGIS migrations (`driver_locations`, `road_network` tables); Redis cache (route 30 min, matrix 15 min, nearby 1 min); OpenTelemetry → Tempo; `setup.ps1/sh` + `run.ps1/sh`
+- **Optimizer (Python):** OR-Tools VRP solver (CVRP + optional VRPTW); greedy nearest-driver fallback; `POST /optimize`; Prometheus metrics; OpenTelemetry; `setup.ps1/sh` + `run.ps1/sh`; unit + integration tests
+- **Shipment:** `OrderCreatedConsumer` → `CreateShipmentCommand` (Outbox); `DispatchSagaOrchestrator` (polls Created/RoutePlanning → calls Route/Optimizer → publishes `DriverAssignmentRequestedEvent`); `DriverAssignedConsumer` → transitions to InProgress, publishes `ShipmentStartedEvent`; MongoDB saga state; EFCore MySQL write + Dapper read
+- **Tracking:** `ShipmentStartedConsumer` → `StartTrackingCommand`; `ShipmentCompletedConsumer` → `StopTrackingCommand`; `POST /api/v1/tracking/location` (driver GPS push); `GET /api/v1/tracking/shipments/{id}/points`; SignalR hub at `/hubs/tracking` (groups by shipment/driver); MongoDB persistence; Mongo Outbox processor
+- **Notification:** Consumes `ShipmentStatusUpdatedEvent`, `DriverAssignedEvent`, `PaymentCompletedEvent`; `SendNotificationCommand` → Push/SMS/Email stub senders; EFCore MySQL `NotificationRecord` persistence; Outbox pattern; all consumers use `ConsumerConfig` + own `IConsumer` (thread-safe)
+- **Payment:** `OrderDeliveredConsumer` → `CreatePaymentCommand` (COD flow: auto-complete); publishes `PaymentCompletedEvent` via Outbox; `GET /api/v1/payments/orders/{orderId}`; EFCore MySQL + Dapper read; `PaymentStatus` state machine
 
-### Critical Gaps (must fix before next services)
-- **Outbox pattern NOT implemented** — services publish Kafka events directly (not atomic with DB write). Risk: lost events on crash. Must add before building Shipment/Payment.
-- **Saga NOT implemented** — no MongoDB saga state store, no choreography steps. Required for Shipment service.
-- **DLQ handlers missing** — consumers don't route failures to Dead Letter Queue yet.
+### Remaining Gaps
 - **No test projects** — no unit, integration, or contract tests exist yet.
 - **GitHub Actions missing** — `.github/` directory exists but empty.
+- **Notification senders are stubs** — StubPushSender/StubSmsSender/StubEmailSender log only; real impl needs FCM/Twilio/SMTP.
+- **Payment gateway not wired** — COD flow auto-completes; real gateway integration needed for card/VNPay.
 
 ---
 

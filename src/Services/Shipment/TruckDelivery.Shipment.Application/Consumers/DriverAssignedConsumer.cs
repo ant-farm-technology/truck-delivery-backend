@@ -18,7 +18,7 @@ namespace TruckDelivery.Shipment.Application.Consumers;
 // Consumes DriverAssignedEvent published by Driver Service
 // Transitions shipment to DriverConfirmed then publishes ShipmentStartedEvent
 public sealed class DriverAssignedConsumer(
-    IConsumer<string, string> consumer,
+    ConsumerConfig consumerConfig,
     IProducer<string, string> producer,
     IIdempotencyStore idempotencyStore,
     IShipmentRepository shipmentRepository,
@@ -31,9 +31,12 @@ public sealed class DriverAssignedConsumer(
     private const string Topic = "shipment.driver.assigned";
     private const string DlqTopic = "shipment.driver.assigned.dlq";
 
+    private readonly IConsumer<string, string> _consumer =
+        new ConsumerBuilder<string, string>(consumerConfig).Build();
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        consumer.Subscribe(Topic);
+        _consumer.Subscribe(Topic);
         if (logger.IsEnabled(LogLevel.Information))
         {
             logger.LogInformation("Subscribed to {Topic}", Topic);
@@ -44,9 +47,9 @@ public sealed class DriverAssignedConsumer(
             ConsumeResult<string, string>? result = null;
             try
             {
-                result = consumer.Consume(stoppingToken);
+                result = _consumer.Consume(stoppingToken);
                 await ProcessAsync(result, stoppingToken);
-                consumer.Commit(result);
+                _consumer.Commit(result);
             }
             catch (OperationCanceledException)
             {
@@ -58,12 +61,18 @@ public sealed class DriverAssignedConsumer(
                 if (result is not null)
                 {
                     await RouteToDlqAsync(result, ex, stoppingToken);
-                    consumer.Commit(result);
+                    _consumer.Commit(result);
                 }
             }
         }
 
-        consumer.Close();
+        _consumer.Close();
+    }
+
+    public override void Dispose()
+    {
+        _consumer.Dispose();
+        base.Dispose();
     }
 
     private async Task ProcessAsync(ConsumeResult<string, string> result, CancellationToken ct)
