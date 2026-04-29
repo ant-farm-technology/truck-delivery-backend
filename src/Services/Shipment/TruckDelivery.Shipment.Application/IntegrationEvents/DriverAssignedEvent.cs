@@ -7,4 +7,8 @@ public sealed record DriverAssignedEvent(
     Guid ShipmentId,
     Guid OrderId,
     Guid DriverId,
-    Guid VehicleId) : IntegrationEvent;
+    Guid VehicleId,
+    decimal VehicleMaxWeightKg = 0,
+    decimal? VehicleLengthM = null,
+    decimal? VehicleWidthM = null,
+    decimal? VehicleHeightM = null) : IntegrationEvent;

@@ -25,8 +25,7 @@ public sealed class OrderCreatedConsumer(
     private const string Topic = "order.order.created";
     private const string DlqTopic = "order.order.created.dlq";
 
-    private readonly IConsumer<string, string> _consumer =
-        new ConsumerBuilder<string, string>(consumerConfig).Build();
+    private readonly IConsumer<string, string> _consumer = new ConsumerBuilder<string, string>(consumerConfig).Build();
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -108,7 +107,8 @@ public sealed class OrderCreatedConsumer(
             @event.DeliveryCity,
             @event.DeliveryProvince,
             @event.TotalWeightKg,
-            @event.TotalVolumeCbm);
+            @event.TotalVolumeCbm,
+            @event.Items);
 
         var commandResult = await mediator.Send(command, ct);
         if (commandResult.IsFailure)

@@ -352,6 +352,42 @@ services:
       retries: 5
       start_period: 40s
 
+  analytics-service:
+    build:
+      context: ..
+      dockerfile: src/Services/Analytics/TruckDelivery.Analytics.Api/Dockerfile
+    container_name: truck-analytics
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      ConnectionStrings__MongoDB: "mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017"
+      ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD}"
+      MongoDB__Database: "truck_analytics"
+      Kafka__BootstrapServers: "kafka:9092"
+      Kafka__GroupId: "analytics-service"
+      Jwt__SecretKey: "${JWT_SECRET_KEY}"
+      Jwt__Issuer: "truck-delivery"
+      Jwt__Audience: "truck-delivery-api"
+      Otel__Endpoint: "http://tempo:4317"
+    ports:
+      - "8095:8095"
+    networks:
+      - truck-data
+      - truck-messaging
+      - truck-observability
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8095/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
   grafana:
     image: grafana/grafana:11.2.0
     container_name: truck-grafana

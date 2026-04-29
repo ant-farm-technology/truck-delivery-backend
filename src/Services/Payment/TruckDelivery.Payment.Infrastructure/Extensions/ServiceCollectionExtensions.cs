@@ -9,6 +9,7 @@ using TruckDelivery.Payment.Domain.Repositories;
 using TruckDelivery.Payment.Infrastructure.Persistence.EFCore;
 using TruckDelivery.Payment.Infrastructure.Persistence.EFCore.Repositories;
 using TruckDelivery.Shared.Common.Persistence;
+using TruckDelivery.Shared.Infrastructure.Messaging.Kafka;
 using TruckDelivery.Shared.Infrastructure.Messaging.Outbox;
 using TruckDelivery.Shared.Infrastructure.Persistence.Outbox;
 
@@ -35,6 +36,7 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IPaymentRepository, PaymentRepository>();
+        services.AddScoped<IEscrowPaymentRepository, EscrowPaymentRepository>();
         services.AddScoped<IOutboxRepository, OutboxRepository<PaymentDbContext>>();
         services.AddScoped<IDbConnection>(_ => new MySqlConnection(connectionString));
         services.AddHostedService<OutboxProcessor<PaymentDbContext>>();
@@ -63,5 +65,6 @@ public static class ServiceCollectionExtensions
             }).Build());
 
         services.AddHostedService<OrderDeliveredConsumer>();
+        services.AddHostedService<BreakdownReassignmentConsumer>();
     }
 }

@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 from optimizer.config import settings
+from optimizer.routes.bin_check import router as bin_check_router
 from optimizer.routes.health import router as health_router
 from optimizer.routes.optimize import router as optimize_router
 from optimizer.telemetry import setup_telemetry
@@ -33,5 +34,6 @@ def create_app() -> FastAPI:
 
     app.include_router(health_router)
     app.include_router(optimize_router)
+    app.include_router(bin_check_router)
 
     return app

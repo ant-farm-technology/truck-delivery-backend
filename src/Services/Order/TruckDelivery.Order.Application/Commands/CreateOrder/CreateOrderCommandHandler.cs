@@ -38,7 +38,7 @@ public sealed class CreateOrderCommandHandler(
             return Result.Failure<CreateOrderResult>(deliveryResult.Error);
 
         var items = request.Items
-            .Select(i => (i.ProductName, i.Quantity, i.WeightKg, i.VolumeCbm, i.Notes))
+            .Select(i => (i.ProductName, i.Quantity, i.WeightKg, i.VolumeCbm, i.LengthM, i.WidthM, i.HeightM, i.CanTilt, i.Notes))
             .ToList();
 
         var orderResult = Domain.Aggregates.Order.Create(
@@ -54,6 +54,10 @@ public sealed class CreateOrderCommandHandler(
         var order = orderResult.Value;
         await orderRepository.AddAsync(order, ct);
 
+        var itemInfos = order.Items
+            .Select(i => new OrderItemInfo(i.Id, i.ProductName, i.Quantity, i.WeightKg, i.VolumeCbm, i.LengthM, i.WidthM, i.HeightM, i.CanTilt))
+            .ToList();
+
         var @event = new OrderCreatedEvent(
             order.Id,
             order.CustomerId,
@@ -62,7 +66,8 @@ public sealed class CreateOrderCommandHandler(
             order.DeliveryAddress.City,
             order.DeliveryAddress.Province,
             order.TotalWeightKg,
-            order.TotalVolumeCbm);
+            order.TotalVolumeCbm,
+            itemInfos);
 
         await outboxRepository.AddAsync(OutboxMessage.Create(
             eventType: nameof(OrderCreatedEvent),

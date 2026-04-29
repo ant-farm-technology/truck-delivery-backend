@@ -5,4 +5,8 @@ public sealed record OrderItemRequest(
     int Quantity,
     decimal WeightKg,
     decimal VolumeCbm,
+    decimal? LengthM = null,
+    decimal? WidthM = null,
+    decimal? HeightM = null,
+    bool CanTilt = false,
     string? Notes = null);

@@ -10,4 +10,16 @@ public sealed record OrderCreatedEvent(
     string DeliveryCity,
     string DeliveryProvince,
     decimal TotalWeightKg,
-    decimal TotalVolumeCbm) : IntegrationEvent;
+    decimal TotalVolumeCbm,
+    IReadOnlyList<OrderItemInfo> Items) : IntegrationEvent;
+
+public sealed record OrderItemInfo(
+    Guid ItemId,
+    string ProductName,
+    int Quantity,
+    decimal WeightKg,
+    decimal VolumeCbm,
+    decimal? LengthM,
+    decimal? WidthM,
+    decimal? HeightM,
+    bool CanTilt);

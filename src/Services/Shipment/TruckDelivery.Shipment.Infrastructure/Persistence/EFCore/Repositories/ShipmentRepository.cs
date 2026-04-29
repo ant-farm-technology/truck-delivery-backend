@@ -11,6 +11,10 @@ public sealed class ShipmentRepository(ShipmentDbContext context) : IShipmentRep
     public async Task<Domain.Aggregates.Shipment?> GetByOrderIdAsync(Guid orderId, CancellationToken ct = default)
         => await context.Shipments.FirstOrDefaultAsync(s => s.OrderId == orderId, ct);
 
+    public async Task<Domain.Aggregates.Shipment?> GetActiveByDriverIdAsync(Guid driverId, CancellationToken ct = default)
+        => await context.Shipments.FirstOrDefaultAsync(
+            s => s.AssignedDriverId == driverId && s.Status == Domain.Aggregates.ShipmentStatus.InProgress, ct);
+
     public async Task AddAsync(Domain.Aggregates.Shipment shipment, CancellationToken ct = default)
         => await context.Shipments.AddAsync(shipment, ct);
 

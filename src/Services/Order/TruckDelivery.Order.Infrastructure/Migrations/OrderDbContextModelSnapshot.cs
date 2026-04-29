@@ -72,6 +72,17 @@ namespace TruckDelivery.Order.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
+                    b.Property<bool>("CanTilt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false);
+
+                    b.Property<decimal?>("HeightM")
+                        .HasColumnType("decimal(8,3)");
+
+                    b.Property<decimal?>("LengthM")
+                        .HasColumnType("decimal(8,3)");
+
                     b.Property<string>("Notes")
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");
@@ -92,6 +103,9 @@ namespace TruckDelivery.Order.Infrastructure.Migrations
 
                     b.Property<decimal>("WeightKg")
                         .HasColumnType("decimal(10,3)");
+
+                    b.Property<decimal?>("WidthM")
+                        .HasColumnType("decimal(8,3)");
 
                     b.HasKey("Id");
 

@@ -1,4 +1,5 @@
 using MediatR;
+using TruckDelivery.Shipment.Application.IntegrationEvents;
 using TruckDelivery.Shared.Common.Primitives;
 
 namespace TruckDelivery.Shipment.Application.Commands.CreateShipment;
@@ -11,4 +12,5 @@ public sealed record CreateShipmentCommand(
     string DeliveryCity,
     string DeliveryProvince,
     decimal TotalWeightKg,
-    decimal TotalVolumeCbm) : IRequest<Result<Guid>>;
+    decimal TotalVolumeCbm,
+    IReadOnlyList<ShipmentPackageInfo>? Packages = null) : IRequest<Result<Guid>>;

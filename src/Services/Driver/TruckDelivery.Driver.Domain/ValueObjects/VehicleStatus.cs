@@ -4,5 +4,6 @@ public enum VehicleStatus
 {
     Available = 1,
     InUse = 2,
-    Maintenance = 3
+    Maintenance = 3,
+    Breakdown = 4
 }

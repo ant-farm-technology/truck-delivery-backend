@@ -18,6 +18,7 @@ public sealed class Driver : AggregateRoot<Guid>
     public DriverStatus Status { get; private set; }
     public Guid? CurrentVehicleId { get; private set; }
     public bool IsActive { get; private set; }
+    public int TrustScore { get; private set; } = 70;
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
 
@@ -77,5 +78,30 @@ public sealed class Driver : AggregateRoot<Guid>
         IsActive = false;
         Status = DriverStatus.Offline;
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    public Result UpdateTrustScore(int delta, string reason)
+    {
+        var previous = TrustScore;
+        TrustScore = Math.Clamp(TrustScore + delta, 0, 100);
+        UpdatedAt = DateTime.UtcNow;
+        RaiseDomainEvent(new TrustScoreUpdatedDomainEvent(Id, TrustScore, TrustScore - previous, reason));
+        return Result.Success();
+    }
+
+    public Result ReportBreakdown(double latitude, double longitude, FraudRiskLevel riskLevel)
+    {
+        if (!IsActive)
+            return Result.Failure(Error.Conflict("Driver.Breakdown", "Inactive driver cannot report breakdown."));
+
+        UpdateTrustScore(-3, "vehicle_breakdown");
+        var oldStatus = Status;
+        Status = DriverStatus.Offline;
+        UpdatedAt = DateTime.UtcNow;
+
+        RaiseDomainEvent(new DriverBreakdownReportedDomainEvent(
+            Id, CurrentVehicleId, latitude, longitude, [], TrustScore, riskLevel));
+        RaiseDomainEvent(new DriverStatusChangedDomainEvent(Id, oldStatus, DriverStatus.Offline));
+        return Result.Success();
     }
 }

@@ -28,6 +28,9 @@ public sealed class CreateShipmentCommandHandler(IShipmentRepository shipmentRep
             request.TotalWeightKg,
             request.TotalVolumeCbm);
 
+        if (request.Packages is { Count: > 0 })
+            shipment.StorePackages(JsonSerializer.Serialize(request.Packages));
+
         await shipmentRepository.AddAsync(shipment, ct);
 
         var @event = new ShipmentCreatedEvent(
