@@ -84,6 +84,11 @@ namespace TruckDelivery.Shipment.Infrastructure.Persistence.EFCore.Migrations
                         .HasColumnType("char(36)")
                         .HasColumnName("assigned_vehicle_id");
 
+                    b.Property<string>("BinCheckWarnings")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)")
+                        .HasColumnName("bin_check_warnings");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)")
                         .HasColumnName("created_at");
@@ -113,6 +118,10 @@ namespace TruckDelivery.Shipment.Infrastructure.Persistence.EFCore.Migrations
                         .HasColumnType("char(36)")
                         .HasColumnName("order_id");
 
+                    b.Property<string>("PackagesJson")
+                        .HasColumnType("longtext")
+                        .HasColumnName("packages_json");
+
                     b.Property<string>("PickupCity")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -124,6 +133,12 @@ namespace TruckDelivery.Shipment.Infrastructure.Persistence.EFCore.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)")
                         .HasColumnName("pickup_province");
+
+                    b.Property<bool>("RequiresDispatcherConfirmation")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("requires_dispatcher_confirmation");
 
                     b.Property<int>("Status")
                         .HasColumnType("int")

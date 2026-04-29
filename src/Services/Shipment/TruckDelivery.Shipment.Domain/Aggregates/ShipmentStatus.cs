@@ -8,5 +8,7 @@ public enum ShipmentStatus
     DriverConfirmed = 4,
     InProgress = 5,
     Completed = 6,
-    Failed = 7
+    Failed = 7,
+    DispatcherReviewRequired = 8,
+    Reassigning = 9
 }

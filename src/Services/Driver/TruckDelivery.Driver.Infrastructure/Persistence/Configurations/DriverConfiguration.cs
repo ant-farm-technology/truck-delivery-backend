@@ -17,6 +17,7 @@ public sealed class DriverConfiguration : IEntityTypeConfiguration<Domain.Aggreg
         builder.Property(d => d.LicenseNumber).HasMaxLength(50).IsRequired();
         builder.Property(d => d.Status).HasConversion<int>().IsRequired();
         builder.Property(d => d.IsActive).IsRequired();
+        builder.Property(d => d.TrustScore).IsRequired().HasDefaultValue(70);
         builder.Property(d => d.CreatedAt).IsRequired();
         builder.Property(d => d.UpdatedAt).IsRequired();
 

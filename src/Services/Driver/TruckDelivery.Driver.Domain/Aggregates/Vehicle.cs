@@ -85,4 +85,11 @@ public sealed class Vehicle : AggregateRoot<Guid>
         UpdatedAt = DateTime.UtcNow;
         return Result.Success();
     }
+
+    public Result MarkBreakdown()
+    {
+        Status = VehicleStatus.Breakdown;
+        UpdatedAt = DateTime.UtcNow;
+        return Result.Success();
+    }
 }

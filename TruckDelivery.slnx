@@ -34,6 +34,12 @@
     <Project Path="src/Services/Tracking/TruckDelivery.Tracking.Domain/TruckDelivery.Tracking.Domain.csproj" />
     <Project Path="src/Services/Tracking/TruckDelivery.Tracking.Infrastructure/TruckDelivery.Tracking.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Services/Analytics/">
+    <Project Path="src/Services/Analytics/TruckDelivery.Analytics.Api/TruckDelivery.Analytics.Api.csproj" />
+    <Project Path="src/Services/Analytics/TruckDelivery.Analytics.Application/TruckDelivery.Analytics.Application.csproj" />
+    <Project Path="src/Services/Analytics/TruckDelivery.Analytics.Domain/TruckDelivery.Analytics.Domain.csproj" />
+    <Project Path="src/Services/Analytics/TruckDelivery.Analytics.Infrastructure/TruckDelivery.Analytics.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/src/Shared/">
     <Project Path="src/Shared/TruckDelivery.Shared.Common/TruckDelivery.Shared.Common.csproj" />
     <Project Path="src/Shared/TruckDelivery.Shared.Contracts/TruckDelivery.Shared.Contracts.csproj" />

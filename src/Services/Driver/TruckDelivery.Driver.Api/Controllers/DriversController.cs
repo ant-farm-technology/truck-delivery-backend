@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TruckDelivery.Driver.Application.Commands.AssignVehicleToDriver;
 using TruckDelivery.Driver.Application.Commands.RegisterDriver;
+using TruckDelivery.Driver.Application.Commands.ReportBreakdown;
 using TruckDelivery.Driver.Application.Commands.UpdateDriverStatus;
 using TruckDelivery.Driver.Application.Queries.GetDriverById;
 using TruckDelivery.Driver.Application.Queries.ListAvailableDrivers;
@@ -63,7 +64,25 @@ public sealed class DriversController(IMediator mediator) : ControllerBase
 
         return NoContent();
     }
+
+    /// <summary>
+    /// Driver reports vehicle breakdown. Passes through anti-fraud gate (GPS + photo + trust score).
+    /// </summary>
+    [HttpPost("{id:guid}/report-breakdown")]
+    [Authorize(Roles = "Driver")]
+    [ProducesResponseType(typeof(ReportBreakdownResult), 200)]
+    [ProducesResponseType(422)]
+    public async Task<IActionResult> ReportBreakdown(Guid id, [FromBody] ReportBreakdownRequest request, CancellationToken ct)
+    {
+        var command = new ReportBreakdownCommand(id, request.Latitude, request.Longitude, request.PhotoUrls);
+        var result = await mediator.Send(command, ct);
+        if (result.IsFailure)
+            return UnprocessableEntity(new { result.Error.Code, result.Error.Description });
+
+        return Ok(result.Value);
+    }
 }
 
 public sealed record UpdateDriverStatusRequest(DriverStatus Status);
 public sealed record AssignVehicleRequest(Guid VehicleId);
+public sealed record ReportBreakdownRequest(double Latitude, double Longitude, IReadOnlyList<string> PhotoUrls);

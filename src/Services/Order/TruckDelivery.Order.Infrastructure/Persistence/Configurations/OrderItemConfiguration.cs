@@ -16,6 +16,10 @@ public sealed class OrderItemConfiguration : IEntityTypeConfiguration<OrderItem>
         builder.Property(i => i.Quantity).IsRequired();
         builder.Property(i => i.WeightKg).HasColumnType("decimal(10,3)").IsRequired();
         builder.Property(i => i.VolumeCbm).HasColumnType("decimal(10,3)").IsRequired();
+        builder.Property(i => i.LengthM).HasColumnType("decimal(8,3)");
+        builder.Property(i => i.WidthM).HasColumnType("decimal(8,3)");
+        builder.Property(i => i.HeightM).HasColumnType("decimal(8,3)");
+        builder.Property(i => i.CanTilt).HasDefaultValue(false).IsRequired();
         builder.Property(i => i.Notes).HasMaxLength(500);
 
         builder.HasIndex(i => i.OrderId);

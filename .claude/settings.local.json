@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(grep -E \"\\\\.\\(csproj|cs\\)$\")",
-      "Bash(xargs grep *)"
+      "Bash(xargs grep *)",
+      "Bash(dir \"d:\\\\Github\\\\aft\\\\truck-delivery-backend\\\\src\\\\Services\\\\Order\\\\TruckDelivery.Order.Infrastructure\\\\Migrations\" /b)"
     ]
   }
 }

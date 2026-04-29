@@ -8,6 +8,8 @@ public sealed class DriverDbContext(DbContextOptions<DriverDbContext> options) :
 {
     public DbSet<Domain.Aggregates.Driver> Drivers => Set<Domain.Aggregates.Driver>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
+    public DbSet<BreakdownReport> BreakdownReports => Set<BreakdownReport>();
+    public DbSet<DriverSwapRecord> DriverSwapRecords => Set<DriverSwapRecord>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

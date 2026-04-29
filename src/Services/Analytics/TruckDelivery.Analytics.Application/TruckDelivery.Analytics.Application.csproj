@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TruckDelivery.Analytics.Domain\TruckDelivery.Analytics.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\TruckDelivery.Shared.Contracts\TruckDelivery.Shared.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\Shared\TruckDelivery.Shared.Infrastructure\TruckDelivery.Shared.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Confluent.Kafka" Version="2.14.0" />
+    <PackageReference Include="MediatR" Version="14.1.0" />
+    <PackageReference Include="OpenTelemetry" Version="1.15.3" />
+  </ItemGroup>
+
+</Project>

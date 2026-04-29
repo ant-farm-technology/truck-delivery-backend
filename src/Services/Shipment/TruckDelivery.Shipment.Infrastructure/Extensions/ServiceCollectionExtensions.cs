@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Driver;
 using TruckDelivery.Shipment.Application.Consumers;
+using TruckDelivery.Shipment.Application.Interfaces;
 using TruckDelivery.Shipment.Domain.Repositories;
 using TruckDelivery.Shipment.Infrastructure.HttpClients;
 using TruckDelivery.Shipment.Infrastructure.Messaging.Kafka.Consumers;
@@ -14,6 +15,7 @@ using TruckDelivery.Shipment.Infrastructure.Persistence.Mongo;
 using TruckDelivery.Shared.Common.Persistence;
 using TruckDelivery.Shared.Infrastructure.Messaging.Outbox;
 using TruckDelivery.Shared.Infrastructure.Persistence.Outbox;
+using TruckDelivery.Shipment.Application.Commands.HandleBreakdown;
 
 namespace TruckDelivery.Shipment.Infrastructure.Extensions;
 
@@ -55,6 +57,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IMongoDatabase>(sp =>
             sp.GetRequiredService<IMongoClient>().GetDatabase(dbName));
         services.AddScoped<ISagaRepository, SagaRepository>();
+        services.AddScoped<IBreakdownSagaRepository, BreakdownSagaRepository>();
     }
 
     private static void AddHttpClients(IServiceCollection services, IConfiguration configuration)
@@ -64,6 +67,8 @@ public static class ServiceCollectionExtensions
 
         services.AddHttpClient<OptimizerServiceClient>(c =>
             c.BaseAddress = new Uri(configuration["Services:OptimizerService"] ?? "http://optimizer-service:8085"));
+
+        services.AddScoped<IBinCheckService>(sp => sp.GetRequiredService<OptimizerServiceClient>());
     }
 
     private static void AddKafkaConsumers(IServiceCollection services, IConfiguration configuration)
@@ -91,6 +96,8 @@ public static class ServiceCollectionExtensions
 
         services.AddHostedService<OrderCreatedConsumer>();
         services.AddHostedService<DriverAssignedConsumer>();
+        services.AddHostedService<VehicleBreakdownConsumer>();
         services.AddHostedService<DispatchSagaOrchestrator>();
+        services.AddHostedService<BreakdownSagaOrchestrator>();
     }
 }

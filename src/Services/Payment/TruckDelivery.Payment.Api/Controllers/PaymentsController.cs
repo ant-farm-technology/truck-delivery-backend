@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TruckDelivery.Payment.Application.Commands.CreatePayment;
+using TruckDelivery.Payment.Application.Commands.ResolveEscrow;
 using TruckDelivery.Payment.Application.DTOs;
 using TruckDelivery.Payment.Application.Queries.GetPaymentByOrder;
 
@@ -34,6 +35,39 @@ public sealed class PaymentsController(IMediator mediator) : ControllerBase
         var dto = await mediator.Send(new GetPaymentByOrderQuery(orderId), ct);
         return dto is null ? NotFound() : Ok(dto);
     }
+
+    [HttpPost("escrow/{id:guid}/confirm")]
+    [Authorize(Roles = "Customer,Admin")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(409)]
+    public async Task<IActionResult> ConfirmEscrow(Guid id, [FromBody] EscrowNoteRequest request, CancellationToken ct)
+    {
+        var result = await mediator.Send(new ResolveEscrowCommand(id, EscrowResolution.Confirm, request.Note), ct);
+        if (result.IsFailure)
+        {
+            if (result.Error.Code.Contains("NotFound")) return NotFound(new { error = result.Error.Description });
+            return Conflict(new { error = result.Error.Description });
+        }
+        return NoContent();
+    }
+
+    [HttpPost("escrow/{id:guid}/dispute")]
+    [Authorize(Roles = "Customer,Admin")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(409)]
+    public async Task<IActionResult> DisputeEscrow(Guid id, [FromBody] EscrowNoteRequest request, CancellationToken ct)
+    {
+        var result = await mediator.Send(new ResolveEscrowCommand(id, EscrowResolution.Dispute, request.Note), ct);
+        if (result.IsFailure)
+        {
+            if (result.Error.Code.Contains("NotFound")) return NotFound(new { error = result.Error.Description });
+            return Conflict(new { error = result.Error.Description });
+        }
+        return NoContent();
+    }
 }
 
 public sealed record CreatePaymentRequest(Guid OrderId, Guid CustomerId, decimal Amount, string? Currency);
+public sealed record EscrowNoteRequest(string? Note);

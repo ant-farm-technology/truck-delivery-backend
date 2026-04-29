@@ -14,7 +14,7 @@ using TruckDelivery.Shared.Infrastructure.Messaging.Kafka.Idempotency;
 namespace TruckDelivery.Driver.Application.Consumers;
 
 public sealed class UserRegisteredConsumer(
-    IConsumer<string, string> consumer,
+    ConsumerConfig consumerConfig,
     IProducer<string, string> producer,
     IIdempotencyStore idempotencyStore,
     IMediator mediator,
@@ -26,9 +26,11 @@ public sealed class UserRegisteredConsumer(
     private const string Topic = "userregistered";
     private const string DlqTopic = "userregistered.dlq";
 
+    private readonly IConsumer<string, string> _consumer = new ConsumerBuilder<string, string>(consumerConfig).Build();
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        consumer.Subscribe(Topic);
+        _consumer.Subscribe(Topic);
         logger.LogInformation("Kafka consumer subscribed to {Topic}", Topic);
 
         while (!stoppingToken.IsCancellationRequested)
@@ -36,9 +38,9 @@ public sealed class UserRegisteredConsumer(
             ConsumeResult<string, string>? result = null;
             try
             {
-                result = consumer.Consume(stoppingToken);
+                result = _consumer.Consume(stoppingToken);
                 await ProcessAsync(result, stoppingToken);
-                consumer.Commit(result);
+                _consumer.Commit(result);
             }
             catch (OperationCanceledException)
             {
@@ -50,12 +52,18 @@ public sealed class UserRegisteredConsumer(
                 if (result is not null)
                 {
                     await RouteToDlqAsync(result, ex, stoppingToken);
-                    consumer.Commit(result);
+                    _consumer.Commit(result);
                 }
             }
         }
 
-        consumer.Close();
+        _consumer.Close();
+    }
+
+    public override void Dispose()
+    {
+        _consumer.Dispose();
+        base.Dispose();
     }
 
     private async Task ProcessAsync(ConsumeResult<string, string> result, CancellationToken ct)

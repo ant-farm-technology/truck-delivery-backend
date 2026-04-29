@@ -31,7 +31,7 @@ public sealed class Order : AggregateRoot<Guid>
         Guid customerId,
         Address pickupAddress,
         Address deliveryAddress,
-        IReadOnlyList<(string ProductName, int Quantity, decimal WeightKg, decimal VolumeCbm, string? Notes)> items,
+        IReadOnlyList<(string ProductName, int Quantity, decimal WeightKg, decimal VolumeCbm, decimal? LengthM, decimal? WidthM, decimal? HeightM, bool CanTilt, string? Notes)> items,
         string? notes = null)
     {
         if (items.Count == 0)
@@ -48,9 +48,9 @@ public sealed class Order : AggregateRoot<Guid>
             UpdatedAt = DateTime.UtcNow
         };
 
-        foreach (var (productName, quantity, weightKg, volumeCbm, itemNotes) in items)
+        foreach (var (productName, quantity, weightKg, volumeCbm, lengthM, widthM, heightM, canTilt, itemNotes) in items)
         {
-            var item = OrderItem.Create(order.Id, productName, quantity, weightKg, volumeCbm, itemNotes);
+            var item = OrderItem.Create(order.Id, productName, quantity, weightKg, volumeCbm, lengthM, widthM, heightM, canTilt, itemNotes);
             order._items.Add(item);
             order.TotalWeightKg += weightKg * quantity;
             order.TotalVolumeCbm += volumeCbm * quantity;

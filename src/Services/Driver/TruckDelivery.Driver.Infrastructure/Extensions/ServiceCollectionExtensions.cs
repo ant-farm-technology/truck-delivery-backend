@@ -2,10 +2,14 @@ using Confluent.Kafka;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using StackExchange.Redis;
 using TruckDelivery.Driver.Application.Consumers;
+using TruckDelivery.Driver.Application.Interfaces;
 using TruckDelivery.Driver.Domain.Repositories;
+using TruckDelivery.Driver.Infrastructure.Jobs;
 using TruckDelivery.Driver.Infrastructure.Persistence;
 using TruckDelivery.Driver.Infrastructure.Repositories;
+using TruckDelivery.Driver.Infrastructure.Services;
 using TruckDelivery.Shared.Common.Persistence;
 using TruckDelivery.Shared.Infrastructure.Messaging;
 using TruckDelivery.Shared.Infrastructure.Messaging.Kafka;
@@ -29,30 +33,41 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IDriverRepository, DriverRepository>();
         services.AddScoped<IVehicleRepository, VehicleRepository>();
+        services.AddScoped<IBreakdownReportRepository, BreakdownReportRepository>();
+        services.AddScoped<IDriverSwapRecordRepository, DriverSwapRecordRepository>();
         services.AddScoped<IOutboxRepository, OutboxRepository<DriverDbContext>>();
+
+        var redisConnection = configuration.GetConnectionString("Redis")
+            ?? throw new InvalidOperationException("ConnectionStrings:Redis not configured");
+        services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConnection));
+        services.AddScoped<IBreakdownFraudGate, BreakdownFraudGate>();
 
         var bootstrapServers = configuration["Kafka:BootstrapServers"]
             ?? throw new InvalidOperationException("Kafka:BootstrapServers not configured");
+        var groupId = configuration["Kafka:GroupId"] ?? "driver-service";
 
         services.AddSingleton<IProducer<string, string>>(_ =>
-            new ProducerBuilder<string, string>(
-                new ProducerConfig { BootstrapServers = bootstrapServers })
-            .Build());
+            new ProducerBuilder<string, string>(new ProducerConfig
+            {
+                BootstrapServers = bootstrapServers,
+                Acks = Acks.Leader,
+                EnableIdempotence = true
+            }).Build());
 
         services.AddScoped<IEventBus, KafkaEventBus>();
 
-        services.AddSingleton<IConsumer<string, string>>(_ =>
-            new ConsumerBuilder<string, string>(
-                new ConsumerConfig
-                {
-                    BootstrapServers = bootstrapServers,
-                    GroupId = "driver-service",
-                    AutoOffsetReset = AutoOffsetReset.Earliest,
-                    EnableAutoCommit = false
-                })
-            .Build());
+        // Each BackgroundService consumer creates its own IConsumer via ConsumerConfig
+        services.AddSingleton(new ConsumerConfig
+        {
+            BootstrapServers = bootstrapServers,
+            GroupId = groupId,
+            AutoOffsetReset = AutoOffsetReset.Earliest,
+            EnableAutoCommit = false
+        });
 
         services.AddHostedService<UserRegisteredConsumer>();
+        services.AddHostedService<BreakdownReassignmentConsumer>();
+        services.AddHostedService<FraudPatternAnalyzerJob>();
         services.AddHostedService<OutboxProcessor<DriverDbContext>>();
 
         return services;

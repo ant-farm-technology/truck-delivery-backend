@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TruckDelivery.Shipment.Application.Commands.ConfirmDispatch;
 using TruckDelivery.Shipment.Application.Commands.UpdateShipmentStatus;
 using TruckDelivery.Shipment.Application.DTOs;
 using TruckDelivery.Shipment.Domain.Aggregates;
@@ -21,6 +22,18 @@ public sealed class ShipmentsController(IMediator mediator, ShipmentQueryReposit
     {
         var dto = await queryRepository.GetByIdAsync(id, ct);
         return dto is null ? NotFound() : Ok(dto);
+    }
+
+    [HttpPost("{id:guid}/confirm-dispatch")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> ConfirmDispatch(Guid id, CancellationToken ct)
+    {
+        var result = await mediator.Send(new ConfirmDispatchCommand(id), ct);
+        if (result.IsFailure) return result.Error.Code.Contains("NotFound") ? NotFound(result.Error.Description) : BadRequest(result.Error.Description);
+        return NoContent();
     }
 
     [HttpPut("{id:guid}/status")]

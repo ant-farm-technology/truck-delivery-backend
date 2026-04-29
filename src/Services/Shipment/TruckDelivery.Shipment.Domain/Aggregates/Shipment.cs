@@ -24,6 +24,12 @@ public sealed class Shipment : AggregateRoot<Guid>
     public Guid? AssignedVehicleId { get; private set; }
     public RouteInfo? Route { get; private set; }
     public string? FailureReason { get; private set; }
+    public bool RequiresDispatcherConfirmation { get; private set; }
+    public string? PackagesJson { get; private set; }
+    public string? BinCheckWarnings { get; private set; }
+    // Breakdown tracking fields
+    public Guid? OriginalBreakdownDriverId { get; private set; }
+    public bool IsBreakdownReassignment { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
 
@@ -88,6 +94,30 @@ public sealed class Shipment : AggregateRoot<Guid>
         return Result.Success();
     }
 
+    public void StorePackages(string packagesJson)
+    {
+        PackagesJson = packagesJson;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public Result FlagForDispatcherReview(string? binCheckWarnings = null)
+    {
+        RequiresDispatcherConfirmation = true;
+        BinCheckWarnings = binCheckWarnings;
+        UpdatedAt = DateTime.UtcNow;
+        return TransitionTo(ShipmentStatus.DispatcherReviewRequired);
+    }
+
+    public Result ConfirmByDispatcher()
+    {
+        if (Status != ShipmentStatus.DispatcherReviewRequired)
+            return Result.Failure(Error.Conflict("Shipment.Confirm", "Shipment is not awaiting dispatcher review."));
+
+        RequiresDispatcherConfirmation = false;
+        UpdatedAt = DateTime.UtcNow;
+        return TransitionTo(ShipmentStatus.InProgress);
+    }
+
     public Result Fail(string reason)
     {
         FailureReason = reason;
@@ -97,6 +127,21 @@ public sealed class Shipment : AggregateRoot<Guid>
         return Result.Success();
     }
 
+    public Result MarkReassigning(string breakdownReason)
+    {
+        if (Status != ShipmentStatus.InProgress)
+            return Result.Failure(Error.Conflict("Shipment.Reassign",
+                "Can only reassign shipments that are InProgress."));
+
+        OriginalBreakdownDriverId = AssignedDriverId;
+        IsBreakdownReassignment = true;
+        AssignedDriverId = null;
+        AssignedVehicleId = null;
+        FailureReason = breakdownReason;
+        UpdatedAt = DateTime.UtcNow;
+        return TransitionTo(ShipmentStatus.Reassigning);
+    }
+
     private static bool IsValidTransition(ShipmentStatus from, ShipmentStatus to) =>
         (from, to) switch
         {
@@ -104,7 +149,11 @@ public sealed class Shipment : AggregateRoot<Guid>
             (ShipmentStatus.RoutePlanning, ShipmentStatus.DriverAssigning) => true,
             (ShipmentStatus.DriverAssigning, ShipmentStatus.DriverConfirmed) => true,
             (ShipmentStatus.DriverConfirmed, ShipmentStatus.InProgress) => true,
+            (ShipmentStatus.DriverConfirmed, ShipmentStatus.DispatcherReviewRequired) => true,
+            (ShipmentStatus.DispatcherReviewRequired, ShipmentStatus.InProgress) => true,
             (ShipmentStatus.InProgress, ShipmentStatus.Completed) => true,
+            (ShipmentStatus.InProgress, ShipmentStatus.Reassigning) => true,
+            (ShipmentStatus.Reassigning, ShipmentStatus.DriverAssigning) => true,
             (_, ShipmentStatus.Failed) => true,
             _ => false
         };

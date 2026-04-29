@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MediatR;
+using TruckDelivery.Tracking.Application.Interfaces;
 using TruckDelivery.Tracking.Application.IntegrationEvents;
 using TruckDelivery.Tracking.Domain.Aggregates;
 using TruckDelivery.Tracking.Domain.Repositories;
@@ -12,7 +13,8 @@ public sealed class UpdateLocationCommandHandler(
     ITrackingSessionRepository sessionRepository,
     ITrackingPointRepository pointRepository,
     IOutboxRepository outboxRepository,
-    ITrackingNotifier notifier)
+    ITrackingNotifier notifier,
+    IDriverGpsCache gpsCache)
     : IRequestHandler<UpdateLocationCommand, Result>
 {
     public async Task<Result> Handle(UpdateLocationCommand request, CancellationToken ct)
@@ -50,6 +52,9 @@ public sealed class UpdateLocationCommandHandler(
             "tracking.location.updated",
             request.DriverId.ToString(),
             JsonSerializer.Serialize(@event)), ct);
+
+        // Cache last known GPS for breakdown fraud gate — fire-and-forget, non-critical
+        _ = gpsCache.SetAsync(request.DriverId, request.Latitude, request.Longitude, ct);
 
         // Fire-and-forget — don't block the response
         _ = notifier.NotifyLocationUpdatedAsync(

@@ -25,6 +25,11 @@ public sealed class ShipmentConfiguration : IEntityTypeConfiguration<Domain.Aggr
         builder.Property(s => s.AssignedDriverId).HasColumnName("assigned_driver_id");
         builder.Property(s => s.AssignedVehicleId).HasColumnName("assigned_vehicle_id");
         builder.Property(s => s.FailureReason).HasColumnName("failure_reason").HasMaxLength(500);
+        builder.Property(s => s.RequiresDispatcherConfirmation).HasColumnName("requires_dispatcher_confirmation").HasDefaultValue(false).IsRequired();
+        builder.Property(s => s.PackagesJson).HasColumnName("packages_json").HasColumnType("longtext");
+        builder.Property(s => s.BinCheckWarnings).HasColumnName("bin_check_warnings").HasMaxLength(2000);
+        builder.Property(s => s.OriginalBreakdownDriverId).HasColumnName("original_breakdown_driver_id");
+        builder.Property(s => s.IsBreakdownReassignment).HasColumnName("is_breakdown_reassignment").HasDefaultValue(false).IsRequired();
         builder.Property(s => s.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(s => s.UpdatedAt).HasColumnName("updated_at").IsRequired();
 
