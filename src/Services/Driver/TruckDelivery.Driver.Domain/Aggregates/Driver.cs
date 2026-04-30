@@ -60,7 +60,7 @@ public sealed class Driver : AggregateRoot<Guid>
             return Result.Failure<Driver>(Error.Validation("Driver.IdCardNumber", "ID card number is required."));
         if (licenseGrade == LicenseGrade.B1 || licenseGrade == LicenseGrade.E)
             return Result.Failure<Driver>(Error.Validation("Driver.LicenseGrade", "License grade is not eligible for freight transport."));
-        if (licenseExpiryDate <= DateOnly.FromDateTime(DateTime.UtcNow))
+        if (licenseExpiryDate < DateOnly.FromDateTime(DateTime.UtcNow))
             return Result.Failure<Driver>(Error.Validation("Driver.LicenseExpiryDate", "License has expired."));
 
         var driver = new Driver(userId)

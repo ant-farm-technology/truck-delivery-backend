@@ -12,8 +12,6 @@ using TruckDelivery.Driver.Infrastructure.Persistence;
 using TruckDelivery.Driver.Infrastructure.Repositories;
 using TruckDelivery.Driver.Infrastructure.Services;
 using TruckDelivery.Shared.Common.Persistence;
-using TruckDelivery.Shared.Infrastructure.Messaging;
-using TruckDelivery.Shared.Infrastructure.Messaging.Kafka;
 using TruckDelivery.Shared.Infrastructure.Messaging.Outbox;
 using TruckDelivery.Shared.Infrastructure.Persistence.Outbox;
 
@@ -67,8 +65,6 @@ public static class ServiceCollectionExtensions
                 Acks = Acks.Leader,
                 EnableIdempotence = true
             }).Build());
-
-        services.AddScoped<IEventBus, KafkaEventBus>();
 
         // Each BackgroundService consumer creates its own IConsumer via ConsumerConfig
         services.AddSingleton(new ConsumerConfig

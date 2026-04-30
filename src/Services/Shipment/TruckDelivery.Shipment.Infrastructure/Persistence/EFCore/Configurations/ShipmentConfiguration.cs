@@ -20,6 +20,10 @@ public sealed class ShipmentConfiguration : IEntityTypeConfiguration<Domain.Aggr
         builder.Property(s => s.PickupProvince).HasColumnName("pickup_province").HasMaxLength(100).IsRequired();
         builder.Property(s => s.DeliveryCity).HasColumnName("delivery_city").HasMaxLength(100).IsRequired();
         builder.Property(s => s.DeliveryProvince).HasColumnName("delivery_province").HasMaxLength(100).IsRequired();
+        builder.Property(s => s.PickupLatitude).HasColumnName("pickup_lat").HasColumnType("double");
+        builder.Property(s => s.PickupLongitude).HasColumnName("pickup_lng").HasColumnType("double");
+        builder.Property(s => s.DeliveryLatitude).HasColumnName("delivery_lat").HasColumnType("double");
+        builder.Property(s => s.DeliveryLongitude).HasColumnName("delivery_lng").HasColumnType("double");
         builder.Property(s => s.TotalWeightKg).HasColumnName("total_weight_kg").HasPrecision(10, 3).IsRequired();
         builder.Property(s => s.TotalVolumeCbm).HasColumnName("total_volume_cbm").HasPrecision(10, 3).IsRequired();
         builder.Property(s => s.AssignedDriverId).HasColumnName("assigned_driver_id");

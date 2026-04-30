@@ -5,4 +5,6 @@ public sealed record AddressRequest(
     string City,
     string Province,
     string PostalCode,
-    string Country = "VN");
+    string Country = "VN",
+    double? Latitude = null,
+    double? Longitude = null);

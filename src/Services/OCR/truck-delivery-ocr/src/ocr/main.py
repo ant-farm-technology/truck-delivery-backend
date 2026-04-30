@@ -38,7 +38,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     from ocr.consumers.driver_documents_consumer import DriverDocumentsConsumer
 
     _consumer = DriverDocumentsConsumer()
-    _consumer_thread = threading.Thread(target=_consumer.start, daemon=True, name="kafka-consumer")
+    _consumer_thread = threading.Thread(target=_consumer.start, daemon=False, name="kafka-consumer")
     _consumer_thread.start()
     logger.info("kafka_consumer_started")
 
@@ -46,6 +46,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     if _consumer:
         _consumer.stop()
+    if _consumer_thread:
+        _consumer_thread.join(timeout=10)
     logger.info("ocr_service_shutdown")
 
 

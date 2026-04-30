@@ -11,8 +11,6 @@ using TruckDelivery.Identity.Api.Middlewares;
 using TruckDelivery.Identity.Application.Behaviors;
 using TruckDelivery.Identity.Application.Commands.Login;
 using TruckDelivery.Identity.Infrastructure.Extensions;
-using TruckDelivery.Identity.Infrastructure.Persistence;
-using TruckDelivery.Identity.Infrastructure.Persistence.Seeds;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -66,14 +64,6 @@ builder.Services.AddOpenTelemetry()
         .AddPrometheusExporter());
 
 var app = builder.Build();
-
-// Run EF migrations and seed initial admin account on startup
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
-    await db.Database.MigrateAsync();
-    await AdminSeeder.SeedAsync(db);
-}
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
 app.UseMiddleware<CorrelationIdMiddleware>();

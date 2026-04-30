@@ -108,6 +108,17 @@ public sealed class DispatchSagaOrchestrator(
         }
     }
 
+    private static double ComputeHaversineMeters(double lat1, double lng1, double lat2, double lng2)
+    {
+        const double R = 6_371_000; // Earth radius in metres
+        var dLat = (lat2 - lat1) * Math.PI / 180.0;
+        var dLng = (lng2 - lng1) * Math.PI / 180.0;
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2)
+              + Math.Cos(lat1 * Math.PI / 180.0) * Math.Cos(lat2 * Math.PI / 180.0)
+              * Math.Sin(dLng / 2) * Math.Sin(dLng / 2);
+        return R * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+    }
+
     private async Task RunSagaStepAsync(
         Domain.Aggregates.Shipment shipment,
         ShipmentSagaState saga,
@@ -119,13 +130,42 @@ public sealed class DispatchSagaOrchestrator(
         OptimizerServiceClient optimizerClient,
         CancellationToken ct)
     {
-        // Step 1: route planning (use haversine approximation if no coordinates — real impl would have coords)
+        // Step 1: route planning — call Route Service if coordinates are available
         if (shipment.Status == ShipmentStatus.Created)
         {
             shipment.TransitionTo(ShipmentStatus.RoutePlanning);
 
-            // Placeholder distance — real impl calls routeClient.GetRouteAsync(...)
-            var routeInfo = RouteInfo.Create(50_000, 3600).Value;
+            RouteInfo routeInfo;
+            if (shipment.PickupLatitude.HasValue && shipment.PickupLongitude.HasValue
+                && shipment.DeliveryLatitude.HasValue && shipment.DeliveryLongitude.HasValue)
+            {
+                var routeResult = await routeClient.GetRouteAsync(
+                    shipment.PickupLatitude.Value, shipment.PickupLongitude.Value,
+                    shipment.DeliveryLatitude.Value, shipment.DeliveryLongitude.Value,
+                    ct);
+
+                if (routeResult is not null)
+                {
+                    routeInfo = RouteInfo.Create(routeResult.DistanceMeters, routeResult.DurationSeconds, routeResult.EncodedPolyline).Value;
+                    logger.LogInformation("Route fetched: {Distance}m {Duration}s for Shipment {ShipmentId}",
+                        routeResult.DistanceMeters, routeResult.DurationSeconds, shipment.Id);
+                }
+                else
+                {
+                    logger.LogWarning("RouteService returned null for Shipment {ShipmentId} — using Haversine fallback", shipment.Id);
+                    var haversine = ComputeHaversineMeters(
+                        shipment.PickupLatitude.Value, shipment.PickupLongitude.Value,
+                        shipment.DeliveryLatitude.Value, shipment.DeliveryLongitude.Value);
+                    routeInfo = RouteInfo.Create(haversine, haversine / 15.0).Value; // ~15 m/s avg truck speed
+                }
+            }
+            else
+            {
+                // No coordinates supplied — use static placeholder until coordinates are available
+                logger.LogWarning("No coordinates for Shipment {ShipmentId} — using static route placeholder", shipment.Id);
+                routeInfo = RouteInfo.Create(50_000, 3600).Value;
+            }
+
             shipment.SetRoute(routeInfo);
             saga.DistanceMeters = routeInfo.DistanceMeters;
             saga.CompletedSteps.Add("RoutePlanned");

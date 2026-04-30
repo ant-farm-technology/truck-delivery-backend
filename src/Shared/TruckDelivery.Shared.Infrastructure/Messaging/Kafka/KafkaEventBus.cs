@@ -14,11 +14,9 @@ public sealed class KafkaEventBus(IProducer<string, string> producer, ILogger<Ka
     private static readonly ActivitySource ActivitySource = new("TruckDelivery.Kafka.Producer");
     private static readonly TextMapPropagator Propagator = Propagators.DefaultTextMapPropagator;
 
-    public async Task PublishAsync<TEvent>(TEvent @event, CancellationToken cancellationToken = default)
+    public async Task PublishAsync<TEvent>(TEvent @event, string topic, CancellationToken cancellationToken = default)
         where TEvent : IntegrationEvent
     {
-        var topic = ResolveTopicName<TEvent>();
-
         using var activity = ActivitySource.StartActivity($"publish {topic}", ActivityKind.Producer);
 
         var headers = new Headers();
@@ -49,8 +47,4 @@ public sealed class KafkaEventBus(IProducer<string, string> producer, ILogger<Ka
         }
     }
 
-    private static string ResolveTopicName<TEvent>()
-    {
-        return typeof(TEvent).Name.Replace("Event", string.Empty, StringComparison.OrdinalIgnoreCase).ToLowerInvariant();
-    }
 }

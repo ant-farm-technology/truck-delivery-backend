@@ -45,6 +45,11 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Domain.Aggrega
             .HasForeignKey(i => i.OrderId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.Property(o => o.PickupLatitude).HasColumnType("double");
+        builder.Property(o => o.PickupLongitude).HasColumnType("double");
+        builder.Property(o => o.DeliveryLatitude).HasColumnType("double");
+        builder.Property(o => o.DeliveryLongitude).HasColumnType("double");
+
         builder.Property(o => o.ShipmentId);
 
         builder.HasIndex(o => o.CustomerId);

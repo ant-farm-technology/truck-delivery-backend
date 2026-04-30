@@ -28,7 +28,13 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IOutboxRepository, OutboxRepository<IdentityDbContext>>();
 
         var bootstrapServers = configuration["Kafka:BootstrapServers"] ?? throw new InvalidOperationException("Kafka:BootstrapServers not configured");
-        services.AddSingleton(_ => new ProducerBuilder<string, string>(new ProducerConfig { BootstrapServers = bootstrapServers }).Build());
+        services.AddSingleton<IProducer<string, string>>(_ => new ProducerBuilder<string, string>(new ProducerConfig
+        {
+            BootstrapServers = bootstrapServers,
+            Acks = Acks.Leader,
+            EnableIdempotence = true
+        }).Build());
+        services.AddHostedService<DatabaseInitializerService>();
         services.AddHostedService<OutboxProcessor<IdentityDbContext>>();
 
         return services;

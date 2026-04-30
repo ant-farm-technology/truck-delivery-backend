@@ -26,7 +26,11 @@ public sealed class CreateShipmentCommandHandler(IShipmentRepository shipmentRep
             request.DeliveryCity,
             request.DeliveryProvince,
             request.TotalWeightKg,
-            request.TotalVolumeCbm);
+            request.TotalVolumeCbm,
+            request.PickupLatitude,
+            request.PickupLongitude,
+            request.DeliveryLatitude,
+            request.DeliveryLongitude);
 
         if (request.Packages is { Count: > 0 })
             shipment.StorePackages(JsonSerializer.Serialize(request.Packages));

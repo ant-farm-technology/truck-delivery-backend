@@ -317,31 +317,98 @@ Không có vấn đề được tìm thấy.
 ## Tổng Kết Vấn Đề Theo Priority
 
 ### CRITICAL (Cần Fix Ngay)
-| # | Vấn đề | Service | File |
-|---|---|---|---|
-| C1 | OCR consumer không có idempotency check | OCR (Python) | `driver_documents_consumer.py` |
-| C2 | `Shipment.Fail()` không raise domain event | Shipment | `DispatchSagaOrchestrator.cs` |
+| # | Vấn đề | Service | File | Status |
+|---|---|---|---|---|
+| C1 | OCR consumer không có idempotency check | OCR (Python) | `driver_documents_consumer.py` | ✅ FIXED 2026-04-30 |
+| C2 | `Shipment.Fail()` domain event bug (old=Failed, new=Failed) | Shipment | `Shipment.cs` | ✅ FIXED 2026-04-30 |
 
 ### HIGH (Fix Trước Production)
-| # | Vấn đề | Service | File |
-|---|---|---|---|
-| H1 | Identity producer thiếu `EnableIdempotence` | Identity | `ServiceCollectionExtensions.cs` |
-| H2 | Bin-check HTTP call trong Kafka consumer | Shipment | `DriverAssignedConsumer.cs` |
-| H3 | KafkaEventBus topic resolution sai | Shared | `KafkaEventBus.cs` |
+| # | Vấn đề | Service | File | Status |
+|---|---|---|---|---|
+| H1 | Identity producer thiếu `EnableIdempotence` | Identity | `ServiceCollectionExtensions.cs` | ✅ FIXED 2026-04-30 |
+| H2 | Bin-check HTTP call trong Kafka consumer | Shipment | `DriverAssignedConsumer.cs` | ✅ FIXED 2026-04-30 |
+| H3 | KafkaEventBus topic resolution sai | Shared | `KafkaEventBus.cs` | ✅ FIXED 2026-04-30 |
 
 ### MEDIUM (Sprint Tiếp Theo)
-| # | Vấn đề | Service | File |
-|---|---|---|---|
-| M1 | Admin seeding blocking startup | Identity | `Program.cs` |
-| M2 | IEventBus đăng ký nhưng không dùng | Driver | `ServiceCollectionExtensions.cs` |
-| M3 | Route service dùng hardcoded placeholder | Shipment | `DispatchSagaOrchestrator.cs` |
-| M4 | OCR consumer threading model fragile | OCR (Python) | `main.py` |
+| # | Vấn đề | Service | File | Status |
+|---|---|---|---|---|
+| M1 | Admin seeding blocking startup | Identity | `Program.cs` | ✅ FIXED 2026-04-30 |
+| M2 | IEventBus đăng ký nhưng không dùng | Driver | `ServiceCollectionExtensions.cs` | ✅ FIXED 2026-04-30 |
+| M3 | Route service dùng hardcoded placeholder | Shipment | `DispatchSagaOrchestrator.cs` | ✅ FIXED 2026-04-30 |
+| M4 | OCR consumer threading model fragile | OCR (Python) | `main.py` | ✅ FIXED 2026-04-30 |
 
 ### LOW (Nice to Have)
-| # | Vấn đề | Service | Chi tiết |
-|---|---|---|---|
-| L1 | License expiry check timezone edge case | Driver | UTC vs local date |
-| L2 | Stub notification senders không test error path | Notification | StubPushSender, etc. |
+| # | Vấn đề | Service | Chi tiết | Status |
+|---|---|---|---|---|
+| L1 | License expiry check timezone edge case | Driver | UTC vs local date | ✅ FIXED 2026-04-30 |
+| L2 | Stub notification senders không test error path | Notification | StubPushSender, etc. | ✅ FIXED 2026-04-30 |
+
+---
+
+## Fixes Applied (2026-04-30)
+
+### C2 — Shipment.Fail() Domain Event
+`src/Services/Shipment/TruckDelivery.Shipment.Domain/Aggregates/Shipment.cs`
+- Captured `var previousStatus = Status` before setting `Status = ShipmentStatus.Failed`
+- `ShipmentStatusChangedDomainEvent` now carries correct old status
+
+### H1 — Identity Kafka Producer Idempotency
+`src/Services/Identity/TruckDelivery.Identity.Infrastructure/Extensions/ServiceCollectionExtensions.cs`
+- Added `Acks = Acks.Leader, EnableIdempotence = true` to `ProducerConfig`
+- Registered as `IProducer<string, string>` (explicit type)
+
+### H3 — KafkaEventBus Topic Resolution
+`src/Shared/TruckDelivery.Shared.Infrastructure/Messaging/IEventBus.cs` + `KafkaEventBus.cs`
+- `PublishAsync<TEvent>()` now requires explicit `string topic` parameter
+- Removed broken `ResolveTopicName<TEvent>()` helper
+
+### C1 — OCR Redis Idempotency
+- `pyproject.toml`: added `redis>=5.0`
+- `config.py`: added `redis_url`, `idempotency_ttl_seconds`
+- New file: `src/ocr/idempotency.py` — `RedisIdempotencyStore` (check + mark with 24h TTL)
+- `driver_documents_consumer.py`: `__init__` instantiates store; `_handle_message` checks before processing, marks after successful commit
+
+### M4 — OCR Threading Model
+`src/Services/OCR/truck-delivery-ocr/src/ocr/main.py`
+- Changed `daemon=True` → `daemon=False` on consumer thread
+- Added `_consumer_thread.join(timeout=10)` in lifespan shutdown to drain in-flight messages
+
+### M1 — Identity Startup Blocking
+- New file: `src/Services/Identity/TruckDelivery.Identity.Infrastructure/Persistence/DatabaseInitializerService.cs`
+- `DatabaseInitializerService : IHostedService` runs `MigrateAsync` + `AdminSeeder.SeedAsync` after app starts accepting requests
+- Removed blocking `using (var scope = ...)` block from `Program.cs`
+
+### M2 — Driver Unused IEventBus
+`src/Services/Driver/TruckDelivery.Driver.Infrastructure/Extensions/ServiceCollectionExtensions.cs`
+- Removed `services.AddScoped<IEventBus, KafkaEventBus>()`
+- Removed unused `using TruckDelivery.Shared.Infrastructure.Messaging` and `...Messaging.Kafka`
+
+### H2 — DriverAssignedConsumer Bin-Check Retry
+`src/Services/Shipment/TruckDelivery.Shipment.Application/Consumers/DriverAssignedConsumer.cs`
+- Extracted `BinCheckWithRetryAsync()`: 3 attempts with 2s×n exponential backoff on `HttpRequestException`
+- Transient HTTP failures retry instead of immediately routing to DLQ
+
+### L1 — Driver License Expiry Off-by-One
+`src/Services/Driver/TruckDelivery.Driver.Domain/Aggregates/Driver.cs`
+- Changed `licenseExpiryDate <= DateOnly.FromDateTime(DateTime.UtcNow)` to `<`
+- License expiring today is now accepted (valid for the full day)
+
+### L2 — Notification Stub TODO Comments
+`StubPushSender.cs`, `StubSmsSender.cs`, `StubEmailSender.cs`
+- Added `// TODO: Replace with real FCM/Twilio/SMTP implementation...` comment to each stub
+
+### M3 — Route Service Real Call
+Full coordinate propagation chain implemented:
+- `AddressRequest` DTO: added `Latitude?`, `Longitude?` (optional, from map picker)
+- `Order` aggregate: 4 new fields `PickupLatitude`, `PickupLongitude`, `DeliveryLatitude`, `DeliveryLongitude`
+- `Order.Create()`: accepts coordinate params, stores on aggregate
+- `OrderCreatedEvent` (Order publisher): carries all 4 coordinate fields
+- `OrderCreatedEvent` (Shipment consumer DTO): mirrors publisher shape
+- `CreateShipmentCommand` + Handler: forward coordinates to `Shipment.Create()`
+- `Shipment` aggregate: 4 new nullable coordinate fields + updated factory
+- `ShipmentConfiguration`: mapped to `pickup_lat`/`pickup_lng`/`delivery_lat`/`delivery_lng` columns
+- Migrations: `20260430000001_AddCoordinatesToOrder` + `20260430000001_AddCoordinatesToShipment`
+- `DispatchSagaOrchestrator`: calls `routeClient.GetRouteAsync()` when coordinates present; Haversine inline fallback when Route Service unreachable; static 50km placeholder only when no coordinates at all (backward compat)
 
 ---
 

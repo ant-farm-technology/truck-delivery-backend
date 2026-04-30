@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     ocr_confidence_threshold_verified: float = 0.85
     ocr_confidence_threshold_manual_review: float = 0.65
 
+    redis_url: str = "redis://redis:6379/0"
+    idempotency_ttl_seconds: int = 86400  # 24 hours
+
     http_timeout_seconds: int = 30
 
 

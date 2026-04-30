@@ -79,12 +79,25 @@ Solution file: `TruckDelivery.slnx` (16 .NET projects + 1 Rust crate).
 - **Payment:** `GET /api/v1/payments?status=&dateFrom=&dateTo=&page=` (Admin, Dapper, `ListPaymentsQuery`)
 - **Analytics:** `POST /api/v1/analytics/fraud/alerts/{id}/acknowledge` (Admin, `AcknowledgeFraudAlertCommand`); `IFraudAlertRepository` extended with `GetByIdAsync` + `UpdateAsync`
 
-### Remaining Gaps
+### Issue Fixes (2026-04-30 comprehensive review)
+- **[C2-FIXED] Shipment.Fail() domain event bug:** Captured `previousStatus` before setting `Status = Failed` so `ShipmentStatusChangedDomainEvent` carries correct old/new statuses
+- **[H1-FIXED] Identity Kafka producer idempotency:** Added `Acks = Acks.Leader, EnableIdempotence = true` to `ProducerConfig` in `Identity.Infrastructure`
+- **[H2-FIXED] DriverAssignedConsumer bin-check retry:** Extracted `BinCheckWithRetryAsync()` (3 attempts, 2s×n backoff) so transient HTTP failures don't immediately DLQ the message
+- **[H3-FIXED] KafkaEventBus broken topic resolution:** `IEventBus.PublishAsync()` now requires explicit `string topic` parameter; `ResolveTopicName<TEvent>()` helper removed
+- **[C1-FIXED] OCR Redis idempotency:** Added `redis>=5.0` dep, `redis_url` config, `RedisIdempotencyStore` module; `DriverDocumentsConsumer` now checks + marks processed per `message_id`
+- **[M4-FIXED] OCR threading:** Consumer thread is non-daemon (`daemon=False`) + `_consumer_thread.join(timeout=10)` on shutdown for clean drain
+- **[M1-FIXED] Identity startup blocking:** Migration + seeding moved from `Program.cs` to `DatabaseInitializerService : IHostedService`; app now accepts health-check requests immediately
+- **[M2-FIXED] Driver unused IEventBus:** Removed `services.AddScoped<IEventBus, KafkaEventBus>()` and unused `using` imports from `Driver.Infrastructure`
+- **[L1-FIXED] Driver license expiry off-by-one:** Guard changed from `<=` to `<` so a license expiring today is still accepted
+- **[L2-FIXED] Notification stub TODO comments:** Added `// TODO: Replace with real FCM/Twilio/SMTP…` comment to each stub sender
+
+### Remaining Gaps (After All Fixes)
 - **No test projects (.NET)** — no unit, integration, or contract tests exist yet. OCR service has Python pytest tests.
 - **GitHub Actions missing** — `.github/` directory exists but empty.
 - **Notification senders are stubs** — StubPushSender/StubSmsSender/StubEmailSender log only; real impl needs FCM/Twilio/SMTP.
 - **Payment gateway not wired** — COD flow auto-completes; real gateway integration needed for card/VNPay.
 - **Customer PhoneNumber/DateOfBirth missing** — User aggregate in Identity and `RegisterUserCommand` not yet updated with `PhoneNumber` (required) and `DateOfBirth` (optional) fields.
+- **[M3-FIXED] DispatchSagaOrchestrator real Route Service call:** `AddressRequest` now accepts `Latitude?`/`Longitude?`; `Order` aggregate stores 4 coordinate fields; `OrderCreatedEvent` (both publisher + consumer-side DTOs) carries coordinates; `Shipment` aggregate stores pickup/delivery coordinates; `DispatchSagaOrchestrator` calls `routeClient.GetRouteAsync()` when coords present, falls back to Haversine when Route Service is unreachable, and falls back to static placeholder when coords are absent; migrations `20260430000001_AddCoordinatesToOrder` + `20260430000001_AddCoordinatesToShipment` created.
 
 ### Mobile Integration Documentation
 - **Driver App:** `docs/mobile-integration/01-driver-app.md` — Onboarding (3 bước), GPS push, breakdown report, SignalR, FCM

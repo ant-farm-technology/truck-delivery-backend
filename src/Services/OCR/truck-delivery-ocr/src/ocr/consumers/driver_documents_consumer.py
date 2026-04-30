@@ -13,6 +13,7 @@ from confluent_kafka import Consumer, KafkaError, KafkaException, Producer
 from prometheus_client import Counter
 
 from ocr.config import settings
+from ocr.idempotency import RedisIdempotencyStore
 from ocr.models.events import DriverDocumentsSubmittedEvent, DriverVerificationCompletedEvent
 from ocr.services.id_card_ocr import IdCardOcrService
 from ocr.services.image_loader import load_image_from_url, image_to_numpy
@@ -40,6 +41,7 @@ class DriverDocumentsConsumer:
         self._producer = Producer({
             "bootstrap.servers": settings.kafka_bootstrap_servers,
         })
+        self._idempotency = RedisIdempotencyStore()
         self._running = False
         self._loop = asyncio.new_event_loop()
 
@@ -73,17 +75,21 @@ class DriverDocumentsConsumer:
         try:
             payload = json.loads(msg.value().decode("utf-8"))
             event = DriverDocumentsSubmittedEvent(**payload)
+            message_id = str(event.message_id)
 
-            # Idempotency: skip duplicates via message_id check would go here
-            # (using Redis store — omitted for brevity, same pattern as KafkaConsumerBase)
+            if self._idempotency.has_processed(message_id):
+                log.info("duplicate_message_skipped", message_id=message_id)
+                self._consumer.commit(msg)
+                return
 
-            log = log.bind(driver_id=str(event.driver_id), message_id=str(event.message_id))
+            log = log.bind(driver_id=str(event.driver_id), message_id=message_id)
             log.info("documents_submitted_received")
 
             result = await self._process_verification(event)
             self._publish_result(result)
 
             self._consumer.commit(msg)
+            self._idempotency.mark_processed(message_id)
             log.info("documents_verification_committed", status=result.status)
 
         except Exception as exc:
