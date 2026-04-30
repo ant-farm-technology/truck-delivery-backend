@@ -41,6 +41,7 @@ Solution file: `TruckDelivery.slnx` (16 .NET projects + 1 Rust crate).
 | Notification | .NET 10 | :8088 | ✅ Done | MySQL (`truck_notification`) |
 | Payment | .NET 10 | :8089 | ✅ Done | MySQL (`truck_payment`) |
 | Analytics | .NET 10 | :8095 | ✅ Done | MongoDB (`truck_analytics`) |
+| OCR | Python / FastAPI | :8090 | ✅ Done | None (stateless) |
 
 ### What's Done in Completed Services
 - **Identity:** RegisterUser, Login, RefreshToken commands; JWT service; EFCore User aggregate; `UserRegisteredEvent` → Kafka topic `userregistered`
@@ -52,6 +53,7 @@ Solution file: `TruckDelivery.slnx` (16 .NET projects + 1 Rust crate).
 - **Tracking:** `ShipmentStartedConsumer` → `StartTrackingCommand`; `ShipmentCompletedConsumer` → `StopTrackingCommand`; `POST /api/v1/tracking/location` (driver GPS push); `GET /api/v1/tracking/shipments/{id}/points`; SignalR hub at `/hubs/tracking` (groups by shipment/driver); MongoDB persistence; Mongo Outbox processor
 - **Notification:** Consumes `ShipmentStatusUpdatedEvent`, `DriverAssignedEvent`, `PaymentCompletedEvent`; `SendNotificationCommand` → Push/SMS/Email stub senders; EFCore MySQL `NotificationRecord` persistence; Outbox pattern; all consumers use `ConsumerConfig` + own `IConsumer` (thread-safe)
 - **Payment:** `OrderDeliveredConsumer` → `CreatePaymentCommand` (COD flow: auto-complete); publishes `PaymentCompletedEvent` via Outbox; `GET /api/v1/payments/orders/{orderId}`; EFCore MySQL + Dapper read; `PaymentStatus` state machine
+- **OCR Service (:8090, stateless Python):** Vietnamese document OCR verification; PaddleOCR (lang='vi') singleton per document type; 3 extraction endpoints: `POST /api/v1/ocr/extract/id-card`, `/extract/license`, `/extract/vehicle-reg`; Kafka consumer `DriverDocumentsSubmittedEvent` (topic `driver.documents.submitted`) → concurrent OCR on 6 images → `compute_overall_verification` → publishes `DriverVerificationCompletedEvent` (topic `ocr.driver.verification-completed`); confidence scoring: CCCD 40% + license 40% + vehicle 20%; auto-decision: ≥0.85 → `ocr_verified`, 0.65–0.85 → `manual_review`, <0.65 → `rejected`; 6 cross-checks (name match, DOB match, owner_id match, grade validity, license expiry, vehicle reg expiry); Prometheus metrics: `ocr_extraction_duration_seconds{document_type}`, `ocr_extraction_total{document_type,status}`, `ocr_verification_total{status}`; DLQ on failure
 - **Phase 7 — Full Analytics Dashboard:**
   - **Analytics Service (:8095, MongoDB `truck_analytics`):** Dedicated analytics microservice; consumes 3 Kafka topics; stores in MongoDB; exposes REST API; publishes Prometheus metrics for Grafana
   - **Kafka Consumers:** `VehicleBreakdownConsumer` (topic `driver.vehicle.breakdown`) → `RecordBreakdownCommand`; `BreakdownReassignmentCompletedConsumer` (topic `shipment.breakdown.reassignment-completed`) → `RecordReassignmentCompletedCommand` (resolves & calculates recovery time); `SuspiciousDriverPairConsumer` (topic `driver.fraud.suspicious-pair-detected`) → `RecordFraudAlertCommand`
@@ -72,10 +74,14 @@ Solution file: `TruckDelivery.slnx` (16 .NET projects + 1 Rust crate).
   - **Payment Service — Escrow:** `EscrowPayment` aggregate (states: Locked/Released/Disputed/Refunded); `EscrowStatus` enum; `IEscrowPaymentRepository`; `BreakdownReassignmentConsumer` in Payment service consumes `shipment.breakdown.reassignment-completed` → `CreateEscrowCommand` → locks 50,000 VND surcharge fee; `ResolveEscrowCommand` handles confirm/dispute; `POST /api/v1/payments/escrow/{id}/confirm` + `POST /api/v1/payments/escrow/{id}/dispute` (Customer/Admin role)
 
 ### Remaining Gaps
-- **No test projects** — no unit, integration, or contract tests exist yet.
+- **No test projects (.NET)** — no unit, integration, or contract tests exist yet. OCR service has Python pytest tests.
 - **GitHub Actions missing** — `.github/` directory exists but empty.
 - **Notification senders are stubs** — StubPushSender/StubSmsSender/StubEmailSender log only; real impl needs FCM/Twilio/SMTP.
 - **Payment gateway not wired** — COD flow auto-completes; real gateway integration needed for card/VNPay.
+- **Driver aggregate not updated** — `VerificationStatus`, photo URL fields, `IdCardNumber`, `SubmitDocuments()`, `ApplyOcrResult()` methods not yet added to Driver aggregate.
+- **Driver registration endpoint missing** — `POST /api/v1/drivers/register` (Step 2 of 3-step driver onboarding) not yet implemented.
+- **Admin driver verification endpoints missing** — `GET /api/v1/drivers?verificationStatus=ManualReview`, `POST /api/v1/drivers/{id}/verify`, `POST /api/v1/drivers/{id}/reject-verification` not yet implemented.
+- **MinIO pre-signed URL endpoint missing** — `GET /api/v1/uploads/presigned-url` for photo upload flow not yet implemented.
 
 ---
 
@@ -187,6 +193,7 @@ Path: `src/Shared/TruckDelivery.Shared.Infrastructure/`
 - Examples: `order.order.created`, `driver.driver.assigned`, `shipment.shipment.status-updated`
 - DLQ: `{topic}.dlq`
 - Legacy exception: `userregistered` (Identity → Driver, giữ nguyên)
+- OCR topics: `driver.documents.submitted` (Driver → OCR), `ocr.driver.verification-completed` (OCR → Driver)
 
 ### API Endpoints
 - RESTful, versioned: `/api/v1/{resource}`

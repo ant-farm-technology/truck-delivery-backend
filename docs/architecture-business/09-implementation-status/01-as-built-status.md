@@ -1,6 +1,6 @@
 # As-Built Status — Design vs. Implementation
 
-> Cập nhật: 2026-04-30 | Khảo sát toàn bộ src/ vs. business requirements
+> Cập nhật: 2026-04-30 (OCR service triển khai xong) | Khảo sát toàn bộ src/ vs. business requirements
 >
 > Legend: ✅ Done | ⚠️ Partial | ❌ Missing | 🐛 Bug
 
@@ -10,7 +10,7 @@
 
 | Service | Port | Status | Ghi chú quan trọng |
 |---|---|---|---|
-| API Gateway | :8080 | ⚠️ | Thiếu vehicle-route, analytics-route, **ocr-route** |
+| API Gateway | :8080 | ✅ | Đã thêm vehicle-route, analytics-route, admin-route, ocr-route |
 | Identity | :8081 | ⚠️ | Thiếu phone, DOB trong User; thiếu role trong Register |
 | Order | :8082 | 🐛 | **Không có Consumers** — status không bao giờ tự update |
 | Driver/Vehicle | :8083 | ⚠️ | Thiếu LicenseGrade, DOB, address, **7 photo URLs, VerificationStatus** trong Driver; thiếu dims trong Vehicle |
@@ -21,7 +21,7 @@
 | Notification | :8088 | ⚠️ | Thiếu REST API (FCM token), senders là stub |
 | Payment | :8089 | ⚠️ | Thiếu list query, escrow lookup |
 | Analytics | :8095 | ⚠️ | Code ✅ nhưng Gateway route ❌ |
-| **OCR** | **:8090** | **❌** | **Chưa tồn tại** — Python/FastAPI/PaddleOCR service cần tạo |
+| **OCR** | **:8090** | **✅** | Python/FastAPI/PaddleOCR — đã tạo tại `src/Services/OCR/truck-delivery-ocr/` |
 
 ---
 
@@ -215,19 +215,30 @@ public enum DriverVerificationStatus
 
 ---
 
-## 2.6 OCR Service — Chưa tồn tại
+## 2.6 OCR Service — ✅ Đã triển khai
 
 | Hạng mục | Status | Ghi chú |
 |---|---|---|
-| Python service structure | ❌ | Tạo tại `src/Services/OCR/truck-delivery-ocr/` |
-| PaddleOCR integration | ❌ | Xem `docs/architecture-business/10-ocr-verification/01-ocr-service.md` |
-| `POST /api/v1/ocr/extract/id-card` | ❌ | Phase A auto-fill |
-| `POST /api/v1/ocr/extract/license` | ❌ | Phase A auto-fill |
-| `POST /api/v1/ocr/extract/vehicle-reg` | ❌ | Phase A auto-fill |
-| Kafka consumer: `driver.documents.submitted` | ❌ | Phase B async verify |
-| Kafka producer: `ocr.driver.verification-completed` | ❌ | Phase B result |
-| Gateway route `/api/v1/ocr/*` → ocr-cluster | ❌ | Port :8090 |
-| Docker compose entry | ❌ | Cần thêm vào `docker/docker-compose.yml` |
+| Python service structure | ✅ | `src/Services/OCR/truck-delivery-ocr/` |
+| PaddleOCR singleton (3 doc types) | ✅ | `id_card_ocr.py`, `license_ocr.py`, `vehicle_reg_ocr.py` |
+| `POST /api/v1/ocr/extract/id-card` | ✅ | Phase A auto-fill CCCD + suggested_form_values |
+| `POST /api/v1/ocr/extract/license` | ✅ | Phase A auto-fill GPLX |
+| `POST /api/v1/ocr/extract/vehicle-reg` | ✅ | Phase A auto-fill đăng ký xe |
+| Kafka consumer: `driver.documents.submitted` | ✅ | `DriverDocumentsConsumer` — background thread |
+| Kafka producer: `ocr.driver.verification-completed` | ✅ | `DriverVerificationCompletedEvent` |
+| Confidence scoring (CCCD 40% + license 40% + vehicle 20%) | ✅ | `verification.py` |
+| 6 cross-checks | ✅ | Name match, DOB match, owner_id, grade, license expiry, vehicle expiry |
+| Auto-decision: ≥0.85 → verified / 0.65–0.85 → manual / <0.65 → rejected | ✅ | Thresholds từ config |
+| Prometheus metrics (extraction duration, counts) | ✅ | `ocr_extraction_duration_seconds`, `ocr_verification_total` |
+| DLQ routing on error | ✅ | `driver.documents.submitted.dlq` |
+| Gateway route `/api/v1/ocr/*` → ocr-cluster | ✅ | Đã thêm vào `appsettings.json` |
+| Docker compose entry + MinIO | ✅ | `ocr-service` + `minio` + `minio-init` trong `docker-compose.yml` |
+| Unit tests (mock PaddleOCR) | ✅ | `tests/test_id_card_ocr.py`, `test_license_ocr.py`, `test_vehicle_reg_ocr.py`, `test_verification.py` |
+
+**Còn thiếu (Driver service side):**
+- Driver aggregate chưa có `VerificationStatus`, 7 photo URLs, `SubmitDocuments()`, `ApplyOcrResult()`
+- `DriverOcrVerificationCompletedConsumer` trong Driver service chưa có
+- `POST /api/v1/drivers/register` (self-service) chưa có
 
 ---
 
@@ -326,9 +337,12 @@ public enum DriverVerificationStatus
 
 | Method | Path | Auth | Status |
 |---|---|---|---|
-| POST | `/api/v1/ocr/extract/id-card` | Driver | ❌ Service chưa tồn tại |
-| POST | `/api/v1/ocr/extract/license` | Driver | ❌ |
-| POST | `/api/v1/ocr/extract/vehicle-reg` | Driver | ❌ |
+| POST | `/api/v1/ocr/extract/id-card` | Driver | ✅ |
+| POST | `/api/v1/ocr/extract/license` | Driver | ✅ |
+| POST | `/api/v1/ocr/extract/vehicle-reg` | Driver | ✅ |
+| GET | `/health` | — | ✅ |
+| GET | `/ready` | — | ✅ |
+| GET | `/metrics` | — | ✅ (Prometheus) |
 
 ### 4.10 Uploads (Driver service hoặc Gateway util)
 
@@ -421,7 +435,7 @@ public enum DriverVerificationStatus
 | **Order** | **shipment.driver.assigned** | **`OrderAssignedConsumer`** | **❌ MISSING** |
 | **Order** | **shipment.shipment.completed** | **`ShipmentCompletedConsumer`** | **❌ MISSING** |
 | **Order** | **payment.payment.completed** | **`PaymentCompletedConsumer`** | **❌ MISSING** |
-| **OCR Svc** | **driver.documents.submitted** | **`DriverDocumentsSubmittedConsumer`** | **❌ Service chưa tồn tại** |
+| **OCR Svc** | **driver.documents.submitted** | **`DriverDocumentsConsumer`** | **✅ OCR service đã có** |
 | **Driver** | **ocr.driver.verification-completed** | **`DriverOcrVerificationCompletedConsumer`** | **❌ MISSING** |
 
 ---
@@ -440,9 +454,10 @@ public enum DriverVerificationStatus
 | `/api/v1/payments/*` | payment-cluster | ✅ |
 | `/api/v1/routes/*` | route-service-cluster | ✅ |
 | `/api/v1/optimize/*` | optimizer-cluster | ✅ |
-| `/api/v1/vehicles/*` | driver-cluster | **❌ MISSING** |
-| `/api/v1/analytics/*` | analytics-cluster | **❌ MISSING** |
-| `/api/v1/ocr/*` | ocr-cluster | **❌ MISSING** (service chưa tồn tại) |
+| `/api/v1/vehicles/*` | driver-cluster | ✅ |
+| `/api/v1/analytics/*` | analytics-cluster | ✅ |
+| `/api/v1/admin/*` | identity-cluster | ✅ |
+| `/api/v1/ocr/*` | ocr-cluster | ✅ |
 
 ---
 

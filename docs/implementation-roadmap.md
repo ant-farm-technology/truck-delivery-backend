@@ -2,7 +2,7 @@
 
 > Cập nhật: 2026-04-30 | Dựa trên khảo sát toàn bộ src/ + business context
 >
-> **Trạng thái:** 11 services implemented (Phase 1–7), 0 tests, 0 CI/CD
+> **Trạng thái:** 12 services implemented (Phase 1–7 + OCR service), 0 .NET tests / Python OCR tests ✅, 0 CI/CD
 > **Services:** .NET 10 (9 services) + Rust (Route) + Python (Optimizer, **OCR — mới**)
 
 ---
@@ -547,7 +547,7 @@ GET /api/v1/payments/orders/{orderId}/escrow
 | 2 | LicenseGrade + DriverVerificationStatus enums | XS | Foundation |
 | 3 | Order consumers (3 consumers) + ShipmentId | L | Critical bug |
 | 4 | Admin seed data | S | Admin can login |
-| 5 | Gateway routes (vehicles + analytics + **ocr**) | XS | A5 + vehicles |
+| 5 | Gateway routes (vehicles + analytics + **ocr**) | XS | ✅ Done |
 | 6 | List Shipments | M | A1, C7, D1 |
 | 7 | Escrow lookup | S | C2 |
 | 8 | Admin decline-dispatch endpoint | S | Dispatch flow |
@@ -833,13 +833,13 @@ Pre-signed S3/MinIO URL — Driver upload trực tiếp, paste URL vào `report-
 | POST | `/api/v1/analytics/fraud/alerts/{id}/acknowledge` | Admin | P2 |
 | WS | `/hubs/tracking` → JoinAdminGroup | Admin | Done |
 
-### OCR Service (Internal / Driver-facing)
+### OCR Service (Internal / Driver-facing) ✅ Implemented
 
 | Method | Endpoint | Auth | Ghi chú |
 |---|---|---|---|
-| POST | `/api/v1/ocr/extract/id-card` | Driver | Phase A auto-fill — sync |
-| POST | `/api/v1/ocr/extract/license` | Driver | Phase A auto-fill — sync |
-| POST | `/api/v1/ocr/extract/vehicle-reg` | Driver | Phase A auto-fill — sync |
-| GET | `/health` | Anonymous | Liveness |
-| GET | `/ready` | Anonymous | Readiness |
-| GET | `/metrics` | Anonymous | Prometheus |
+| POST | `/api/v1/ocr/extract/id-card` | Driver | ✅ Phase A auto-fill — sync |
+| POST | `/api/v1/ocr/extract/license` | Driver | ✅ Phase A auto-fill — sync |
+| POST | `/api/v1/ocr/extract/vehicle-reg` | Driver | ✅ Phase A auto-fill — sync |
+| GET | `/health` | Anonymous | ✅ Liveness |
+| GET | `/ready` | Anonymous | ✅ Readiness |
+| GET | `/metrics` | Anonymous | ✅ Prometheus |
