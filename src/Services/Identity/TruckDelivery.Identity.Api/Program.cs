@@ -1,10 +1,18 @@
+using System.Security.Claims;
+using System.Text;
 using FluentValidation;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Serilog;
+using TruckDelivery.Identity.Api.Middlewares;
+using TruckDelivery.Identity.Application.Behaviors;
 using TruckDelivery.Identity.Application.Commands.Login;
 using TruckDelivery.Identity.Infrastructure.Extensions;
+using TruckDelivery.Identity.Infrastructure.Persistence;
+using TruckDelivery.Identity.Infrastructure.Persistence.Seeds;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,11 +23,33 @@ Log.Logger = new LoggerConfiguration()
 builder.Host.UseSerilog();
 
 builder.Services.AddControllers();
-builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(
-    typeof(LoginCommandHandler).Assembly));
+builder.Services.AddMediatR(cfg =>
+{
+    cfg.RegisterServicesFromAssembly(typeof(LoginCommandHandler).Assembly);
+    cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
+});
 builder.Services.AddValidatorsFromAssembly(typeof(LoginCommandHandler).Assembly);
 
 builder.Services.AddIdentityInfrastructure(builder.Configuration);
+
+// JWT bearer authentication — allows [Authorize(Roles = "Admin")] to work on AdminController
+var jwtSection = builder.Configuration.GetSection("Jwt");
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtSection["Issuer"],
+            ValidAudience = jwtSection["Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(jwtSection["SecretKey"]!)),
+            RoleClaimType = ClaimTypes.Role
+        };
+    });
 
 builder.Services.AddHealthChecks();
 
@@ -37,6 +67,16 @@ builder.Services.AddOpenTelemetry()
 
 var app = builder.Build();
 
+// Run EF migrations and seed initial admin account on startup
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+    await db.Database.MigrateAsync();
+    await AdminSeeder.SeedAsync(db);
+}
+
+app.UseMiddleware<GlobalExceptionMiddleware>();
+app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseSerilogRequestLogging();
 app.UseAuthentication();
 app.UseAuthorization();

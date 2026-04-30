@@ -17,21 +17,26 @@ public sealed class User : AggregateRoot<Guid>
     public DateTime? LastLoginAt { get; private set; }
     public string? RefreshToken { get; private set; }
     public DateTime? RefreshTokenExpiresAt { get; private set; }
+    public string? PhoneNumber { get; private set; }
+    public DateOnly? DateOfBirth { get; private set; }
 
     private User() { }
     private User(Guid id) : base(id) { }
 
-    public static Result<User> Create(string email, string password, string firstName, string lastName, UserRole role)
+    public static Result<User> Create(
+        string email,
+        string password,
+        string firstName,
+        string lastName,
+        UserRole role,
+        string? phoneNumber = null,
+        DateOnly? dateOfBirth = null)
     {
         if (string.IsNullOrWhiteSpace(email))
-        {
             return Result.Failure<User>(Error.Validation("User.Email", "Email is required"));
-        }
 
         if (string.IsNullOrWhiteSpace(password) || password.Length < 8)
-        {
             return Result.Failure<User>(Error.Validation("User.Password", "Password must be at least 8 characters"));
-        }
 
         var user = new User(Guid.NewGuid())
         {
@@ -41,7 +46,9 @@ public sealed class User : AggregateRoot<Guid>
             LastName = lastName,
             Role = role,
             IsActive = true,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            PhoneNumber = phoneNumber,
+            DateOfBirth = dateOfBirth
         };
 
         user.RaiseDomainEvent(new UserCreatedDomainEvent(user.Id, user.Email, user.Role));

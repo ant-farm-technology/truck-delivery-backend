@@ -5,4 +5,5 @@ public sealed record UserRegisteredEvent(
     string Email,
     string FirstName,
     string LastName,
-    string Role) : IntegrationEvent;
+    string Role,
+    string? PhoneNumber = null) : IntegrationEvent;

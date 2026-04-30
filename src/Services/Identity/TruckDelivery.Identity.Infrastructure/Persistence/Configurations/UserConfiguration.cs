@@ -20,6 +20,8 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.CreatedAt).IsRequired();
         builder.Property(u => u.RefreshToken).HasMaxLength(512);
         builder.Property(u => u.RefreshTokenExpiresAt);
+        builder.Property(u => u.PhoneNumber).HasMaxLength(20);
+        builder.Property(u => u.DateOfBirth).HasColumnType("date");
 
         builder.HasIndex(u => u.Email).IsUnique();
     }

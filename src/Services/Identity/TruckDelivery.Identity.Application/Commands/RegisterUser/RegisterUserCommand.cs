@@ -9,4 +9,6 @@ public sealed record RegisterUserCommand(
     string Password,
     string FirstName,
     string LastName,
-    UserRole Role = UserRole.Customer) : IRequest<Result<RegisterUserResult>>;
+    UserRole Role,
+    string PhoneNumber,
+    DateOnly? DateOfBirth = null) : IRequest<Result<RegisterUserResult>>;
