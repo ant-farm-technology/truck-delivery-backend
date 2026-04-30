@@ -15,6 +15,25 @@ public sealed class Driver : AggregateRoot<Guid>
     public string LastName { get; private set; } = default!;
     public string PhoneNumber { get; private set; } = default!;
     public string LicenseNumber { get; private set; } = default!;
+    public LicenseGrade LicenseGrade { get; private set; }
+    public DateOnly LicenseExpiryDate { get; private set; }
+    public DateOnly DateOfBirth { get; private set; }
+    public string Address { get; private set; } = default!;
+    public string IdCardNumber { get; private set; } = default!;
+
+    // Document photo URLs (7 required for verification)
+    public string? PortraitPhotoUrl { get; private set; }
+    public string? IdCardFrontUrl { get; private set; }
+    public string? IdCardBackUrl { get; private set; }
+    public string? LicenseFrontUrl { get; private set; }
+    public string? LicenseBackUrl { get; private set; }
+    public string? VehicleRegFrontUrl { get; private set; }
+    public string? VehicleRegBackUrl { get; private set; }
+
+    public DriverVerificationStatus VerificationStatus { get; private set; }
+    public float? OcrConfidenceScore { get; private set; }
+    public string? VerificationNotes { get; private set; }
+
     public DriverStatus Status { get; private set; }
     public Guid? CurrentVehicleId { get; private set; }
     public bool IsActive { get; private set; }
@@ -22,10 +41,27 @@ public sealed class Driver : AggregateRoot<Guid>
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
 
-    public static Result<Driver> Create(Guid userId, string email, string firstName, string lastName, string phoneNumber, string licenseNumber)
+    public static Result<Driver> Create(
+        Guid userId,
+        string email,
+        string firstName,
+        string lastName,
+        string phoneNumber,
+        string licenseNumber,
+        LicenseGrade licenseGrade,
+        DateOnly licenseExpiryDate,
+        DateOnly dateOfBirth,
+        string address,
+        string idCardNumber)
     {
         if (string.IsNullOrWhiteSpace(licenseNumber))
             return Result.Failure<Driver>(Error.Validation("Driver.LicenseNumber", "License number is required."));
+        if (string.IsNullOrWhiteSpace(idCardNumber))
+            return Result.Failure<Driver>(Error.Validation("Driver.IdCardNumber", "ID card number is required."));
+        if (licenseGrade == LicenseGrade.B1 || licenseGrade == LicenseGrade.E)
+            return Result.Failure<Driver>(Error.Validation("Driver.LicenseGrade", "License grade is not eligible for freight transport."));
+        if (licenseExpiryDate <= DateOnly.FromDateTime(DateTime.UtcNow))
+            return Result.Failure<Driver>(Error.Validation("Driver.LicenseExpiryDate", "License has expired."));
 
         var driver = new Driver(userId)
         {
@@ -34,6 +70,12 @@ public sealed class Driver : AggregateRoot<Guid>
             LastName = lastName,
             PhoneNumber = phoneNumber,
             LicenseNumber = licenseNumber.ToUpperInvariant(),
+            LicenseGrade = licenseGrade,
+            LicenseExpiryDate = licenseExpiryDate,
+            DateOfBirth = dateOfBirth,
+            Address = address,
+            IdCardNumber = idCardNumber,
+            VerificationStatus = DriverVerificationStatus.Draft,
             Status = DriverStatus.Offline,
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
@@ -44,10 +86,72 @@ public sealed class Driver : AggregateRoot<Guid>
         return Result.Success(driver);
     }
 
+    public Result SubmitDocuments(
+        string portraitPhotoUrl,
+        string idCardFrontUrl,
+        string idCardBackUrl,
+        string licenseFrontUrl,
+        string licenseBackUrl,
+        string vehicleRegFrontUrl,
+        string vehicleRegBackUrl)
+    {
+        if (VerificationStatus == DriverVerificationStatus.OcrVerified ||
+            VerificationStatus == DriverVerificationStatus.AdminVerified)
+            return Result.Failure(Error.Conflict("Driver.Verification", "Driver is already verified."));
+
+        PortraitPhotoUrl = portraitPhotoUrl;
+        IdCardFrontUrl = idCardFrontUrl;
+        IdCardBackUrl = idCardBackUrl;
+        LicenseFrontUrl = licenseFrontUrl;
+        LicenseBackUrl = licenseBackUrl;
+        VehicleRegFrontUrl = vehicleRegFrontUrl;
+        VehicleRegBackUrl = vehicleRegBackUrl;
+        VerificationStatus = DriverVerificationStatus.PendingOcrVerification;
+        UpdatedAt = DateTime.UtcNow;
+        return Result.Success();
+    }
+
+    public void ApplyOcrResult(float confidenceScore, DriverVerificationStatus status, string? notes = null)
+    {
+        OcrConfidenceScore = confidenceScore;
+        VerificationStatus = status;
+        VerificationNotes = notes;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public Result AdminVerify(string? notes = null)
+    {
+        if (VerificationStatus != DriverVerificationStatus.ManualReview)
+            return Result.Failure(Error.Conflict("Driver.Verification", "Only drivers in ManualReview can be admin-verified."));
+
+        VerificationStatus = DriverVerificationStatus.AdminVerified;
+        VerificationNotes = notes;
+        UpdatedAt = DateTime.UtcNow;
+        return Result.Success();
+    }
+
+    public Result AdminReject(string reason)
+    {
+        if (VerificationStatus == DriverVerificationStatus.OcrVerified ||
+            VerificationStatus == DriverVerificationStatus.AdminVerified)
+            return Result.Failure(Error.Conflict("Driver.Verification", "Cannot reject an already verified driver."));
+
+        VerificationStatus = DriverVerificationStatus.Rejected;
+        VerificationNotes = reason;
+        UpdatedAt = DateTime.UtcNow;
+        return Result.Success();
+    }
+
     public Result UpdateStatus(DriverStatus newStatus)
     {
         if (!IsActive)
             return Result.Failure(Error.Conflict("Driver", "Cannot change status of an inactive driver."));
+
+        // Driver must be verified before going Available
+        if (newStatus == DriverStatus.Available &&
+            VerificationStatus != DriverVerificationStatus.OcrVerified &&
+            VerificationStatus != DriverVerificationStatus.AdminVerified)
+            return Result.Failure(Error.Validation("Driver.Verification", "Driver must be verified before becoming available."));
 
         var oldStatus = Status;
         Status = newStatus;

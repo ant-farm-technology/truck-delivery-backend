@@ -45,8 +45,11 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Domain.Aggrega
             .HasForeignKey(i => i.OrderId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.Property(o => o.ShipmentId);
+
         builder.HasIndex(o => o.CustomerId);
         builder.HasIndex(o => o.Status);
         builder.HasIndex(o => o.CreatedAt);
+        builder.HasIndex(o => o.ShipmentId);
     }
 }

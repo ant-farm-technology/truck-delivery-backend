@@ -7,7 +7,8 @@
       "Read(//usr/local/share/dotnet/sdk/**)",
       "Read(//Users/duhongquan/.dotnet/**)",
       "Bash(\"/Users/duhongquan/Library/Application Support/Code/User/globalStorage/ms-dotnettools.vscode-dotnet-runtime/.dotnet/10.0.7~x64~aspnetcore/dotnet\" --version)",
-      "Bash(chmod +x /Users/duhongquan/Documents/work/aft-pos/truck-delivery-backend/src/Services/OCR/truck-delivery-ocr/setup.sh /Users/duhongquan/Documents/work/aft-pos/truck-delivery-backend/src/Services/OCR/truck-delivery-ocr/run.sh)"
+      "Bash(chmod +x /Users/duhongquan/Documents/work/aft-pos/truck-delivery-backend/src/Services/OCR/truck-delivery-ocr/setup.sh /Users/duhongquan/Documents/work/aft-pos/truck-delivery-backend/src/Services/OCR/truck-delivery-ocr/run.sh)",
+      "Bash(xargs -I{} cat -n {})"
     ]
   }
 }

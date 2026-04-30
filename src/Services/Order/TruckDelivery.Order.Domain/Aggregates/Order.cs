@@ -24,6 +24,7 @@ public sealed class Order : AggregateRoot<Guid>
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
     public string? CancellationReason { get; private set; }
+    public Guid? ShipmentId { get; private set; }
 
     public IReadOnlyList<OrderItem> Items => _items.AsReadOnly();
 
@@ -86,5 +87,11 @@ public sealed class Order : AggregateRoot<Guid>
 
         RaiseDomainEvent(new OrderStatusChangedDomainEvent(Id, oldStatus, newStatus));
         return Result.Success();
+    }
+
+    public void SetShipmentId(Guid shipmentId)
+    {
+        ShipmentId = shipmentId;
+        UpdatedAt = DateTime.UtcNow;
     }
 }

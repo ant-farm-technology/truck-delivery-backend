@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using TruckDelivery.Order.Application.Consumers;
 using TruckDelivery.Order.Domain.Repositories;
 using TruckDelivery.Order.Infrastructure.Persistence;
 using TruckDelivery.Order.Infrastructure.Repositories;
@@ -26,6 +27,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IOutboxRepository, OutboxRepository<OrderDbContext>>();
         services.AddHostedService<OutboxProcessor<OrderDbContext>>();
+
+        services.AddHostedService<OrderAssignedConsumer>();
+        services.AddHostedService<ShipmentCompletedConsumer>();
+        services.AddHostedService<PaymentCompletedConsumer>();
 
         return services;
     }

@@ -2,6 +2,7 @@ using Confluent.Kafka;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Minio;
 using StackExchange.Redis;
 using TruckDelivery.Driver.Application.Consumers;
 using TruckDelivery.Driver.Application.Interfaces;
@@ -42,6 +43,19 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConnection));
         services.AddScoped<IBreakdownFraudGate, BreakdownFraudGate>();
 
+        var minioEndpoint = configuration["MinIO:Endpoint"] ?? "localhost:9000";
+        var minioAccessKey = configuration["MinIO:AccessKey"] ?? throw new InvalidOperationException("MinIO:AccessKey not configured");
+        var minioSecretKey = configuration["MinIO:SecretKey"] ?? throw new InvalidOperationException("MinIO:SecretKey not configured");
+        var minioUseSsl = bool.Parse(configuration["MinIO:UseSsl"] ?? "false");
+
+        services.AddSingleton<IMinioClient>(_ =>
+            new MinioClient()
+                .WithEndpoint(minioEndpoint)
+                .WithCredentials(minioAccessKey, minioSecretKey)
+                .WithSSL(minioUseSsl)
+                .Build());
+        services.AddScoped<IStorageService, MinIOStorageService>();
+
         var bootstrapServers = configuration["Kafka:BootstrapServers"]
             ?? throw new InvalidOperationException("Kafka:BootstrapServers not configured");
         var groupId = configuration["Kafka:GroupId"] ?? "driver-service";
@@ -67,6 +81,7 @@ public static class ServiceCollectionExtensions
 
         services.AddHostedService<UserRegisteredConsumer>();
         services.AddHostedService<BreakdownReassignmentConsumer>();
+        services.AddHostedService<DriverOcrVerificationCompletedConsumer>();
         services.AddHostedService<FraudPatternAnalyzerJob>();
         services.AddHostedService<OutboxProcessor<DriverDbContext>>();
 

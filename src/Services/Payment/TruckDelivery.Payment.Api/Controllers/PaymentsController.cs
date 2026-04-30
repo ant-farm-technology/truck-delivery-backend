@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using TruckDelivery.Payment.Application.Commands.CreatePayment;
 using TruckDelivery.Payment.Application.Commands.ResolveEscrow;
 using TruckDelivery.Payment.Application.DTOs;
+using TruckDelivery.Payment.Application.Queries.GetEscrowByOrder;
 using TruckDelivery.Payment.Application.Queries.GetPaymentByOrder;
 
 namespace TruckDelivery.Payment.Api.Controllers;
@@ -33,6 +34,16 @@ public sealed class PaymentsController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> GetByOrder(Guid orderId, CancellationToken ct)
     {
         var dto = await mediator.Send(new GetPaymentByOrderQuery(orderId), ct);
+        return dto is null ? NotFound() : Ok(dto);
+    }
+
+    [HttpGet("orders/{orderId:guid}/escrow")]
+    [Authorize]
+    [ProducesResponseType(typeof(EscrowDto), 200)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> GetEscrowByOrder(Guid orderId, CancellationToken ct)
+    {
+        var dto = await mediator.Send(new GetEscrowByOrderQuery(orderId), ct);
         return dto is null ? NotFound() : Ok(dto);
     }
 

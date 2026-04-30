@@ -1,0 +1,37 @@
+using Microsoft.Extensions.Configuration;
+using Minio;
+using Minio.DataModel.Args;
+using TruckDelivery.Driver.Application.Interfaces;
+
+namespace TruckDelivery.Driver.Infrastructure.Services;
+
+public sealed class MinIOStorageService(IMinioClient minioClient, IConfiguration configuration) : IStorageService
+{
+    private const string Bucket = "driver-documents";
+    private static readonly TimeSpan UrlTtl = TimeSpan.FromMinutes(15);
+
+    public async Task<IReadOnlyList<PresignedUrlEntry>> GenerateDriverDocumentUrlsAsync(
+        Guid driverId, IEnumerable<string> fields, CancellationToken ct = default)
+    {
+        var publicEndpoint = configuration["MinIO:PublicEndpoint"]
+            ?? configuration["MinIO:Endpoint"]
+            ?? "http://localhost:9000";
+
+        var results = new List<PresignedUrlEntry>();
+        foreach (var field in fields)
+        {
+            var objectName = $"{driverId}/{field}-{Guid.NewGuid():N}.jpg";
+
+            var uploadUrl = await minioClient.PresignedPutObjectAsync(
+                new PresignedPutObjectArgs()
+                    .WithBucket(Bucket)
+                    .WithObject(objectName)
+                    .WithExpiry((int)UrlTtl.TotalSeconds), ct);
+
+            var finalUrl = $"{publicEndpoint}/{Bucket}/{objectName}";
+            results.Add(new PresignedUrlEntry(field, uploadUrl, finalUrl));
+        }
+
+        return results;
+    }
+}

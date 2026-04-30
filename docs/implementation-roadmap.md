@@ -53,19 +53,17 @@
 
 ## 2. Phát hiện nghiêm trọng (bổ sung từ khảo sát)
 
-### 2.1 🚨 Order Service không có Consumer nào (Critical Bug)
+### 2.1 ✅ Order Service Consumers (Critical Bug — FIXED)
 
-`src/Services/Order/TruckDelivery.Order.Application/` **không có thư mục `Consumers/`**.
+**3 consumers đã tạo và đăng ký:**
 
-**Hậu quả:** Order status mãi là `Pending` — không bao giờ tự chuyển trạng thái dù driver đã assign và giao hàng xong.
+| Consumer | Topic subscribe | Update Order.Status sang | Status |
+|---|---|---|---|
+| `OrderAssignedConsumer` | `shipment.driver.assigned` | `AssignedToDriver` + lưu `ShipmentId` | ✅ Done |
+| `ShipmentCompletedConsumer` | `shipment.shipment.completed` | `Delivered` | ✅ Done |
+| `PaymentCompletedConsumer` | `payment.payment.completed` | `Completed` | ✅ Done |
 
-**3 consumers phải tạo:**
-
-| Consumer | Topic subscribe | Update Order.Status sang |
-|---|---|---|
-| `OrderAssignedConsumer` | `shipment.driver.assigned` | `AssignedToDriver` + lưu `ShipmentId` |
-| `ShipmentCompletedConsumer` | `shipment.shipment.completed` | `Delivered` |
-| `PaymentCompletedConsumer` | `payment.payment.completed` | `Completed` |
+`OrderStatus.Completed = 8` đã được thêm vào enum. `ShipmentId` field và migration `20260430000000_AddShipmentIdToOrder` đã tạo.
 
 ### 2.2 🚨 Domain Models thiếu fields nghiệp vụ quan trọng
 
@@ -548,19 +546,19 @@ GET /api/v1/payments/orders/{orderId}/escrow
 
 ### Phase 1 Checklist
 
-| # | Task | Effort | Ảnh hưởng |
-|---|---|---|---|
-| 1 | Data model: Driver + Vehicle + User | M+M+S | Foundation |
-| 2 | LicenseGrade + DriverVerificationStatus enums | XS | Foundation |
-| 3 | Order consumers (3 consumers) + ShipmentId | L | Critical bug |
-| 4 | Admin seed data | S | Admin can login |
-| 5 | Gateway routes (vehicles + analytics + **ocr**) | XS | ✅ Done |
-| 6 | List Shipments | M | A1, C7, D1 |
-| 7 | Escrow lookup | S | C2 |
-| 8 | Admin decline-dispatch endpoint | S | Dispatch flow |
-| 9 | Pre-signed URL endpoint (`GET /api/v1/uploads/presigned-url`) | S | Driver photo upload |
+| # | Task | Effort | Ảnh hưởng | Trạng thái |
+|---|---|---|---|---|
+| 1 | Data model: Driver + Vehicle (enums + fields + EFCore + migration) | M+M | Foundation | ✅ Done |
+| 2 | LicenseGrade + DriverVerificationStatus enums | XS | Foundation | ✅ Done |
+| 3 | Order consumers (3 consumers) + ShipmentId field + migration | L | Critical bug | ✅ Done |
+| 4 | Admin seed data (AdminSeeder.cs + Program.cs wiring) | S | Admin can login | ✅ Done |
+| 5 | Gateway routes (vehicles + analytics + **ocr**) | XS | API accessibility | ✅ Done |
+| 6 | List Shipments (`GET /api/v1/shipments?...`) | M | A1, C7, D1 | ✅ Done |
+| 7 | Escrow lookup (`GET /api/v1/payments/orders/{orderId}/escrow`) | S | C2 | ✅ Done |
+| 8 | Admin decline-dispatch endpoint | S | Dispatch flow | ✅ Done |
+| 9 | Pre-signed URL endpoint (`GET /api/v1/uploads/presigned-url`) | S | Driver photo upload | ✅ Done |
 
-> **Kết quả Phase 1:** System functional end-to-end. Admin có thể login. Order status tự cập nhật. Driver có thể upload ảnh để đăng ký.
+> **Kết quả Phase 1 (ALL items done):** Driver/Vehicle domain models hoàn chỉnh. Order status tự cập nhật. Admin login. List Shipments by filters. Escrow lookup. Admin decline-dispatch. MinIO pre-signed URL cho driver document upload.
 
 ---
 
@@ -568,28 +566,27 @@ GET /api/v1/payments/orders/{orderId}/escrow
 
 ### 7.1 Customer Registration (update existing — 2h)
 
-- Thêm `PhoneNumber` vào `RegisterRequest` + `RegisterUserCommand` + `User.Create()`
-- Thêm `DateOfBirth` (optional)
-- Update `UserRegisteredEvent` để carry `phoneNumber`
+- ✅ `PhoneNumber` và `DateOfBirth` đã có trong `User.Create()` và `AuthController`
+- ✅ `POST /api/v1/auth/register` đã nhận `PhoneNumber` (bắt buộc) và `DateOfBirth` (optional)
 
-### 7.2 Driver Registration (self-service — 2 ngày)
+### 7.2 Driver Registration (self-service) — ✅ Done
 
-| Task | Files | Effort |
-|---|---|---|
-| `POST /api/v1/auth/register/driver` endpoint | `AuthController.cs` | S |
-| `SelfRegisterDriverCommand` + Handler + Validator | `Commands/SelfRegisterDriver/` | M |
-| Validate licenseGrade vs vehicleType compatibility | domain guard | S |
-| Validation: license not expired, registration not expired | validator | S |
-| `DriverVerificationStatus` guard trong `Driver.UpdateStatus()` | `Driver.cs` | XS |
+| Task | Status |
+|---|---|
+| `POST /api/v1/auth/register/driver` endpoint | ✅ Done |
+| `SelfRegisterDriverCommand` + Handler | ✅ Done |
+| Driver aggregate guards (licenseGrade, expiry) | ✅ Done |
+| `DriverVerificationStatus` guard trong `Driver.UpdateStatus()` | ✅ Done |
+| `DriverDocumentsSubmittedEvent` → topic `driver.documents.submitted` | ✅ Done |
 
-### 7.2.1 Admin Driver Verification (1 ngày)
+### 7.2.1 Admin Driver Verification — ✅ Done
 
-| Task | Files | Effort |
-|---|---|---|
-| `GET /api/v1/drivers/pending-verification` — ManualReview queue | `DriversController.cs` | M |
-| `POST /api/v1/drivers/{id}/verify` — Admin verify sau ManualReview | `Commands/AdminVerifyDriver/` | S |
-| `POST /api/v1/drivers/{id}/reject-verification` — Admin reject, yêu cầu upload lại | `Commands/AdminRejectDriver/` | S |
-| `DriverOcrVerificationCompletedConsumer` trong Driver service | `Consumers/` | M |
+| Task | Status |
+|---|---|
+| `GET /api/v1/drivers/pending-verification` — ManualReview queue | ✅ Done |
+| `POST /api/v1/drivers/{id}/verify` → `AdminVerifyDriverCommand` | ✅ Done |
+| `POST /api/v1/drivers/{id}/reject-verification` → `AdminRejectDriverCommand` | ✅ Done |
+| `DriverOcrVerificationCompletedConsumer` (topic `ocr.driver.verification-completed`) | ✅ Done |
 
 ### 7.3 Admin account management (1 ngày)
 

@@ -2,6 +2,7 @@ using Confluent.Kafka;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using TruckDelivery.Notification.Application.Commands.RegisterDevice;
 using TruckDelivery.Notification.Application.Consumers;
 using TruckDelivery.Notification.Application.Interfaces;
 using TruckDelivery.Notification.Domain.Repositories;
@@ -37,6 +38,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<IOutboxRepository, OutboxRepository<NotificationDbContext>>();
+        services.AddScoped<IDeviceTokenStore, DeviceTokenStore>();
         services.AddHostedService<OutboxProcessor<NotificationDbContext>>();
     }
 
