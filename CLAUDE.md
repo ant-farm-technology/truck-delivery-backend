@@ -82,6 +82,12 @@ Solution file: `TruckDelivery.slnx` (16 .NET projects + 1 Rust crate).
 - **Driver registration endpoint missing** — `POST /api/v1/drivers/register` (Step 2 of 3-step driver onboarding) not yet implemented.
 - **Admin driver verification endpoints missing** — `GET /api/v1/drivers?verificationStatus=ManualReview`, `POST /api/v1/drivers/{id}/verify`, `POST /api/v1/drivers/{id}/reject-verification` not yet implemented.
 - **MinIO pre-signed URL endpoint missing** — `GET /api/v1/uploads/presigned-url` for photo upload flow not yet implemented.
+- **FCM device token endpoint missing** — `POST /api/v1/notifications/register-device` for push notification registration not yet implemented.
+- **Shipment query by orderId missing** — `GET /api/v1/shipments?orderId={orderId}` needed by Customer App tracking screen.
+
+### Mobile Integration Documentation
+- **Driver App:** `docs/mobile-integration/01-driver-app.md` — Onboarding (3 bước), GPS push, breakdown report, SignalR, FCM
+- **Customer App:** `docs/mobile-integration/02-customer-app.md` — Tạo đơn, real-time tracking, thanh toán, SignalR, FCM
 
 ---
 

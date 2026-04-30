@@ -16,6 +16,13 @@
 | **Admin** | Flutter app + NextJS Admin Dashboard (monorepo) | Giám sát, fallback dispatch thủ công, quản lý hệ thống |
 | **Backend** | Dự án này (.NET 10 + Rust + Python) | Auto-dispatch, routing, optimization |
 
+**Tài liệu tích hợp mobile:**
+
+| App | File |
+|---|---|
+| Driver App | [docs/mobile-integration/01-driver-app.md](mobile-integration/01-driver-app.md) |
+| Customer App | [docs/mobile-integration/02-customer-app.md](mobile-integration/02-customer-app.md) |
+
 ### 1.1 Quy tắc dispatch (QUAN TRỌNG)
 
 ```
