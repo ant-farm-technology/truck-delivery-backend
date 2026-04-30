@@ -638,12 +638,9 @@ Cập nhật:
 // DriverDto: thêm TrustScore field
 ```
 
-### 7.7 FCM Device Token + SignalR DriverAssigned (M)
+### 7.7 FCM Device Token — ✅ Done
 
-```
-POST /api/v1/notifications/device-tokens
-```
-+ `DeviceToken` aggregate + `DriverAssigned` SignalR event từ `ShipmentStartedConsumer`.
+`POST /api/v1/notifications/register-device` → `RegisterDeviceCommand` → upsert `DeviceToken` (one per userId+platform); JWT auth added to Notification API; migration `20260430000001_AddDeviceTokens` created.
 
 ---
 

@@ -29,12 +29,12 @@ Hệ thống cần đảm bảo:
 │                                                             │
 │  1. Driver app upload ảnh → S3/MinIO via pre-signed URL     │
 │  2. Driver app → POST /api/v1/ocr/extract/id-card           │
-│     → OCR trả về: { full_name, dob, address, id_number }   │
+│     → OCR trả về: { full_name, dob, address, id_number }    │
 │  3. Driver app → POST /api/v1/ocr/extract/license           │
-│     → OCR trả về: { license_number, grade, expiry }        │
+│     → OCR trả về: { license_number, grade, expiry }         │
 │  4. Driver app → POST /api/v1/ocr/extract/vehicle-reg       │
-│     → OCR trả về: { plate, brand, model, reg_number }      │
-│  5. Client pre-fills form, driver review/chỉnh sửa         │
+│     → OCR trả về: { plate, brand, model, reg_number }       │
+│  5. Client pre-fills form, driver review/chỉnh sửa          │
 └─────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
@@ -46,13 +46,13 @@ Hệ thống cần đảm bảo:
 │  8. Driver service: publish DriverDocumentsSubmittedEvent   │
 │     → Kafka: driver.documents.submitted                     │
 │  9. OCR service: consume event → re-extract all docs        │
-│     → compare extracted vs submitted data                  │
+│     → compare extracted vs submitted data                   │
 │ 10. OCR service: publish DriverVerificationCompletedEvent   │
-│     → Kafka: ocr.driver.verification-completed             │
+│     → Kafka: ocr.driver.verification-completed              │
 │ 11. Driver service: consume event                           │
-│     → confidence ≥ 0.85 → VerificationStatus = OcrVerified │
-│     → confidence < 0.85 → ManualReview (Admin notified)    │
-│ 12. Driver chưa Verified → KHÔNG thể set status Available  │
+│     → confidence ≥ 0.85 → VerificationStatus = OcrVerified  │
+│     → confidence < 0.85 → ManualReview (Admin notified)     │
+│ 12. Driver chưa Verified → KHÔNG thể set status Available   │
 └─────────────────────────────────────────────────────────────┘
 ```
 

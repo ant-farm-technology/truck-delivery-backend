@@ -11,6 +11,7 @@ using TruckDelivery.Driver.Application.Commands.SelfRegisterDriver;
 using TruckDelivery.Driver.Application.Commands.UpdateDriverStatus;
 using TruckDelivery.Driver.Application.Queries.GetDriverById;
 using TruckDelivery.Driver.Application.Queries.ListAvailableDrivers;
+using TruckDelivery.Driver.Application.Queries.ListDrivers;
 using TruckDelivery.Driver.Application.Queries.ListPendingVerification;
 using TruckDelivery.Driver.Domain.ValueObjects;
 
@@ -77,6 +78,18 @@ public sealed class DriversController(IMediator mediator) : ControllerBase
             return NotFound(new { result.Error.Code, result.Error.Description });
 
         return Ok(result.Value);
+    }
+
+    [HttpGet]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> ListDrivers(
+        [FromQuery] int? status,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken ct = default)
+    {
+        var result = await mediator.Send(new ListDriversQuery(status, page, pageSize), ct);
+        return Ok(result);
     }
 
     [HttpGet("available")]

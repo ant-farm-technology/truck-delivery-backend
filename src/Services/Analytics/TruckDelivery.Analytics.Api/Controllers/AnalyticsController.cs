@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TruckDelivery.Analytics.Application.Commands.AcknowledgeFraudAlert;
 using TruckDelivery.Analytics.Application.DTOs;
 using TruckDelivery.Analytics.Application.Queries.GetBreakdownIncidents;
 using TruckDelivery.Analytics.Application.Queries.GetFraudAlerts;
@@ -38,5 +39,17 @@ public sealed class AnalyticsController(IMediator mediator) : ControllerBase
     {
         var alerts = await mediator.Send(new GetFraudAlertsQuery(days, limit), ct);
         return Ok(alerts);
+    }
+
+    [HttpPost("fraud/alerts/{id:guid}/acknowledge")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> AcknowledgeFraudAlert(Guid id, CancellationToken ct)
+    {
+        var result = await mediator.Send(new AcknowledgeFraudAlertCommand(id), ct);
+        if (result.IsFailure)
+            return NotFound(new { result.Error.Code, result.Error.Description });
+
+        return NoContent();
     }
 }

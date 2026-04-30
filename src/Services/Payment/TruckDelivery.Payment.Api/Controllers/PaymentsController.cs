@@ -6,6 +6,7 @@ using TruckDelivery.Payment.Application.Commands.ResolveEscrow;
 using TruckDelivery.Payment.Application.DTOs;
 using TruckDelivery.Payment.Application.Queries.GetEscrowByOrder;
 using TruckDelivery.Payment.Application.Queries.GetPaymentByOrder;
+using TruckDelivery.Payment.Application.Queries.ListPayments;
 
 namespace TruckDelivery.Payment.Api.Controllers;
 
@@ -14,6 +15,21 @@ namespace TruckDelivery.Payment.Api.Controllers;
 [Produces("application/json")]
 public sealed class PaymentsController(IMediator mediator) : ControllerBase
 {
+    [HttpGet]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(200)]
+    public async Task<IActionResult> ListPayments(
+        [FromQuery] string? status,
+        [FromQuery] DateTime? dateFrom,
+        [FromQuery] DateTime? dateTo,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken ct = default)
+    {
+        var result = await mediator.Send(new ListPaymentsQuery(status, dateFrom, dateTo, page, pageSize), ct);
+        return Ok(result);
+    }
+
     [HttpPost]
     [Authorize(Roles = "Admin")]
     [ProducesResponseType(typeof(object), 201)]

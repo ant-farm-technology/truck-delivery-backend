@@ -12,6 +12,14 @@ public sealed class FraudAlertRepository(IMongoDatabase database) : IFraudAlertR
     public async Task AddAsync(FraudAlert alert, CancellationToken ct = default)
         => await _collection.InsertOneAsync(alert, cancellationToken: ct);
 
+    public async Task<FraudAlert?> GetByIdAsync(Guid id, CancellationToken ct = default)
+        => await _collection.Find(Builders<FraudAlert>.Filter.Eq(a => a.Id, id))
+            .FirstOrDefaultAsync(ct);
+
+    public async Task UpdateAsync(FraudAlert alert, CancellationToken ct = default)
+        => await _collection.ReplaceOneAsync(
+            Builders<FraudAlert>.Filter.Eq(a => a.Id, alert.Id), alert, cancellationToken: ct);
+
     public async Task<IReadOnlyList<FraudAlert>> GetRecentAsync(DateTime from, int limit, CancellationToken ct = default)
         => await _collection
             .Find(Builders<FraudAlert>.Filter.Gte(a => a.DetectedAt, from))
