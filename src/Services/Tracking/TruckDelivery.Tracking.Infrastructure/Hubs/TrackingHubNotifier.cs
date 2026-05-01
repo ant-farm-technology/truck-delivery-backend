@@ -23,4 +23,20 @@ public sealed class TrackingHubNotifier(IHubContext<TrackingHub> hubContext) : I
                 speedKmh,
                 recordedAt
             }, ct);
+
+    public Task NotifyDriverAssignedAsync(
+        Guid driverId,
+        Guid shipmentId,
+        Guid orderId,
+        Guid vehicleId,
+        CancellationToken ct = default)
+        => hubContext.Clients
+            .Group($"driver:{driverId}")
+            .SendAsync("DriverAssigned", new
+            {
+                shipmentId,
+                orderId,
+                vehicleId,
+                assignedAt = DateTime.UtcNow
+            }, ct);
 }

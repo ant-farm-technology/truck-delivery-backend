@@ -21,6 +21,10 @@ public sealed class SelfRegisterDriverCommandHandler(
             return Result.Failure<SelfRegisterDriverResult>(
                 Error.Conflict("Driver", "Driver profile already exists for this user."));
 
+        if (await driverRepository.ExistsByIdCardNumberAsync(request.IdCardNumber, ct))
+            return Result.Failure<SelfRegisterDriverResult>(
+                Error.Conflict("Driver.IdCard", "ID card number is already registered."));
+
         if (await vehicleRepository.ExistsByLicensePlateAsync(request.LicensePlate, ct))
             return Result.Failure<SelfRegisterDriverResult>(
                 Error.Conflict("Vehicle", $"Vehicle with plate '{request.LicensePlate}' already registered."));

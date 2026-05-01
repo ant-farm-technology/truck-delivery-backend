@@ -23,13 +23,26 @@ public sealed class UploadsController(IStorageService storageService) : Controll
     [ProducesResponseType(400)]
     public async Task<IActionResult> GetPresignedUrl(
         [FromQuery] string type,
-        CancellationToken ct)
+        [FromQuery] int count = 5,
+        CancellationToken ct = default)
     {
-        if (!type.Equals("driver-document", StringComparison.OrdinalIgnoreCase))
-            return BadRequest(new { error = $"Unsupported upload type: {type}" });
-
         var driverId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var urls = await storageService.GenerateDriverDocumentUrlsAsync(driverId, DriverDocumentFields, ct);
-        return Ok(new { urls });
+
+        if (type.Equals("driver-document", StringComparison.OrdinalIgnoreCase))
+        {
+            var urls = await storageService.GenerateDriverDocumentUrlsAsync(driverId, DriverDocumentFields, ct);
+            return Ok(new { urls });
+        }
+
+        if (type.Equals("breakdown-photo", StringComparison.OrdinalIgnoreCase))
+        {
+            if (count is < 1 or > 10)
+                return BadRequest(new { error = "count must be between 1 and 10" });
+
+            var urls = await storageService.GenerateBreakdownPhotoUrlsAsync(driverId, count, ct);
+            return Ok(new { urls });
+        }
+
+        return BadRequest(new { error = $"Unsupported upload type: {type}. Supported: driver-document, breakdown-photo" });
     }
 }

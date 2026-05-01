@@ -91,12 +91,22 @@ Solution file: `TruckDelivery.slnx` (16 .NET projects + 1 Rust crate).
 - **[L1-FIXED] Driver license expiry off-by-one:** Guard changed from `<=` to `<` so a license expiring today is still accepted
 - **[L2-FIXED] Notification stub TODO comments:** Added `// TODO: Replace with real FCM/Twilio/SMTP…` comment to each stub sender
 
-### Remaining Gaps (After All Fixes)
-- **No test projects (.NET)** — no unit, integration, or contract tests exist yet. OCR service has Python pytest tests.
-- **GitHub Actions missing** — `.github/` directory exists but empty.
+### Sprint 1 Fixes (2026-05-01)
+- **[G-S1-FIXED] Driver status role guard:** `PUT /drivers/{id}/status` now requires `Admin,Driver` role. Driver role can only update own status (RequestingUserId == DriverId check in handler). `Error.Forbidden` added to `Shared.Common.Primitives.Error`.
+- **[G-S2-FIXED] Shipment status restriction:** `PUT /shipments/{id}/status` guards Driver role to only `PickedUp`, `InTransit`, `Delivered` — Forbid() returned for any other status.
+- **[G-B1-FIXED] LicenseGrade filter in Optimizer:** `DriverInfo.license_grade` + `OptimizeRequest.required_license_grades` added to Python models; filter applied before VRP solving in `/optimize` route. C# DTOs updated (`DriverInfo.LicenseGrade`, `OptimizeRequest.RequiredLicenseGrades`). `DriverAssignmentRequestedEvent` extended with `RequiredLicenseGrades`.
+- **[G-B5-FIXED] SignalR DriverAssigned:** `ITrackingNotifier.NotifyDriverAssignedAsync()` added and implemented in `TrackingHubNotifier` (sends `DriverAssigned` event to `driver:{driverId}` SignalR group). `ShipmentStartedConsumer` emits after tracking starts.
+- **[G-B6-FIXED] Breakdown photo presigned URL:** `GET /api/v1/uploads/presigned-url?type=breakdown-photo&count=N` (1–10). `IStorageService.GenerateBreakdownPhotoUrlsAsync()` added; `MinIOStorageService` uses `breakdown-photos` bucket. `MinIOStorageService` refactored to shared `GeneratePresignedUrlsAsync`.
+- **[G-B10-FIXED] OrderDto.ShipmentId:** `ShipmentId: Guid?` added to `OrderDto` and `OrderSummaryDto`. Both `GetOrderByIdQueryHandler` and `ListOrdersByCustomerQueryHandler` Dapper queries now select `o.ShipmentId`.
+- **[G-S4-FIXED] Coordinate range validation:** `CreateOrderCommandValidator` validates `Latitude ∈ [-90,90]` and `Longitude ∈ [-180,180]` for both pickup and delivery addresses (nullable, conditional).
+- **[G-S3-FIXED] IdCardNumber duplicate check:** `IDriverRepository.ExistsByIdCardNumberAsync()` added (interface + EFCore impl). `SelfRegisterDriverCommandHandler` checks before creating driver — returns `Error.Conflict("Driver.IdCard", ...)` with proper 409 response.
+
+### Remaining Gaps (After Sprint 1)
+- **Unit/Integration/Contract tests** — 4 unit test projects created (Order/Driver/Shipment/Payment domain); integration and contract tests not yet written.
+- **GitHub Actions** — `build-test.yml` + `docker-publish.yml` created; `integration.yml` not yet created.
 - **Notification senders are stubs** — StubPushSender/StubSmsSender/StubEmailSender log only; real impl needs FCM/Twilio/SMTP.
 - **Payment gateway not wired** — COD flow auto-completes; real gateway integration needed for card/VNPay.
-- **Customer PhoneNumber/DateOfBirth missing** — User aggregate in Identity and `RegisterUserCommand` not yet updated with `PhoneNumber` (required) and `DateOfBirth` (optional) fields.
+- **Customer PhoneNumber/DateOfBirth missing** — User aggregate in Identity and `RegisterUserCommand` not yet updated.
 - **[M3-FIXED] DispatchSagaOrchestrator real Route Service call:** `AddressRequest` now accepts `Latitude?`/`Longitude?`; `Order` aggregate stores 4 coordinate fields; `OrderCreatedEvent` (both publisher + consumer-side DTOs) carries coordinates; `Shipment` aggregate stores pickup/delivery coordinates; `DispatchSagaOrchestrator` calls `routeClient.GetRouteAsync()` when coords present, falls back to Haversine when Route Service is unreachable, and falls back to static placeholder when coords are absent; migrations `20260430000001_AddCoordinatesToOrder` + `20260430000001_AddCoordinatesToShipment` created.
 
 ### Mobile Integration Documentation

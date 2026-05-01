@@ -16,7 +16,7 @@ public sealed class ListOrdersByCustomerQueryHandler(IDbConnectionFactory dbConn
         var offset = (request.Page - 1) * request.PageSize;
 
         const string sql = """
-            SELECT Id, CustomerId, Status, PickupCity, DeliveryCity, TotalWeightKg, CreatedAt
+            SELECT Id, CustomerId, Status, PickupCity, DeliveryCity, TotalWeightKg, CreatedAt, ShipmentId
             FROM `order`.orders
             WHERE CustomerId = @CustomerId
             ORDER BY CreatedAt DESC

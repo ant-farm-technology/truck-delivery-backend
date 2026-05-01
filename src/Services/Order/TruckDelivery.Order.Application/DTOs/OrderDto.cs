@@ -16,7 +16,8 @@ public sealed record OrderDto(
     string? CancellationReason,
     DateTime CreatedAt,
     DateTime UpdatedAt,
-    IReadOnlyList<OrderItemDto> Items);
+    IReadOnlyList<OrderItemDto> Items,
+    Guid? ShipmentId = null);
 
 public sealed record OrderItemDto(
     Guid Id,
@@ -33,4 +34,5 @@ public sealed record OrderSummaryDto(
     string PickupCity,
     string DeliveryCity,
     decimal TotalWeightKg,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    Guid? ShipmentId = null);

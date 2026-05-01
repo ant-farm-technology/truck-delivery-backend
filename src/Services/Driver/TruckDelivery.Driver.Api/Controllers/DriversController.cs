@@ -138,11 +138,18 @@ public sealed class DriversController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("{id:guid}/status")]
+    [Authorize(Roles = "Admin,Driver")]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateDriverStatusRequest request, CancellationToken ct)
     {
-        var result = await mediator.Send(new UpdateDriverStatusCommand(id, request.Status), ct);
+        var requestingUserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var requestingUserRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
+
+        var result = await mediator.Send(new UpdateDriverStatusCommand(id, request.Status, requestingUserId, requestingUserRole), ct);
         if (result.IsFailure)
+        {
+            if (result.Error.Code.Contains("Forbidden")) return Forbid();
             return BadRequest(new { result.Error.Code, result.Error.Description });
+        }
 
         return NoContent();
     }

@@ -70,6 +70,7 @@ public sealed class ShipmentsController(IMediator mediator, ShipmentQueryReposit
     [Authorize(Roles = "Admin,Driver")]
     [ProducesResponseType(204)]
     [ProducesResponseType(400)]
+    [ProducesResponseType(403)]
     [ProducesResponseType(404)]
     public async Task<IActionResult> UpdateStatus(
         Guid id,
@@ -78,6 +79,14 @@ public sealed class ShipmentsController(IMediator mediator, ShipmentQueryReposit
     {
         if (!Enum.TryParse<ShipmentStatus>(request.Status, ignoreCase: true, out var status))
             return BadRequest($"Invalid status: {request.Status}");
+
+        // Drivers may only advance a shipment through their own lifecycle steps
+        if (User.IsInRole("Driver"))
+        {
+            var driverAllowed = new[] { ShipmentStatus.PickedUp, ShipmentStatus.InTransit, ShipmentStatus.Delivered };
+            if (!driverAllowed.Contains(status))
+                return Forbid();
+        }
 
         var result = await mediator.Send(new UpdateShipmentStatusCommand(id, status), ct);
         return result.IsFailure ? BadRequest(result.Error.Description) : NoContent();

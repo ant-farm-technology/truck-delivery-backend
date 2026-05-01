@@ -10,4 +10,11 @@ public interface ITrackingNotifier
         double? speedKmh,
         DateTime recordedAt,
         CancellationToken ct = default);
+
+    Task NotifyDriverAssignedAsync(
+        Guid driverId,
+        Guid shipmentId,
+        Guid orderId,
+        Guid vehicleId,
+        CancellationToken ct = default);
 }

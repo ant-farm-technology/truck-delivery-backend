@@ -56,14 +56,16 @@ public sealed record OptimizeRequest(
     IReadOnlyList<OrderInfo> Orders,
     double[][] DistanceMatrix,
     int DepotIndex,
-    int SolverTimeoutSeconds = 10);
+    int SolverTimeoutSeconds = 10,
+    IReadOnlyList<string>? RequiredLicenseGrades = null);
 
 public sealed record DriverInfo(
     Guid DriverId,
     Guid VehicleId,
     int LocationIndex,
     double MaxWeightKg,
-    double MaxVolumeCbm);
+    double MaxVolumeCbm,
+    string? LicenseGrade = null);
 
 public sealed record OrderInfo(
     Guid OrderId,
