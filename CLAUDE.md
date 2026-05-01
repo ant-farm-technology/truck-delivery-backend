@@ -136,9 +136,28 @@ Solution file: `TruckDelivery.slnx` (16 .NET projects + 1 Rust crate).
 All 28 items from the 2026-05-01 upgrade proposal are complete: Sprint 1 (8) + Sprint 2 (6) + Sprint 3 (5) + Sprint 4 (4) + Doc Sprint (7) = 28/28 ✅
 - **[M3-FIXED] DispatchSagaOrchestrator real Route Service call:** `AddressRequest` now accepts `Latitude?`/`Longitude?`; `Order` aggregate stores 4 coordinate fields; `OrderCreatedEvent` (both publisher + consumer-side DTOs) carries coordinates; `Shipment` aggregate stores pickup/delivery coordinates; `DispatchSagaOrchestrator` calls `routeClient.GetRouteAsync()` when coords present, falls back to Haversine when Route Service is unreachable, and falls back to static placeholder when coords are absent; migrations `20260430000001_AddCoordinatesToOrder` + `20260430000001_AddCoordinatesToShipment` created.
 
+### E2E Tests (2026-05-01)
+- **E2E project:** `tests/E2E/TruckDelivery.E2E.Tests/` — xUnit + Testcontainers (MySQL, MongoDB, Kafka, Redis) + WebApplicationFactory for 5 services (Identity, Order, Driver, Shipment, Payment) + WireMock.Net stubs for Optimizer + Route Service
+- **`public partial class Program { }`** added to 5 service Program.cs files (Identity, Order, Driver, Shipment, Payment) to enable WebApplicationFactory<T> referencing
+- **`OrderDeliveryFlowTests`:** Full COD flow — create order → Kafka saga assigns driver → pickup → deliver → payment auto-complete; asserts `OrderStatus=AssignedToDriver` and `PaymentStatus=Completed`
+- **`BreakdownReassignmentFlowTests`:** Breakdown saga — 2 drivers created; order assigned to driver 1; driver 1 reports breakdown → shipment transitions to `Reassigning`; WireMock reassigns driver 2
+- **`WaitForAsync`:** Polling helper with configurable timeout (default 45s) and interval (default 500ms) for async Kafka event propagation
+- **`JwtHelper`:** Generates test JWTs directly (bypasses Identity service for test setup) using in-memory `HS256` with test key/issuer/audience
+- **`e2e.yml`:** `.github/workflows/e2e.yml` — separate CI workflow, 20 min timeout, runs on push/PR to develop/main/master
+
+### Load Tests — k6 (2026-05-01)
+- **`tests/LoadTests/k6/`:** Three k6 scenarios matching project testing rules + golden signals:
+  1. **`01-order-creation-load.js`** — 100 VUs ramping over 10 min; creates orders + reads + 20% cancels; thresholds: p95 < 2s, errors < 5%
+  2. **`02-tracking-spike.js`** — 500–10k VUs (configurable via `PEAK_VUS` env); GPS updates every 1s; thresholds: p95 < 500ms, ≥ 300k updates in 5 min (= 1k/sec golden signal alert floor)
+  3. **`03-kafka-throughput.js`** — 200 order VUs + 1000 tracking VUs simultaneously; estimates Kafka event throughput; queries Prometheus consumer lag via `PROMETHEUS_URL`; lag threshold < 10k messages
+- **`lib/auth.js`:** VU-lazy `registerAndLogin()` helper — each VU registers once, reuses token across iterations
+- **`lib/data.js`:** `createOrderPayload()` + `locationUpdatePayload()` with randomised coordinates
+- **`load-tests.yml`:** `.github/workflows/load-tests.yml` — manual `workflow_dispatch` only (prevents accidental production load); accepts `scenario` choice + `gateway_url` input; installs k6 from official APT repo
+- **Results** written to `tests/LoadTests/results/*.json` per run
+
 ### Mobile Integration Documentation
-- **Driver App:** `docs/mobile-integration/01-driver-app.md` — Onboarding (3 bước), GPS push, breakdown report, SignalR, FCM
-- **Customer App:** `docs/mobile-integration/02-customer-app.md` — Tạo đơn, real-time tracking, thanh toán, SignalR, FCM
+- **Driver App:** `docs/mobile-integration/01-driver-app.md` — Onboarding (3 bước), GPS push, breakdown report, SignalR, FCM; updated 2026-05-01 for Sprint 4 accuracy (all-in-one register, PendingOcrVerification enum, breakdown-photos bucket)
+- **Customer App:** `docs/mobile-integration/02-customer-app.md` — Tạo đơn, real-time tracking, thanh toán COD + VNPay, SignalR, FCM; updated 2026-05-01 for Sprint 4 accuracy (firstName/lastName, shipmentId in OrderDto, status/dateFrom/dateTo filters)
 
 ---
 

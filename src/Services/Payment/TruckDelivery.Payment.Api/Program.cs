@@ -78,3 +78,4 @@ app.MapHealthChecks("/ready");
 app.MapPrometheusScrapingEndpoint("/metrics");
 
 await app.RunAsync();
+public partial class Program { }

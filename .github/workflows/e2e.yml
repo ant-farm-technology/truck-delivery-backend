@@ -1,0 +1,47 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [develop, main, master]
+  pull_request:
+    branches: [develop, main, master]
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    name: End-to-End Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore tests/E2E/TruckDelivery.E2E.Tests/TruckDelivery.E2E.Tests.csproj
+
+      - name: Build E2E project
+        run: dotnet build tests/E2E/TruckDelivery.E2E.Tests/TruckDelivery.E2E.Tests.csproj --no-restore --configuration Release
+
+      - name: Run E2E tests
+        run: |
+          dotnet test tests/E2E/TruckDelivery.E2E.Tests/TruckDelivery.E2E.Tests.csproj \
+            --no-build \
+            --configuration Release \
+            --logger "trx;LogFileName=e2e-results.trx" \
+            --results-directory ./test-results/e2e \
+            --timeout 900000
+        # Testcontainers pulls Docker images and starts services — allow 15 min total
+        env:
+          DOTNET_ENVIRONMENT: Test
+
+      - name: Upload E2E test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results
+          path: ./test-results/e2e/
