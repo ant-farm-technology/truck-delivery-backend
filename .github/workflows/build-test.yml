@@ -57,6 +57,24 @@ jobs:
             --collect:"XPlat Code Coverage" \
             -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
 
+          dotnet test tests/Unit/TruckDelivery.Notification.Domain.Tests/ \
+            --no-build -c Release \
+            --logger "trx;LogFileName=notification-results.trx" \
+            --collect:"XPlat Code Coverage" \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+
+          dotnet test tests/Unit/TruckDelivery.Tracking.Domain.Tests/ \
+            --no-build -c Release \
+            --logger "trx;LogFileName=tracking-results.trx" \
+            --collect:"XPlat Code Coverage" \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+
+          dotnet test tests/Unit/TruckDelivery.Analytics.Domain.Tests/ \
+            --no-build -c Release \
+            --logger "trx;LogFileName=analytics-results.trx" \
+            --collect:"XPlat Code Coverage" \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+
       - name: Publish test results
         uses: actions/upload-artifact@v4
         if: always()

@@ -155,6 +155,25 @@ All 28 items from the 2026-05-01 upgrade proposal are complete: Sprint 1 (8) + S
 - **`load-tests.yml`:** `.github/workflows/load-tests.yml` — manual `workflow_dispatch` only (prevents accidental production load); accepts `scenario` choice + `gateway_url` input; installs k6 from official APT repo
 - **Results** written to `tests/LoadTests/results/*.json` per run
 
+### Unit Test Expansion (2026-05-02)
+- **3 new test projects** added to `tests/Unit/` covering the previously untested services:
+  - **`TruckDelivery.Notification.Domain.Tests`** — `NotificationRecordTests` (Create, MarkSent, MarkFailed, all channels/types); `DeviceTokenTests` (Create, platform normalization to lowercase, unique IDs)
+  - **`TruckDelivery.Tracking.Domain.Tests`** — `TrackingSessionTests` (Start raises event, UpdateLocation overwrites coords + raises `LocationUpdatedDomainEvent`, Stop sets inactive + preserves last location, full lifecycle)
+  - **`TruckDelivery.Analytics.Domain.Tests`** — `BreakdownIncidentTests` (Create, MarkResolved with/without reassignment, recovery time calculation, null vehicleId); `FraudAlertTests` (Create, swapCount threshold > 3, driver symmetry, past detectedAt)
+- **Pattern**: xUnit + FluentAssertions, no infrastructure dependencies (pure domain, no mocks needed); same packages as existing 4 unit test projects
+- **Note**: project reference paths use 3 `..` (`..\..\..`), not 4 — resolves to repo root then `src/Services/...`
+
+### Production Deployment Infrastructure (2026-05-02)
+- **`docker/docker-compose.yml`** fully completed — all 11 application services now defined:
+  - Infrastructure: MySQL, MongoDB, PostGIS, Redis, Kafka (KRaft mode), MinIO, Prometheus, Grafana, Loki, Tempo
+  - Init containers: `kafka-init` (creates 19 topics with 3 partitions each via `cp-kafka` entrypoint); `minio-init` (creates `driver-documents` + `breakdown-photos` buckets via `minio/mc`)
+  - App services: gateway (:8080), identity (:8081), order (:8082), driver (:8083), route/Rust (:8084), optimizer/Python (:8085), shipment (:8086), tracking (:8087), notification (:8088), payment (:8089), analytics (:8095), ocr (:8090)
+  - Networks: `truck-data` (app + DB), `truck-messaging` (app + Kafka), `truck-observability` (app + Grafana stack)
+  - All services have healthchecks; gateway `depends_on` all 8 downstream services `condition: service_healthy`
+- **Env vars wired in compose:** Notification service: `Firebase__CredentialsJson`, `Twilio__*`, `Smtp__*`, `Notification__AdminEmail`; Payment service: `VnPay__TmnCode/HashSecret/PaymentUrl/ReturnUrl`; Driver service: `MinIO__Endpoint/AccessKey/SecretKey`
+- **`docker/.env.example`** updated with all new env vars: Firebase, Twilio, SMTP, VNPay, Notification admin email — all have safe empty/fallback defaults (services fall back to stubs when unset)
+- **`.github/workflows/build-test.yml`** updated — added `dotnet test` steps for 3 new unit test projects: Notification, Tracking, Analytics domain tests
+
 ### Mobile Integration Documentation
 - **Driver App:** `docs/mobile-integration/01-driver-app.md` — Onboarding (3 bước), GPS push, breakdown report, SignalR, FCM; updated 2026-05-01 for Sprint 4 accuracy (all-in-one register, PendingOcrVerification enum, breakdown-photos bucket)
 - **Customer App:** `docs/mobile-integration/02-customer-app.md` — Tạo đơn, real-time tracking, thanh toán COD + VNPay, SignalR, FCM; updated 2026-05-01 for Sprint 4 accuracy (firstName/lastName, shipmentId in OrderDto, status/dateFrom/dateTo filters)
