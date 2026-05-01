@@ -2,6 +2,7 @@
 
 > Audience: Frontend developers building the Admin Dashboard (Next.js / React)
 > Base URL: `http://localhost:8080` (API Gateway)
+> Cập nhật: 2026-05-02 (Sprint 4 + Phase 5–7)
 
 ---
 
@@ -83,18 +84,56 @@ Effect: Shipment → `Failed`. Triggers `ShipmentFailedEvent`.
 
 ---
 
-## 3. Driver Verification Queue
+## 3. Driver Management
 
-### List Drivers Pending Verification
+### List All Drivers (with filters)
+
+```http
+GET /api/v1/drivers?status=Available&page=1&pageSize=20
+Authorization: Bearer <admin-token>
+```
+
+Filter params: `status` (Offline/Available/Busy/Suspended), `page`, `pageSize`.
+
+Response: `PagedResult<DriverDto>` — includes `verificationStatus`, `licenseGrade`, `trustScore` per driver.
+
+### Register Driver (Admin-created)
+
+```http
+POST /api/v1/drivers
+Authorization: Bearer <admin-token>
+Content-Type: application/json
+
+{
+  "userId": "<uuid>",
+  "fullName": "Trần Văn B",
+  ...
+}
+```
+
+> For driver self-registration flow, see Driver App guide (`01-driver-app.md` §4).
+
+### Assign Vehicle to Driver
+
+```http
+POST /api/v1/drivers/{id}/assign-vehicle
+Authorization: Bearer <admin-token>
+
+{ "vehicleId": "<uuid>" }
+```
+
+### 3.1 Verification Queue
+
+#### List Drivers Pending Verification
 
 ```http
 GET /api/v1/drivers/pending-verification
 Authorization: Bearer <admin-token>
 ```
 
-Returns drivers with status `PendingOcrVerification` or `ManualReview`. Poll every 30 seconds or use SignalR alert (see §7).
+Returns drivers with status `PendingOcrVerification` or `ManualReview`. Poll every 30 seconds or check FCM push (see §7).
 
-### Driver Detail (with verification docs)
+#### Driver Detail (with verification docs)
 
 ```http
 GET /api/v1/drivers/{id}
@@ -103,14 +142,16 @@ Authorization: Bearer <admin-token>
 
 Response includes: `verificationStatus`, `licenseGrade`, `trustScore`, photo URL fields, OCR result fields.
 
-### Approve Driver
+**TrustScore monitoring:** Default 70, range 0–100. Each breakdown report: −3. Collusion detected (swap > 3 times with same driver): −10. Filter drivers with `trustScore < 40` as high-risk.
+
+#### Approve Driver
 
 ```http
 POST /api/v1/drivers/{id}/verify
 Authorization: Bearer <admin-token>
 ```
 
-### Reject Driver
+#### Reject Driver
 
 ```http
 POST /api/v1/drivers/{id}/reject-verification
@@ -126,9 +167,11 @@ Authorization: Bearer <admin-token>
 ### List Vehicles
 
 ```http
-GET /api/v1/vehicles?status=Available&type=Truck5T&page=1
+GET /api/v1/vehicles?status=Available&type=Truck5T&driverId=<uuid>&page=1
 Authorization: Bearer <admin-token>
 ```
+
+Filter params: `status` (Available/InUse/Maintenance/Breakdown), `type` (Motorbike/Van/Truck3T/Truck5T/Truck10T/Truck15T), `driverId` (vehicles assigned to a specific driver).
 
 ### Update Vehicle Status
 
@@ -214,9 +257,43 @@ Authorization: Bearer <admin-token>
 
 ---
 
-## 7. Real-Time Alerts via SignalR
+## 7. Real-Time Alerts
 
-Connect to `/hubs/tracking` with a valid Admin JWT.
+### 7.1 FCM Push Notifications (Admin Device)
+
+When a driver's OCR result requires manual review, the Notification service sends:
+- **FCM push** to the admin's registered device token
+- **Email** to `Notification:AdminEmail` (configured via env var)
+
+To receive FCM push on an Admin device, register the FCM token after login:
+
+```http
+POST /api/v1/notifications/register-device
+Authorization: Bearer <admin-token>
+
+{
+  "token": "fcm-device-token-here...",
+  "platform": "Android"    // or "Ios"
+}
+```
+
+FCM payload for manual review alert:
+```json
+{
+  "notification": {
+    "title": "Driver Manual Review Required",
+    "body": "Driver Trần Văn B needs manual verification"
+  },
+  "data": {
+    "type": "DRIVER_MANUAL_REVIEW_REQUIRED",
+    "driverId": "7b2f4c8e-..."
+  }
+}
+```
+
+### 7.2 SignalR — Tracking Hub
+
+The `/hubs/tracking` hub is primarily for real-time GPS tracking. Admin dashboards can connect to monitor active shipments:
 
 ```javascript
 const connection = new signalR.HubConnectionBuilder()
@@ -228,12 +305,23 @@ const connection = new signalR.HubConnectionBuilder()
 
 await connection.start();
 
-// Receive admin notifications
-connection.on("DriverManualReviewRequired", (payload) => {
-  // payload: { driverId, driverName, submittedAt }
-  showNotification(`Driver ${payload.driverName} awaits manual review`);
+// Join a shipment group to track driver location
+await connection.invoke("JoinShipmentGroup", shipmentId);
+
+// Receive real-time GPS updates
+connection.on("LocationUpdated", (payload) => {
+  // payload: { shipmentId, driverId, latitude, longitude, recordedAt }
+  updateMapMarker(payload);
+});
+
+// Receive shipment status changes
+connection.on("ShipmentStatusUpdated", (payload) => {
+  // payload: { shipmentId, status, updatedAt }
+  refreshShipmentList();
 });
 ```
+
+> **Note:** For `DriverManualReviewRequired` alerts in a web admin portal (no FCM), rely on email notification or poll `GET /api/v1/drivers/pending-verification` every 30 seconds.
 
 ---
 
@@ -245,12 +333,44 @@ connection.on("DriverManualReviewRequired", (payload) => {
 | Active shipments | Poll | 10s |
 | KPI dashboard | Poll | 1 min |
 | Fraud alerts | Poll | 5 min |
-| Breakdown incidents | SignalR push | Real-time |
-| Driver manual review | SignalR push | Real-time |
+| Breakdown incidents | Poll | 1 min |
+| Driver manual review alert | FCM push + email | Real-time |
+| Active shipment map | SignalR `LocationUpdated` | Real-time |
 
 ---
 
-## 9. Error Handling
+## 9. System Health
+
+### Aggregate Health Check
+
+```http
+GET /health/all
+Authorization: Bearer <admin-token>
+```
+
+Returns health status of all 8 downstream services:
+
+```json
+{
+  "status": "Healthy",
+  "services": {
+    "identity": "Healthy",
+    "order": "Healthy",
+    "driver": "Healthy",
+    "shipment": "Healthy",
+    "tracking": "Healthy",
+    "notification": "Healthy",
+    "payment": "Healthy",
+    "analytics": "Healthy"
+  }
+}
+```
+
+Use this endpoint in the admin dashboard header to show a system status indicator. Poll every 60 seconds.
+
+---
+
+## 10. Error Handling
 
 All APIs return:
 ```json

@@ -176,7 +176,8 @@ All 28 items from the 2026-05-01 upgrade proposal are complete: Sprint 1 (8) + S
 
 ### Mobile Integration Documentation
 - **Driver App:** `docs/mobile-integration/01-driver-app.md` — Onboarding (3 bước), GPS push, breakdown report, SignalR, FCM; updated 2026-05-01 for Sprint 4 accuracy (all-in-one register, PendingOcrVerification enum, breakdown-photos bucket)
-- **Customer App:** `docs/mobile-integration/02-customer-app.md` — Tạo đơn, real-time tracking, thanh toán COD + VNPay, SignalR, FCM; updated 2026-05-01 for Sprint 4 accuracy (firstName/lastName, shipmentId in OrderDto, status/dateFrom/dateTo filters)
+- **Customer App:** `docs/mobile-integration/02-customer-app.md` — Tạo đơn, real-time tracking, thanh toán COD + VNPay, SignalR, FCM; updated 2026-05-01 for Sprint 4 accuracy (firstName/lastName, shipmentId in OrderDto, status/dateFrom/dateTo filters); updated 2026-05-02 — `OrderStatus.Completed=8` added to status table + SignalR `LeaveShipmentGroup` lifecycle corrected (stay connected until Completed not just Delivered)
+- **Admin Portal:** `docs/mobile-integration/03-admin-portal.md` — updated 2026-05-02: added Driver list endpoint (`GET /api/v1/drivers?status=&page=`), `assign-vehicle` endpoint, `driverId` filter for vehicles, TrustScore monitoring note; fixed Polling Strategy table (breakdown incidents = poll 1 min, not SignalR); replaced incorrect SignalR `DriverManualReviewRequired` handler with correct FCM/email path + `POST /api/v1/notifications/register-device` for admin device; added §7.2 SignalR tracking hub usage (LocationUpdated, ShipmentStatusUpdated); added §9 System Health (`GET /health/all`)
 
 ---
 

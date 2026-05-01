@@ -371,7 +371,8 @@ Delivered         ←── Push notification + Payment tạo tự động
 | `AssignedToDriver` | Đã có tài xế, đang đến lấy hàng | 🟡 Vàng |
 | `PickedUp` | Hàng đã được lấy | 🟠 Cam |
 | `InTransit` | Đang trên đường giao đến bạn | 🚛 Xanh lá |
-| `Delivered` | Đã giao thành công | ✅ Xanh lá đậm |
+| `Delivered` | Đã giao thành công, chờ xác nhận thanh toán | ✅ Xanh lá đậm |
+| `Completed` | Hoàn tất — thanh toán xác nhận xong | ✅✅ Xanh đậm |
 | `Cancelled` | Đơn hàng đã bị huỷ | ❌ Đỏ |
 
 ### 6.3 Huỷ đơn hàng
@@ -837,9 +838,14 @@ Authorization: Bearer <token>
 // Dừng tracking khi shipment hoàn tất hoặc bị huỷ
 connection.on("ShipmentStatusUpdated", (args) {
   final status = args[0]['status'];
-  if (status == 'Delivered' || status == 'Completed' || status == 'Cancelled') {
+  if (status == 'Completed' || status == 'Cancelled') {
+    // Delivered → stay connected to receive Completed event (payment confirm)
+    // Completed/Cancelled → leave group and navigate to invoice screen
     connection.invoke("LeaveShipmentGroup", args: [shipmentId]);
-    // Chuyển sang màn hình invoice hoặc thông báo đã xong
+  }
+  if (status == 'Delivered') {
+    // Keep connection open — wait for Completed (payment) then show invoice
+    showDeliveredBanner();
   }
 });
 ```
