@@ -18,4 +18,5 @@ public sealed class RegisterDeviceCommandHandler(IDeviceTokenStore store) : IReq
 public interface IDeviceTokenStore
 {
     Task UpsertAsync(Guid userId, string token, string platform, CancellationToken ct = default);
+    Task<IReadOnlyList<string>> GetTokensByUserIdAsync(Guid userId, CancellationToken ct = default);
 }

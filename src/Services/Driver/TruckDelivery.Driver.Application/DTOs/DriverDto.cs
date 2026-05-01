@@ -8,6 +8,9 @@ public sealed record DriverDto(
     string PhoneNumber,
     string LicenseNumber,
     string Status,
+    string VerificationStatus,
+    string LicenseGrade,
+    int TrustScore,
     Guid? CurrentVehicleId,
     bool IsActive,
     DateTime CreatedAt);

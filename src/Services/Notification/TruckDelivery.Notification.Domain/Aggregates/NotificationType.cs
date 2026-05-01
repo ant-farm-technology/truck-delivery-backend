@@ -7,5 +7,6 @@ public enum NotificationType
     ShipmentDelivered = 3,
     PaymentCompleted = 4,
     PaymentFailed = 5,
-    ShipmentStarted = 6
+    ShipmentStarted = 6,
+    DriverManualReviewRequired = 7
 }

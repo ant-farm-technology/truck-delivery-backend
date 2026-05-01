@@ -19,4 +19,13 @@ public sealed class DeviceTokenStore(NotificationDbContext db) : IDeviceTokenSto
         db.DeviceTokens.Add(DeviceToken.Create(userId, token, platform));
         await db.SaveChangesAsync(ct);
     }
+
+    public async Task<IReadOnlyList<string>> GetTokensByUserIdAsync(Guid userId, CancellationToken ct = default)
+    {
+        var tokens = await db.DeviceTokens
+            .Where(x => x.UserId == userId)
+            .Select(x => x.Token)
+            .ToListAsync(ct);
+        return tokens;
+    }
 }

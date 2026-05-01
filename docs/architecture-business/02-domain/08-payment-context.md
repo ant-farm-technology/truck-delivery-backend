@@ -52,13 +52,21 @@ Settlement
 Payment  
  ├── PaymentId  
  ├── OrderId  
+ ├── CustomerId  
  ├── Amount  
  ├── Currency  
- ├── Status  
- ├── IdempotencyKey  
- ├── ExternalTransactionId  
+ ├── Method (Cod=1 | VnPay=2)  
+ ├── Status (Created→Pending→Authorized→Completed | Failed | Refunded)  
+ ├── FailureReason  
  ├── CreatedAt  
  └── UpdatedAt
+
+**Luồng VNPay (Sprint 2):**
+1. Customer gọi `POST /api/v1/payments/orders/{orderId}/initiate` với `{ method: "VnPay", ... }`
+2. `InitiatePaymentCommand` → tạo `Payment (Pending)` → `VnPayGateway.CreatePaymentUrlAsync()` → trả `paymentUrl`
+3. Client redirect → VNPay → VNPay callback `GET /api/v1/payments/webhook/vnpay?vnp_TxnRef=...&vnp_SecureHash=...`
+4. `HandleVnPayCallbackCommand` → verify HMAC-SHA512 → `Payment.Authorize()` + `Payment.Complete()` → `PaymentCompletedEvent` via Outbox
+5. COD: `OrderDeliveredConsumer` → `CreatePaymentCommand` (auto-complete, không cần VNPay redirect)
 
 ---
 
@@ -204,6 +212,15 @@ Gateway → webhook → Payment Service
 Rule:
 
 Webhook phải idempotent
+
+---
+
+### VNPay Gateway (Implemented)
+
+- **URL generation:** HMAC-SHA512 over sorted query params; amount in VND × 100
+- **Callback verify:** `VnPayGateway.VerifyCallbackAsync()` validates `vnp_SecureHash` before trusting result
+- **Config:** `VnPay:TmnCode`, `VnPay:HashSecret`, `VnPay:PaymentUrl`, `VnPay:ReturnUrl` in `appsettings.json`
+- **Fallback:** `CodGateway` no-ops (returns null URL, always succeeds callback verify)
 
 ---
 

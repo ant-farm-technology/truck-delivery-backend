@@ -13,6 +13,7 @@ public sealed class PaymentConfiguration : IEntityTypeConfiguration<Domain.Aggre
         builder.Property(p => p.CustomerId).IsRequired();
         builder.Property(p => p.Amount).HasColumnType("decimal(18,2)").IsRequired();
         builder.Property(p => p.Currency).HasMaxLength(10).IsRequired();
+        builder.Property(p => p.Method).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(p => p.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(p => p.FailureReason).HasMaxLength(500);
         builder.Property(p => p.CreatedAt).IsRequired();

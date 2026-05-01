@@ -1,49 +1,43 @@
 # API Business Gap Analysis
 
 > Truck Delivery Backend — Đánh giá nghiệp vụ cho tích hợp client
-> Phân tích: 2026-04-30 | Dựa trên khảo sát toàn bộ controllers, DTOs, domain aggregates, consumers, Saga flows
+> Phân tích: 2026-04-30 | **Cập nhật status: 2026-05-01 (Sprint 1 + Sprint 2 hoàn thành)**
+> Dựa trên khảo sát toàn bộ controllers, DTOs, domain aggregates, consumers, Saga flows
 
 ---
 
 ## Tóm tắt điều hành
 
-Hệ thống có backbone kỹ thuật tốt (Saga, Kafka, Outbox, OpenTelemetry) nhưng **thiếu nghiêm trọng ở lớp read/query API** khiến cả 3 client app đều không thể hoạt động độc lập trong thực tế. Tổng cộng **21 gaps** được phân loại:
+Hệ thống có backbone kỹ thuật tốt (Saga, Kafka, Outbox, OpenTelemetry). Sau Sprint 1 + Sprint 2, phần lớn gaps đã được giải quyết. Tổng cộng **21 gaps** ban đầu — **14 đã Done**, còn 7 pending.
 
-| Mức độ | Số lượng | Ý nghĩa |
-|---|---|---|
-| 🔴 **Blocker** | 6 | Luồng nghiệp vụ bị đứt hoàn toàn — client không dùng được |
-| 🟡 **High** | 11 | Client hoạt động được nhưng UX không chấp nhận được / tiềm ẩn lỗi |
-| 🟢 **Medium** | 4 | Cải thiện chất lượng, bảo mật, hoặc vận hành |
+| Mức độ | Số lượng ban đầu | Đã fix | Còn lại |
+|---|---|---|---|
+| 🔴 **Blocker** | 6 | 6 | 0 |
+| 🟡 **High** | 11 | 6 | 5 |
+| 🟢 **Medium** | 4 | 2 | 2 |
 
 ---
 
 ## 1. Customer App — 7 Gaps
 
-### C1 🔴 Không có cách lấy `shipmentId` từ `orderId`
+### C1 ✅ FIXED — `shipmentId` trong `OrderDto`
 
-**Vấn đề:**
+**Giải pháp đã implement:** `OrderDto` và `OrderSummaryDto` đều có `ShipmentId: Guid?`. Dapper queries trong `GetOrderByIdQueryHandler` và `ListOrdersByCustomerQueryHandler` đều select `o.ShipmentId`.
+
+~~**Vấn đề:**
 Customer tạo order → nhận được `orderId`. Nhưng để track real-time qua SignalR, client cần join group `shipment:{shipmentId}`. Hiện tại không có cách nào để resolve `orderId` → `shipmentId`.
 
-**Ảnh hưởng:** Customer không thể theo dõi đơn hàng real-time. Toàn bộ tracking feature bị vô hiệu hóa.
+~~**Ảnh hưởng:** Customer không thể theo dõi đơn hàng real-time.~~
 
-**Nguyên nhân:** Order service và Shipment service là 2 bounded context riêng. `OrderDto` không chứa `shipmentId`. Không có endpoint `GET /orders/{id}/shipment`.
-
-**Giải pháp đề xuất (2 phương án):**
-- **A (nhanh):** Thêm `shipmentId: Guid?` vào `OrderDto` — Shipment service đồng bộ ngược lại Order service qua Kafka.
-- **B (sạch hơn):** Thêm endpoint `GET /api/v1/orders/{id}/shipment` trong Shipment service trả về `{ shipmentId, status }`.
+~~**Giải pháp:** Đã implement — `ShipmentId` có trong `OrderDto` và `OrderSummaryDto`.~~
 
 ---
 
-### C2 🔴 Escrow không có cách lấy ID
+### C2 ✅ FIXED — `GET /api/v1/payments/orders/{orderId}/escrow`
 
-**Vấn đề:**
-Khi driver báo hỏng xe và bị reassign, hệ thống tự động tạo escrow 50.000 VND. Endpoint confirm/dispute escrow là:
-```
-POST /api/v1/payments/escrow/{id}/confirm
-POST /api/v1/payments/escrow/{id}/dispute
-```
+**Giải pháp đã implement:** `GetEscrowByOrderQuery` + `GetEscrowByOrderQueryHandler` (Dapper). `PaymentsController` expose `GET /api/v1/payments/orders/{orderId}/escrow` → trả về `EscrowDto`.
 
-Nhưng client không có cách nào biết `escrowId` của mình. Không có `GET /payments/orders/{orderId}/escrow` hay `GET /payments/escrow/{id}`.
+~~**Vấn đề:** Không có cách nào biết `escrowId`.~~
 
 **Ảnh hưởng:** Customer không thể confirm hay dispute escrow. Số tiền bị lock vô thời hạn.
 

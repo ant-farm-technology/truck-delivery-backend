@@ -1,6 +1,6 @@
 # Gateway Configuration Gaps
 
-> Cập nhật: 2026-04-30
+> Cập nhật: 2026-05-01 — Tất cả 4 routes đã được thêm; còn tồn đọng: rate limit per-user + health aggregate
 > File cần sửa: `src/Gateway/TruckDelivery.Gateway/appsettings.json`
 
 ---
@@ -19,10 +19,10 @@
 | `/api/v1/payments/*` | payment-cluster | ✅ |
 | `/api/v1/routes/*` | route-service-cluster | ✅ |
 | `/api/v1/optimize/*` | optimizer-cluster | ✅ |
-| `/api/v1/vehicles/*` | driver-cluster | **❌ MISSING** |
-| `/api/v1/analytics/*` | analytics-cluster | **❌ MISSING** |
-| `/api/v1/ocr/*` | ocr-cluster | **❌ MISSING** (service chưa tồn tại) |
-| `/api/v1/uploads/*` | driver-cluster | **❌ MISSING** (pre-signed URL endpoint) |
+| `/api/v1/vehicles/*` | driver-cluster | ✅ |
+| `/api/v1/analytics/*` | analytics-cluster | ✅ |
+| `/api/v1/ocr/*` | ocr-cluster | ✅ |
+| `/api/v1/uploads/*` | driver-cluster | ✅ |
 
 ---
 

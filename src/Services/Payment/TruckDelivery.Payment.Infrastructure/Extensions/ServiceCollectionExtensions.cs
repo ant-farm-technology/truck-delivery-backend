@@ -5,7 +5,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MySqlConnector;
 using TruckDelivery.Payment.Application.Consumers;
+using TruckDelivery.Payment.Application.Interfaces;
 using TruckDelivery.Payment.Domain.Repositories;
+using TruckDelivery.Payment.Infrastructure.Gateways;
 using TruckDelivery.Payment.Infrastructure.Persistence.EFCore;
 using TruckDelivery.Payment.Infrastructure.Persistence.EFCore.Repositories;
 using TruckDelivery.Shared.Common.Persistence;
@@ -22,8 +24,16 @@ public static class ServiceCollectionExtensions
         IConfiguration configuration)
     {
         AddEfCore(services, configuration);
+        AddGateways(services);
         AddKafkaConsumers(services, configuration);
         return services;
+    }
+
+    private static void AddGateways(IServiceCollection services)
+    {
+        services.AddSingleton<CodGateway>();
+        services.AddSingleton<VnPayGateway>();
+        services.AddSingleton<IPaymentGatewayFactory, PaymentGatewayFactory>();
     }
 
     private static void AddEfCore(IServiceCollection services, IConfiguration configuration)

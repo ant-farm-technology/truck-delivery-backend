@@ -39,9 +39,13 @@ public sealed class OrdersController(IMediator mediator) : ControllerBase
         [FromQuery] Guid customerId,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
+        [FromQuery] string? status = null,
+        [FromQuery] DateTime? dateFrom = null,
+        [FromQuery] DateTime? dateTo = null,
         CancellationToken ct = default)
     {
-        var result = await mediator.Send(new ListOrdersByCustomerQuery(customerId, page, pageSize), ct);
+        var result = await mediator.Send(
+            new ListOrdersByCustomerQuery(customerId, page, pageSize, status, dateFrom, dateTo), ct);
         if (result.IsFailure)
             return BadRequest(new { result.Error.Code, result.Error.Description });
 

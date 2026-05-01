@@ -22,7 +22,7 @@ public static class ServiceCollectionExtensions
         IConfiguration configuration)
     {
         AddEfCore(services, configuration);
-        AddNotificationSenders(services);
+        AddNotificationSenders(services, configuration);
         AddKafkaConsumers(services, configuration);
         return services;
     }
@@ -42,9 +42,14 @@ public static class ServiceCollectionExtensions
         services.AddHostedService<OutboxProcessor<NotificationDbContext>>();
     }
 
-    private static void AddNotificationSenders(IServiceCollection services)
+    private static void AddNotificationSenders(IServiceCollection services, IConfiguration configuration)
     {
-        services.AddScoped<IPushNotificationSender, StubPushSender>();
+        // Use real FCM sender when credentials are configured; fall back to stub otherwise
+        if (!string.IsNullOrWhiteSpace(configuration["Firebase:CredentialsJson"]))
+            services.AddScoped<IPushNotificationSender, FcmPushSender>();
+        else
+            services.AddScoped<IPushNotificationSender, StubPushSender>();
+
         services.AddScoped<ISmsNotificationSender, StubSmsSender>();
         services.AddScoped<IEmailNotificationSender, StubEmailSender>();
     }
@@ -75,5 +80,6 @@ public static class ServiceCollectionExtensions
         services.AddHostedService<DriverAssignedConsumer>();
         services.AddHostedService<ShipmentStatusUpdatedConsumer>();
         services.AddHostedService<PaymentCompletedConsumer>();
+        services.AddHostedService<DriverManualReviewConsumer>();
     }
 }

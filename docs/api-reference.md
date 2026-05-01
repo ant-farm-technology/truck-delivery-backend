@@ -773,7 +773,64 @@ Points are returned in descending time order (newest first).
 
 **Gateway route:** `/api/v1/payments/*` → Payment Service `:8089`
 
-> Payments are created automatically when an order is delivered (COD flow via Kafka event). The `POST /api/v1/payments` endpoint is for Admin/system use only.
+> COD payments are created automatically when an order is delivered (Kafka event). For VNPay, use `POST /orders/{orderId}/initiate`.
+
+### POST /api/v1/payments/orders/{orderId}/initiate
+
+Initiate a payment for an order (Customer use). For COD, returns `paymentUrl: null`. For VNPay, returns a redirect URL.
+
+**Auth:** Bearer — Role: `Customer`
+
+**Request body:**
+
+```json
+{
+  "customerId": "550e8400-e29b-41d4-a716-446655440006",
+  "amount": 250000,
+  "method": "VnPay",
+  "currency": "VND"
+}
+```
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `customerId` | GUID | Yes | Must match authenticated user |
+| `amount` | decimal | Yes | In VND |
+| `method` | string | No | `"Cod"` (default) or `"VnPay"` |
+| `currency` | string | No | Default: `"VND"` |
+
+**Response `200 OK`:**
+
+```json
+{
+  "paymentId": "550e8400-e29b-41d4-a716-446655440007",
+  "paymentUrl": "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?vnp_Amount=..."
+}
+```
+
+`paymentUrl` is `null` for COD. For VNPay, redirect the client to this URL.
+
+**Error responses:**
+- `409 Conflict` — payment already exists for this order
+- `400 Bad Request` — validation failure
+
+---
+
+### GET /api/v1/payments/webhook/vnpay  
+### POST /api/v1/payments/webhook/vnpay
+
+VNPay IPN / return URL handler. Called by VNPay after payment completion.
+
+**Auth:** Anonymous (VNPay callback)
+
+**Query parameters:** VNPay standard params (`vnp_TxnRef`, `vnp_ResponseCode`, `vnp_SecureHash`, etc.)
+
+**Response `200 OK`:**
+```json
+{ "RspCode": "00", "Message": "Confirmed" }
+```
+
+---
 
 ### POST /api/v1/payments
 
@@ -894,9 +951,37 @@ Dispute an escrow payment (customer disputes the surcharge).
 
 ---
 
+## 8b. Notification Service
+
+**Gateway route:** `/api/v1/notifications/*` → Notification Service `:8088`
+
+### POST /api/v1/notifications/register-device
+
+Register or update a device token for push notifications (FCM).
+
+**Auth:** Bearer (any role)
+
+**Request body:**
+
+```json
+{
+  "deviceToken": "fcm-device-token-string",
+  "platform": "Android"
+}
+```
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `deviceToken` | string | Yes | FCM registration token from device |
+| `platform` | string | Yes | `"Android"` or `"Ios"` |
+
+**Response `200 OK`:** Empty (upsert — one token per userId+platform)
+
+---
+
 ## 9. Analytics Service
 
-**Gateway route:** Not yet exposed via Gateway — direct access at `:8095` (internal/admin network only)
+**Gateway route:** `/api/v1/analytics/*` → Analytics Service `:8095`
 
 All analytics endpoints require **Admin** role.
 

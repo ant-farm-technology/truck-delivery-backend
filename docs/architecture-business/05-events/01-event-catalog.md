@@ -315,7 +315,31 @@ Thường không publish
 
 ---
 
-## 11. Notification Events (internal)
+## 11. Driver Verification Events (Sprint 2)
+
+---
+
+### 11.1 DriverManualReviewRequired
+
+Topic: `driver.driver.manual-review-required`
+
+```json
+{
+  "messageId": "uuid",
+  "driverId": "uuid",
+  "driverName": "Nguyen Van A",
+  "confidenceScore": 0.72,
+  "notes": "Name mismatch on ID card"
+}
+```
+
+- Producer: Driver Service (from `ApplyOcrResultCommandHandler` via Outbox)
+- Consumers:
+    - Notification Service (`DriverManualReviewConsumer` → push + email to Admin)
+
+---
+
+## 12. Notification Events (internal)
 
 ---
 

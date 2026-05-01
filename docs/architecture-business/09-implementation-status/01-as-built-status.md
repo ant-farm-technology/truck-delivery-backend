@@ -1,6 +1,6 @@
 # As-Built Status — Design vs. Implementation
 
-> Cập nhật: 2026-04-30 (OCR service triển khai xong) | Khảo sát toàn bộ src/ vs. business requirements
+> Cập nhật: 2026-05-01 (Sprint 2 hoàn thành) | Khảo sát toàn bộ src/ vs. business requirements
 >
 > Legend: ✅ Done | ⚠️ Partial | ❌ Missing | 🐛 Bug
 
@@ -10,18 +10,18 @@
 
 | Service | Port | Status | Ghi chú quan trọng |
 |---|---|---|---|
-| API Gateway | :8080 | ✅ | Đã thêm vehicle-route, analytics-route, admin-route, ocr-route |
-| Identity | :8081 | ⚠️ | Thiếu phone, DOB trong User; thiếu role trong Register |
-| Order | :8082 | 🐛 | **Không có Consumers** — status không bao giờ tự update |
-| Driver/Vehicle | :8083 | ⚠️ | Thiếu LicenseGrade, DOB, address, **7 photo URLs, VerificationStatus** trong Driver; thiếu dims trong Vehicle |
+| API Gateway | :8080 | ✅ | vehicle-route, analytics-route, admin-route, ocr-route, uploads-route đều OK |
+| Identity | :8081 | ⚠️ | Thiếu phone, DOB trong User; `POST /api/v1/admin/accounts` ✅ đã có |
+| Order | :8082 | ✅ | 3 Consumers ✅; pagination + date/status filter ✅; ShipmentId ✅ |
+| Driver/Vehicle | :8083 | ✅ | LicenseGrade, 7 photo URLs, VerificationStatus, TrustScore ✅; dims Vehicle ✅ |
 | Route (Rust) | :8084 | ✅ | A\*, Haversine, Redis cache |
-| Optimizer (Python) | :8085 | ⚠️ | Chưa filter theo LicenseGrade |
-| Shipment | :8086 | ⚠️ | Thiếu list query, thiếu decline-dispatch |
-| Tracking | :8087 | ⚠️ | Thiếu `DriverAssigned` SignalR event |
-| Notification | :8088 | ⚠️ | Thiếu REST API (FCM token), senders là stub |
-| Payment | :8089 | ⚠️ | Thiếu list query, escrow lookup |
-| Analytics | :8095 | ⚠️ | Code ✅ nhưng Gateway route ❌ |
-| **OCR** | **:8090** | **✅** | Python/FastAPI/PaddleOCR — đã tạo tại `src/Services/OCR/truck-delivery-ocr/` |
+| Optimizer (Python) | :8085 | ✅ | LicenseGrade filter ✅; LIFO + K-medoids clustering ✅ |
+| Shipment | :8086 | ✅ | List query ✅, decline-dispatch ✅, breakdown reassignment ✅ |
+| Tracking | :8087 | ✅ | `DriverAssigned` SignalR event ✅; Redis GPS cache ✅ |
+| Notification | :8088 | ✅ | FCM real push sender ✅; `DriverManualReviewConsumer` ✅; SMS/Email vẫn stub |
+| Payment | :8089 | ✅ | VNPay gateway ✅; list query ✅; escrow lookup ✅; `POST /initiate` ✅; webhook ✅ |
+| Analytics | :8095 | ✅ | Code ✅ + Gateway route ✅ |
+| **OCR** | **:8090** | **✅** | Python/FastAPI/PaddleOCR — `src/Services/OCR/truck-delivery-ocr/` |
 
 ---
 
@@ -300,11 +300,11 @@ public enum DriverVerificationStatus
 | Method | Path | Auth | Status |
 |---|---|---|---|
 | POST | `/api/v1/orders` | Customer | ✅ |
-| GET | `/api/v1/orders/{id}` | Bearer | ⚠️ thiếu ShipmentId |
-| GET | `/api/v1/orders?status=&page=` | Bearer | ⚠️ thiếu filter/pagination meta |
+| GET | `/api/v1/orders/{id}` | Bearer | ✅ ShipmentId ✅ |
+| GET | `/api/v1/orders?status=&dateFrom=&dateTo=&page=` | Bearer | ✅ filter + pagination ✅ |
 | DELETE | `/api/v1/orders/{id}` | Customer | ✅ |
 
-**Kafka Consumers: ❌ KHÔNG CÓ (critical bug)**
+**Kafka Consumers:** `OrderAssignedConsumer` ✅, `ShipmentCompletedConsumer` ✅, `PaymentCompletedConsumer` ✅
 
 ### 4.3 Driver/Vehicle (:8083)
 
@@ -381,19 +381,21 @@ public enum DriverVerificationStatus
 
 | Method | Path | Auth | Status |
 |---|---|---|---|
-| POST | `/api/v1/notifications/device-tokens` | Bearer | ❌ |
+| POST | `/api/v1/notifications/register-device` | Bearer | ✅ |
 
-**Consumers:** ShipmentStatusUpdated ✅, DriverAssigned ✅, PaymentCompleted ✅
+**Consumers:** ShipmentStatusUpdated ✅, DriverAssigned ✅, PaymentCompleted ✅, DriverManualReview ✅
 
-**Senders:** Push/SMS/Email đều là **stub** — chỉ log, không gửi thực sự.
+**Senders:** Push ✅ FCM real (`FcmPushSender` conditional on `Firebase:CredentialsJson`); SMS/Email vẫn stub.
 
 ### 4.7 Payment (:8089)
 
 | Method | Path | Auth | Status |
 |---|---|---|---|
 | GET | `/api/v1/payments/orders/{orderId}` | Bearer | ✅ |
-| GET | `/api/v1/payments/orders/{orderId}/escrow` | Bearer | ❌ |
-| GET | `/api/v1/payments?status=&dateFrom=&page=` | Admin | ❌ |
+| GET | `/api/v1/payments/orders/{orderId}/escrow` | Bearer | ✅ |
+| GET | `/api/v1/payments?status=&dateFrom=&page=` | Admin | ✅ |
+| POST | `/api/v1/payments/orders/{orderId}/initiate` | Customer | ✅ Mới — VNPay + COD |
+| GET/POST | `/api/v1/payments/webhook/vnpay` | Public | ✅ Mới — VNPay callback |
 | POST | `/api/v1/payments/escrow/{id}/confirm` | Customer,Admin | ✅ |
 | POST | `/api/v1/payments/escrow/{id}/dispute` | Customer,Admin | ✅ |
 
@@ -432,11 +434,12 @@ public enum DriverVerificationStatus
 | Payment | `shipment.shipment.completed` | `OrderDeliveredConsumer` | ✅ |
 | Payment | `shipment.breakdown.reassignment-completed` | `BreakdownReassignmentConsumer` | ✅ |
 | Analytics | 3 topics | 3 consumers | ✅ |
-| **Order** | **shipment.driver.assigned** | **`OrderAssignedConsumer`** | **❌ MISSING** |
-| **Order** | **shipment.shipment.completed** | **`ShipmentCompletedConsumer`** | **❌ MISSING** |
-| **Order** | **payment.payment.completed** | **`PaymentCompletedConsumer`** | **❌ MISSING** |
-| **OCR Svc** | **driver.documents.submitted** | **`DriverDocumentsConsumer`** | **✅ OCR service đã có** |
-| **Driver** | **ocr.driver.verification-completed** | **`DriverOcrVerificationCompletedConsumer`** | **❌ MISSING** |
+| Order | `shipment.driver.assigned` | `OrderAssignedConsumer` | ✅ |
+| Order | `shipment.shipment.completed` | `ShipmentCompletedConsumer` | ✅ |
+| Order | `payment.payment.completed` | `PaymentCompletedConsumer` | ✅ |
+| OCR Svc | `driver.documents.submitted` | `DriverDocumentsConsumer` | ✅ |
+| Driver | `ocr.driver.verification-completed` | `DriverOcrVerificationCompletedConsumer` | ✅ |
+| Notification | `driver.driver.manual-review-required` | `DriverManualReviewConsumer` | ✅ Mới |
 
 ---
 
@@ -473,7 +476,7 @@ public enum DriverVerificationStatus
 | `RedisCacheService` | ✅ | |
 | `MySqlConnectionFactory` | ✅ | |
 | `TelemetryExtensions` | ✅ | |
-| **`PagedResult<T>`** | **❌** | Cần tạo trong `Shared.Common/Primitives/` |
+| `PagedResult<T>` | ✅ | `Shared.Common/Primitives/PagedResult.cs` |
 
 ---
 
@@ -481,17 +484,18 @@ public enum DriverVerificationStatus
 
 | Category | Count | Target |
 |---|---|---|
-| Unit tests | **0** | ≥70% domain coverage |
+| Unit tests | 4 projects tạo (domain tests) | ≥70% domain coverage |
 | Integration tests | **0** | Core flows |
 | Contract tests | **0** | Event schemas |
-| **Total** | **0** | — |
 
 | CI/CD Component | Status |
 |---|---|
-| `.github/workflows/` | ❌ Empty |
+| `.github/workflows/build-test.yml` | ✅ |
+| `.github/workflows/docker-publish.yml` | ✅ |
+| `.github/workflows/integration.yml` | ❌ Chưa có |
 | `docker/docker-compose.yml` | ✅ Exists |
 | Dockerfile per service | ✅ Exists |
-| Admin seed data | ❌ Missing |
+| Admin seed data | ❌ Missing (Admin account tự tạo qua `POST /api/v1/admin/accounts`) |
 
 ---
 
