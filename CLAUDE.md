@@ -163,6 +163,21 @@ All 28 items from the 2026-05-01 upgrade proposal are complete: Sprint 1 (8) + S
 - **Pattern**: xUnit + FluentAssertions, no infrastructure dependencies (pure domain, no mocks needed); same packages as existing 4 unit test projects
 - **Note**: project reference paths use 3 `..` (`..\..\..`), not 4 — resolves to repo root then `src/Services/...`
 
+### Grafana Dashboards (2026-05-02)
+- **3 dashboard JSON files** provisioned in `docker/grafana/provisioning/dashboards/` — auto-loaded by Grafana on startup via `all.yaml` file provider
+  - **`01-fleet-operations.json`** — 8 panels: 4 KPI stats (breakdown count 24h, reassignment success rate gauge, avg recovery time, fraud alerts total) + breakdown by risk level timeseries + reassignment rate timeseries + recovery time timeseries + fraud accumulation timeseries; all panels from Analytics service Prometheus metrics
+  - **`02-golden-signals.json`** — 9 panels: 4 stat/KPI (overall error rate, p95 latency, Kafka max lag, tracking events/sec) + HTTP error rate by service + p95 latency by service + Kafka consumer lag by topic + tracking ingestion rate + request throughput by service; refresh 30s
+  - **`03-ocr-pipeline.json`** — 8 panels: 4 stats (OCR verified, manual review, rejected counts + auto-verify rate) + donut piechart (verification distribution) + verification outcomes timeseries + extraction p95 duration by document type + extraction rate by document type+status; all from `ocr_extraction_*` and `ocr_verification_*` metrics
+
+### Contract Tests — Phase 5–7 Events (2026-05-02)
+- **4 new event groups** added to `tests/Contract/TruckDelivery.Contracts.Tests/EventSchemaTests.cs`:
+  - **`VehicleBreakdownEvent`** (Phase 5) — round-trip with all fields (DriverId, VehicleId?, Lat/Lng, PhotoUrls, TrustScore, FraudRiskLevel), null VehicleId case, forward-compatibility extra-field test
+  - **`SuspiciousDriverPairDetectedEvent`** (Phase 6) — round-trip, SwapCount > 3 invariant, OriginalDriverId ≠ ReplacementDriverId
+  - **`DriverDocumentsSubmittedEvent`** (Phase 2/OCR) — round-trip with all 7 photo URLs, all-photos-non-empty assertion
+  - **`BreakdownReassignmentCompletedEvent`** (Phase 6) — round-trip, different original/replacement drivers assertion
+- **`AllIntegrationEvents` MemberData** extended: 6 → 10 events (all 4 new events added to envelope contract theory)
+- **`TruckDelivery.Driver.Application`** added as `ProjectReference` to contract test `.csproj`
+
 ### Production Deployment Infrastructure (2026-05-02)
 - **`docker/docker-compose.yml`** fully completed — all 11 application services now defined:
   - Infrastructure: MySQL, MongoDB, PostGIS, Redis, Kafka (KRaft mode), MinIO, Prometheus, Grafana, Loki, Tempo

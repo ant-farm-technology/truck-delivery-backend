@@ -23,6 +23,7 @@
     <ProjectReference Include="..\..\..\..\src\Services\Order\TruckDelivery.Order.Application\TruckDelivery.Order.Application.csproj" />
     <ProjectReference Include="..\..\..\..\src\Services\Shipment\TruckDelivery.Shipment.Application\TruckDelivery.Shipment.Application.csproj" />
     <ProjectReference Include="..\..\..\..\src\Services\Payment\TruckDelivery.Payment.Application\TruckDelivery.Payment.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Services\Driver\TruckDelivery.Driver.Application\TruckDelivery.Driver.Application.csproj" />
     <ProjectReference Include="..\..\..\..\src\Shared\TruckDelivery.Shared.Contracts\TruckDelivery.Shared.Contracts.csproj" />
   </ItemGroup>
 

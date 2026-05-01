@@ -1,5 +1,7 @@
 using System.Text.Json;
 using FluentAssertions;
+using TruckDelivery.Driver.Application.IntegrationEvents;
+using TruckDelivery.Driver.Domain.ValueObjects;
 using TruckDelivery.Order.Application.IntegrationEvents;
 using TruckDelivery.Payment.Application.IntegrationEvents;
 using TruckDelivery.Shipment.Application.IntegrationEvents;
@@ -204,6 +206,191 @@ public sealed class EventSchemaTests
         deserialized.VehicleMaxWeightKg.Should().Be(5000m);
     }
 
+    // ── VehicleBreakdownEvent (Phase 5) ───────────────────────────────────────
+
+    [Fact]
+    public void VehicleBreakdownEvent_Should_RoundTrip_WithAllFields()
+    {
+        var original = new VehicleBreakdownEvent
+        {
+            DriverId = Guid.NewGuid(),
+            VehicleId = Guid.NewGuid(),
+            Latitude = 10.7769,
+            Longitude = 106.7009,
+            PhotoUrls = ["breakdown-photos/uuid1.jpg", "breakdown-photos/uuid2.jpg"],
+            TrustScore = 67,
+            FraudRiskLevel = FraudRiskLevel.Low
+        };
+
+        var json = JsonSerializer.Serialize(original, JsonOptions);
+        var deserialized = JsonSerializer.Deserialize<VehicleBreakdownEvent>(json, JsonOptions);
+
+        deserialized.Should().NotBeNull();
+        deserialized!.DriverId.Should().Be(original.DriverId);
+        deserialized.Latitude.Should().Be(10.7769);
+        deserialized.Longitude.Should().Be(106.7009);
+        deserialized.PhotoUrls.Should().HaveCount(2);
+        deserialized.TrustScore.Should().Be(67);
+        deserialized.FraudRiskLevel.Should().Be(FraudRiskLevel.Low);
+    }
+
+    [Fact]
+    public void VehicleBreakdownEvent_Should_AllowNullVehicleId()
+    {
+        var @event = new VehicleBreakdownEvent
+        {
+            DriverId = Guid.NewGuid(),
+            VehicleId = null,
+            FraudRiskLevel = FraudRiskLevel.Medium
+        };
+
+        var json = JsonSerializer.Serialize(@event, JsonOptions);
+        var deserialized = JsonSerializer.Deserialize<VehicleBreakdownEvent>(json, JsonOptions);
+
+        deserialized!.VehicleId.Should().BeNull();
+        deserialized.FraudRiskLevel.Should().Be(FraudRiskLevel.Medium);
+    }
+
+    [Fact]
+    public void VehicleBreakdownEvent_Should_IgnoreExtraFields()
+    {
+        const string jsonWithExtra = """
+            {"messageId":"00000000-0000-0000-0000-000000000001","occurredAt":"2026-05-02T00:00:00Z",
+             "schemaVersion":1,"driverId":"00000000-0000-0000-0000-000000000002",
+             "latitude":10.7,"longitude":106.7,"trustScore":70,"fraudRiskLevel":1,
+             "photoUrls":[],"futureField":"ignored"}
+            """;
+
+        var deserialized = JsonSerializer.Deserialize<VehicleBreakdownEvent>(jsonWithExtra, JsonOptions);
+
+        deserialized.Should().NotBeNull();
+        deserialized!.TrustScore.Should().Be(70);
+    }
+
+    // ── SuspiciousDriverPairDetectedEvent (Phase 6) ───────────────────────────
+
+    [Fact]
+    public void SuspiciousDriverPairDetectedEvent_Should_RoundTrip()
+    {
+        var original = new SuspiciousDriverPairDetectedEvent
+        {
+            OriginalDriverId = Guid.NewGuid(),
+            ReplacementDriverId = Guid.NewGuid(),
+            SwapCount = 5,
+            DetectedAt = DateTime.UtcNow
+        };
+
+        var json = JsonSerializer.Serialize(original, JsonOptions);
+        var deserialized = JsonSerializer.Deserialize<SuspiciousDriverPairDetectedEvent>(json, JsonOptions);
+
+        deserialized.Should().NotBeNull();
+        deserialized!.OriginalDriverId.Should().Be(original.OriginalDriverId);
+        deserialized.ReplacementDriverId.Should().Be(original.ReplacementDriverId);
+        deserialized.SwapCount.Should().Be(5);
+    }
+
+    [Fact]
+    public void SuspiciousDriverPairDetectedEvent_Should_RequireSwapCountAboveThree()
+    {
+        var @event = new SuspiciousDriverPairDetectedEvent
+        {
+            OriginalDriverId = Guid.NewGuid(),
+            ReplacementDriverId = Guid.NewGuid(),
+            SwapCount = 4,
+            DetectedAt = DateTime.UtcNow
+        };
+
+        @event.SwapCount.Should().BeGreaterThan(3);
+        @event.OriginalDriverId.Should().NotBe(@event.ReplacementDriverId);
+    }
+
+    // ── DriverDocumentsSubmittedEvent (Phase 2 — OCR trigger) ────────────────
+
+    [Fact]
+    public void DriverDocumentsSubmittedEvent_Should_RoundTrip_WithAllPhotoUrls()
+    {
+        var original = new DriverDocumentsSubmittedEvent(
+            DriverId: Guid.NewGuid(),
+            VehicleId: Guid.NewGuid(),
+            PortraitPhotoUrl: "driver-documents/portrait.jpg",
+            IdCardFrontUrl: "driver-documents/id-front.jpg",
+            IdCardBackUrl: "driver-documents/id-back.jpg",
+            LicenseFrontUrl: "driver-documents/lic-front.jpg",
+            LicenseBackUrl: "driver-documents/lic-back.jpg",
+            VehicleRegFrontUrl: "driver-documents/reg-front.jpg",
+            VehicleRegBackUrl: "driver-documents/reg-back.jpg");
+
+        var json = JsonSerializer.Serialize(original, JsonOptions);
+        var deserialized = JsonSerializer.Deserialize<DriverDocumentsSubmittedEvent>(json, JsonOptions);
+
+        deserialized.Should().NotBeNull();
+        deserialized!.DriverId.Should().Be(original.DriverId);
+        deserialized.VehicleId.Should().Be(original.VehicleId);
+        deserialized.IdCardFrontUrl.Should().Be("driver-documents/id-front.jpg");
+        deserialized.LicenseFrontUrl.Should().Be("driver-documents/lic-front.jpg");
+        deserialized.VehicleRegFrontUrl.Should().Be("driver-documents/reg-front.jpg");
+    }
+
+    [Fact]
+    public void DriverDocumentsSubmittedEvent_Should_CarryAllSevenPhotoUrls()
+    {
+        var @event = new DriverDocumentsSubmittedEvent(
+            Guid.NewGuid(), Guid.NewGuid(),
+            "p1.jpg", "p2.jpg", "p3.jpg", "p4.jpg", "p5.jpg", "p6.jpg", "p7.jpg");
+
+        var photos = new[]
+        {
+            @event.PortraitPhotoUrl, @event.IdCardFrontUrl, @event.IdCardBackUrl,
+            @event.LicenseFrontUrl, @event.LicenseBackUrl,
+            @event.VehicleRegFrontUrl, @event.VehicleRegBackUrl
+        };
+
+        photos.Should().HaveCount(7);
+        photos.Should().AllSatisfy(url => url.Should().NotBeNullOrEmpty());
+    }
+
+    // ── BreakdownReassignmentCompletedEvent (Phase 6) ─────────────────────────
+
+    [Fact]
+    public void BreakdownReassignmentCompletedEvent_Should_RoundTrip()
+    {
+        var original = new BreakdownReassignmentCompletedEvent
+        {
+            ShipmentId = Guid.NewGuid(),
+            OrderId = Guid.NewGuid(),
+            OriginalDriverId = Guid.NewGuid(),
+            ReplacementDriverId = Guid.NewGuid(),
+            ReplacementVehicleId = Guid.NewGuid()
+        };
+
+        var json = JsonSerializer.Serialize(original, JsonOptions);
+        var deserialized = JsonSerializer.Deserialize<BreakdownReassignmentCompletedEvent>(json, JsonOptions);
+
+        deserialized.Should().NotBeNull();
+        deserialized!.ShipmentId.Should().Be(original.ShipmentId);
+        deserialized.OriginalDriverId.Should().Be(original.OriginalDriverId);
+        deserialized.ReplacementDriverId.Should().Be(original.ReplacementDriverId);
+        deserialized.ReplacementVehicleId.Should().Be(original.ReplacementVehicleId);
+    }
+
+    [Fact]
+    public void BreakdownReassignmentCompletedEvent_Should_HaveDifferentOriginalAndReplacementDrivers()
+    {
+        var originalDriver = Guid.NewGuid();
+        var replacementDriver = Guid.NewGuid();
+
+        var @event = new BreakdownReassignmentCompletedEvent
+        {
+            ShipmentId = Guid.NewGuid(),
+            OrderId = Guid.NewGuid(),
+            OriginalDriverId = originalDriver,
+            ReplacementDriverId = replacementDriver,
+            ReplacementVehicleId = Guid.NewGuid()
+        };
+
+        @event.OriginalDriverId.Should().NotBe(@event.ReplacementDriverId);
+    }
+
     // ── MemberData ────────────────────────────────────────────────────────────
 
     public static TheoryData<IntegrationEvent> AllIntegrationEvents() => new()
@@ -213,6 +400,10 @@ public sealed class EventSchemaTests
         new ShipmentCompletedEvent(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid()),
         new ShipmentStartedEvent(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid()),
         new PaymentCompletedEvent(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 100_000m),
-        new DriverAssignedEvent(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid())
+        new DriverAssignedEvent(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid()),
+        new VehicleBreakdownEvent { DriverId = Guid.NewGuid(), TrustScore = 70, FraudRiskLevel = FraudRiskLevel.Low },
+        new SuspiciousDriverPairDetectedEvent { OriginalDriverId = Guid.NewGuid(), ReplacementDriverId = Guid.NewGuid(), SwapCount = 4, DetectedAt = DateTime.UtcNow },
+        new DriverDocumentsSubmittedEvent(Guid.NewGuid(), Guid.NewGuid(), "p.jpg", "f.jpg", "b.jpg", "lf.jpg", "lb.jpg", "rf.jpg", "rb.jpg"),
+        new BreakdownReassignmentCompletedEvent { ShipmentId = Guid.NewGuid(), OrderId = Guid.NewGuid(), OriginalDriverId = Guid.NewGuid(), ReplacementDriverId = Guid.NewGuid(), ReplacementVehicleId = Guid.NewGuid() }
     };
 }
