@@ -4,7 +4,8 @@
 > **Phạm vi:** Tổng hợp từ toàn bộ `docs/`, code hiện tại, CLAUDE.md, và kết quả review 2026-04-30  
 > **Ưu tiên:** 🔴 Critical (block launch) → 🟡 High → 🟢 Medium → ⚪ Nice-to-have  
 > **Sprint 1 hoàn thành:** 2026-05-01 — 8/8 items ✅  
-> **Sprint 2 hoàn thành:** 2026-05-01 — 6/6 items ✅
+> **Sprint 2 hoàn thành:** 2026-05-01 — 6/6 items ✅  
+> **Sprint 3 hoàn thành:** 2026-05-01 — 5/5 items ✅
 
 ---
 
@@ -14,17 +15,19 @@ Sau khi khảo sát toàn bộ 12 microservices, documentation, test coverage, v
 
 | Hạng mục | Hiện trạng |
 |---|---|
-| Backend code | ✅ Hoàn thành Phase 1–7 + bug fixes + Sprint 1 + Sprint 2 |
-| Unit tests | ✅ 4 test projects tạo; CI build gate active |
-| Integration tests | ❌ 0 tests |
-| Contract tests | ❌ 0 tests |
-| CI/CD | ✅ `build-test.yml` + `docker-publish.yml` — thiếu `integration.yml` |
+| Backend code | ✅ Hoàn thành Phase 1–7 + bug fixes + Sprint 1 + Sprint 2 + Sprint 3 |
+| Unit tests | ✅ 4 test projects (domain); CI build gate active |
+| Integration tests | ✅ 2 projects (Order + Shipment via Testcontainers) |
+| Contract tests | ✅ 1 project (6 Kafka event schemas) |
+| CI/CD | ✅ `build-test.yml` + `docker-publish.yml` + `integration.yml` |
 | Notification (Push) | ✅ FCM real sender (`FcmPushSender`) — SMS/Email vẫn stub |
-| Payment | ✅ VNPay gateway tích hợp + COD; `POST /orders/{orderId}/initiate`; webhook callback |
+| Payment | ✅ VNPay gateway + COD; `POST /orders/{orderId}/initiate`; webhook callback |
 | Security | ✅ 4 security gaps đã vá (Sprint 1) |
-| Documentation | ✅ Cập nhật Sprint 2 (file này + CLAUDE.md + as-built-status) |
+| Gateway rate limit | ✅ Per-user 120 req/min cho GPS endpoint (Sprint 3) |
+| Health check aggregate | ✅ `GET /health/all` — 8 downstream services (Sprint 3) |
+| Documentation | ✅ Cập nhật Sprint 3 (file này + CLAUDE.md + as-built-status) |
 
-**Tổng số vấn đề: 28 items — 14/28 đã xong (Sprint 1 + Sprint 2), còn lại 14 gaps (Sprint 3, 4, Doc Sprint).**
+**Tổng số vấn đề: 28 items — 19/28 đã xong (Sprint 1 + 2 + 3), còn lại 9 gaps (Sprint 4, Doc Sprint).**
 
 ---
 
@@ -776,12 +779,12 @@ GET  /api/v1/shipments?status=&customerId=&driverId=&page=
 
 | Gap | Mô tả | Sprint | Status |
 |---|---|---|---|
-| G-T1 | 0 integration tests | Sprint 3 | ⏳ Pending |
-| G-T2 | 0 contract tests | Sprint 3 | ⏳ Pending |
-| G-T3 | `integration.yml` CI workflow chưa có | Sprint 3 | ⏳ Pending |
+| G-T1 | Integration tests — Order + Shipment Testcontainers | Sprint 3 | ✅ Done |
+| G-T2 | Contract tests — 6 Kafka event schemas | Sprint 3 | ✅ Done |
+| G-T3 | `integration.yml` CI workflow | Sprint 3 | ✅ Done |
 | G-T4 | OCR Docker image — model chưa bake | Sprint 4 | ⏳ Pending |
-| G-T5 | Rate limit GPS per-IP (nên per-user) | Sprint 3 | ⏳ Pending |
-| G-T6 | Health check aggregate qua Gateway | Sprint 3 | ⏳ Pending |
+| G-T5 | Rate limit GPS per-user (120 req/min) | Sprint 3 | ✅ Done |
+| G-T6 | Health check aggregate `GET /health/all` | Sprint 3 | ✅ Done |
 
 ### Documentation Gaps
 
@@ -797,6 +800,6 @@ GET  /api/v1/shipments?status=&customerId=&driverId=&page=
 
 ---
 
-**Tổng: 28 gaps — Sprint 1: 8/8 ✅ — Sprint 2: 6/6 ✅ — Còn lại: 14 gaps (Sprint 3, 4, Doc Sprint)**
+**Tổng: 28 gaps — Sprint 1: 8/8 ✅ — Sprint 2: 6/6 ✅ — Sprint 3: 5/5 ✅ — Còn lại: 9 gaps (Sprint 4, Doc Sprint)**
 
-Sprint 3 tiếp theo: G-T1 (Integration tests), G-T2 (Contract tests), G-T3 (`integration.yml`), G-T5 (GPS rate limit per-user), G-T6 (Health check aggregate). Sprint 4: G-S5 (refresh token rotation), G-S6 (analytics gateway policy), G-T4 (OCR Docker bake), Twilio SMS, SMTP Email.
+Sprint 4 tiếp theo: G-S5 (refresh token rotation), G-S6 (analytics gateway admin-only policy), G-T4 (OCR Docker bake — bake PaddleOCR ~900MB into image), Twilio SMS real sender, SMTP Email real sender, Customer PhoneNumber/DateOfBirth.

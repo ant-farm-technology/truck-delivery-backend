@@ -1,6 +1,6 @@
 # As-Built Status — Design vs. Implementation
 
-> Cập nhật: 2026-05-01 (Sprint 2 hoàn thành) | Khảo sát toàn bộ src/ vs. business requirements
+> Cập nhật: 2026-05-01 (Sprint 3 hoàn thành) | Khảo sát toàn bộ src/ vs. business requirements
 >
 > Legend: ✅ Done | ⚠️ Partial | ❌ Missing | 🐛 Bug
 
@@ -462,6 +462,14 @@ public enum DriverVerificationStatus
 | `/api/v1/admin/*` | identity-cluster | ✅ |
 | `/api/v1/ocr/*` | ocr-cluster | ✅ |
 
+**Sprint 3 Gateway additions:**
+
+| Feature | Status | Ghi chú |
+|---|---|---|
+| Rate limit per-user (GPS) | ✅ | `UserIdInjectionMiddleware` → `X-User-Id` header → 120 req/min per user on `POST /tracking/location` |
+| Health check aggregate `GET /health/all` | ✅ | Polls all 8 downstream services, returns JSON aggregate |
+| `GET /ready` (downstream aware) | ✅ | Now includes downstream health checks |
+
 ---
 
 ## 7. Shared Infrastructure
@@ -484,15 +492,15 @@ public enum DriverVerificationStatus
 
 | Category | Count | Target |
 |---|---|---|
-| Unit tests | 4 projects tạo (domain tests) | ≥70% domain coverage |
-| Integration tests | **0** | Core flows |
-| Contract tests | **0** | Event schemas |
+| Unit tests | 4 projects (Order, Driver, Shipment, Payment domain tests) | ≥70% domain coverage |
+| Integration tests | **2 projects** (Order + Shipment via Testcontainers MySQL/Redis/MongoDB) | Core flows |
+| Contract tests | **1 project** (6 Kafka event schemas validated) | Event schemas |
 
 | CI/CD Component | Status |
 |---|---|
 | `.github/workflows/build-test.yml` | ✅ |
 | `.github/workflows/docker-publish.yml` | ✅ |
-| `.github/workflows/integration.yml` | ❌ Chưa có |
+| `.github/workflows/integration.yml` | ✅ |
 | `docker/docker-compose.yml` | ✅ Exists |
 | Dockerfile per service | ✅ Exists |
 | Admin seed data | ❌ Missing (Admin account tự tạo qua `POST /api/v1/admin/accounts`) |
