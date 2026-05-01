@@ -1377,4 +1377,96 @@ window.addEventListener("beforeunload", async () => {
 |---|---|
 | All endpoints | 300 requests/minute per IP |
 | All endpoints | 5,000 requests/hour per IP |
-| `POST /api/v1/tracking/location` | Recommended max: 1 req/sec per driver |
+| `POST /api/v1/tracking/location` | 120 req/min per authenticated user (JWT sub) |
+
+---
+
+## Phase 2+ Endpoints (Sprint 1–4 Additions)
+
+### Driver — Extended Registration & Verification
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `POST` | `/api/v1/drivers/register` | Driver JWT | Self-register (creates Driver + Vehicle, transitions to PendingOcrVerification) |
+| `GET` | `/api/v1/drivers/pending-verification` | Admin | List drivers in PendingOcrVerification or ManualReview |
+| `POST` | `/api/v1/drivers/{id}/verify` | Admin | Admin approve driver |
+| `POST` | `/api/v1/drivers/{id}/reject-verification` | Admin | Admin reject driver with reason |
+| `GET` | `/api/v1/drivers?status=&page=` | Admin | Paginated driver list with status filter |
+| `POST` | `/api/v1/drivers/{id}/report-breakdown` | Driver | Report vehicle breakdown with photos + GPS |
+
+**Self-register request body:**
+```json
+{
+  "userId": "uuid",
+  "fullName": "Nguyen Van A",
+  "idCardNumber": "012345678901",
+  "dateOfBirth": "1990-01-01",
+  "licenseGrade": "C",
+  "licenseExpiryDate": "2028-12-31",
+  "vehicleLicensePlate": "51A-12345",
+  "vehicleType": "Truck5T",
+  "vehicleMaxWeightKg": 5000,
+  "vehicleVolumeCbm": 20
+}
+```
+
+### Vehicle
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/vehicles?status=&driverId=&type=&page=` | Admin | Paginated vehicle list |
+| `PUT` | `/api/v1/vehicles/{id}/status` | Admin | Set vehicle status (`Available` or `Maintenance`) |
+
+### File Uploads (MinIO pre-signed URLs)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/uploads/presigned-url?type=driver-document` | Driver | Get 7 PUT URLs for driver onboarding photos |
+| `GET` | `/api/v1/uploads/presigned-url?type=breakdown-photo&count=3` | Driver | Get N PUT URLs for breakdown photos (1–10) |
+
+Response shape: `{ "urls": ["https://minio/bucket/key?X-Amz-Signature=..."] }`
+
+### Shipment — Admin Operations
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/shipments?status=&customerId=&driverId=&orderId=&page=` | Bearer | Paginated shipment list |
+| `POST` | `/api/v1/shipments/{id}/confirm-dispatch` | Admin | Confirm dispatcher review → InProgress |
+| `POST` | `/api/v1/shipments/{id}/decline-dispatch` | Admin | Decline dispatch → Failed |
+
+### Payment — Extended
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/payments?status=&dateFrom=&dateTo=&page=` | Admin | Paginated payment list |
+| `GET` | `/api/v1/payments/orders/{orderId}/escrow` | Bearer | Get escrow for an order (breakdown surcharge) |
+| `POST` | `/api/v1/payments/orders/{orderId}/initiate` | Customer | Initiate VNPay payment, returns `paymentUrl` |
+| `GET\|POST` | `/api/v1/payments/webhook/vnpay` | Public | VNPay callback (checksum verified server-side) |
+| `POST` | `/api/v1/payments/escrow/{id}/confirm` | Customer/Admin | Release escrow |
+| `POST` | `/api/v1/payments/escrow/{id}/dispute` | Customer/Admin | Dispute escrow |
+
+### Notifications
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `POST` | `/api/v1/notifications/register-device` | Bearer | Register FCM device token for push notifications |
+
+**Register device request body:**
+```json
+{ "platform": "Android", "token": "fcm-device-token" }
+```
+
+### Analytics (Admin only)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/analytics/kpis?days=30` | Admin | KPI summary (breakdown count, reassignment rate, etc.) |
+| `GET` | `/api/v1/analytics/breakdown/incidents` | Admin | Breakdown incident list |
+| `GET` | `/api/v1/analytics/fraud/alerts` | Admin | Fraud alert list |
+| `POST` | `/api/v1/analytics/fraud/alerts/{id}/acknowledge` | Admin | Acknowledge a fraud alert |
+
+### Identity — Admin
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `POST` | `/api/v1/admin/accounts` | Admin | Create new Admin account |

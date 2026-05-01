@@ -29,7 +29,10 @@ builder.Services.AddAuthentication("Bearer")
         options.TokenValidationParameters.ValidateAudience = true;
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(opts =>
+{
+    opts.AddPolicy("AdminOnly", p => p.RequireRole("Admin"));
+});
 
 builder.Services.AddMemoryCache();
 builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));

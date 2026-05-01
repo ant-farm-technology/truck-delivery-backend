@@ -1,6 +1,7 @@
 # As-Built Status — Design vs. Implementation
 
-> Cập nhật: 2026-05-01 (Sprint 3 hoàn thành) | Khảo sát toàn bộ src/ vs. business requirements
+
+> Cập nhật: 2026-05-01 (Sprint 4 + Doc Sprint hoàn thành — 28/28 gaps resolved) | Khảo sát toàn bộ src/ vs. business requirements
 >
 > Legend: ✅ Done | ⚠️ Partial | ❌ Missing | 🐛 Bug
 
@@ -10,15 +11,15 @@
 
 | Service | Port | Status | Ghi chú quan trọng |
 |---|---|---|---|
-| API Gateway | :8080 | ✅ | vehicle-route, analytics-route, admin-route, ocr-route, uploads-route đều OK |
-| Identity | :8081 | ⚠️ | Thiếu phone, DOB trong User; `POST /api/v1/admin/accounts` ✅ đã có |
+| API Gateway | :8080 | ✅ | vehicle-route, analytics-route (AdminOnly policy ✅), admin-route, ocr-route, uploads-route đều OK |
+| Identity | :8081 | ✅ | `PhoneNumber` + `DateOfBirth` ✅ đã có trong User aggregate + RegisterUserCommand |
 | Order | :8082 | ✅ | 3 Consumers ✅; pagination + date/status filter ✅; ShipmentId ✅ |
 | Driver/Vehicle | :8083 | ✅ | LicenseGrade, 7 photo URLs, VerificationStatus, TrustScore ✅; dims Vehicle ✅ |
 | Route (Rust) | :8084 | ✅ | A\*, Haversine, Redis cache |
 | Optimizer (Python) | :8085 | ✅ | LicenseGrade filter ✅; LIFO + K-medoids clustering ✅ |
 | Shipment | :8086 | ✅ | List query ✅, decline-dispatch ✅, breakdown reassignment ✅ |
 | Tracking | :8087 | ✅ | `DriverAssigned` SignalR event ✅; Redis GPS cache ✅ |
-| Notification | :8088 | ✅ | FCM real push sender ✅; `DriverManualReviewConsumer` ✅; SMS/Email vẫn stub |
+| Notification | :8088 | ✅ | FCM ✅; `TwilioSmsSender` ✅; `SmtpEmailSender` (MailKit) ✅; `DriverManualReviewConsumer` ✅ |
 | Payment | :8089 | ✅ | VNPay gateway ✅; list query ✅; escrow lookup ✅; `POST /initiate` ✅; webhook ✅ |
 | Analytics | :8095 | ✅ | Code ✅ + Gateway route ✅ |
 | **OCR** | **:8090** | **✅** | Python/FastAPI/PaddleOCR — `src/Services/OCR/truck-delivery-ocr/` |

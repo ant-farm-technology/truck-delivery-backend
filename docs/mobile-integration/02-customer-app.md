@@ -1,7 +1,7 @@
 # Customer App — Mobile Integration Guide
 
 > Truck Delivery Backend · Tài liệu tích hợp cho ứng dụng mobile khách hàng
-> Cập nhật: 2026-04-30
+> Cập nhật: 2026-05-01 (Sprint 4)
 
 ---
 
@@ -52,7 +52,7 @@
 │      ↓                                                      │
 │  Nhận thông báo khi giao thành công                         │
 │      ↓                                                      │
-│  Xem hoá đơn thanh toán (COD)                               │
+│  Xem hoá đơn thanh toán (COD / VNPay)                       │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -69,11 +69,15 @@ Content-Type: application/json
 {
   "email": "customer@example.com",
   "password": "P@ssw0rd123",
-  "fullName": "Nguyễn Văn A",
-  "phone": "0901234567",
-  "role": "Customer"
+  "firstName": "Văn A",
+  "lastName": "Nguyễn",
+  "phoneNumber": "0901234567",
+  "dateOfBirth": "1990-01-15",
+  "role": 1
 }
 ```
+
+`role`: Customer=1, Driver=2, Admin=3
 
 ```json
 {
@@ -114,11 +118,14 @@ POST /api/v1/auth/refresh
 Content-Type: application/json
 
 {
+  "userId": "550e8400-...",
   "refreshToken": "550e8400-..."
 }
 ```
 
-**Lưu ý:** Lưu cả `accessToken` và `refreshToken` vào secure storage. Auto-refresh khi còn 60 giây trước hết hạn.
+Rotation được enforce: mỗi lần refresh → old token bị invalidate ngay. TTL refresh token: 30 ngày.
+
+**Lưu ý:** Lưu cả `accessToken` và `refreshToken` vào secure storage (Keychain / Keystore). Auto-refresh khi còn 60 giây trước hết hạn.
 
 ### 3.4 Headers bắt buộc
 
@@ -239,8 +246,18 @@ double calculateVolume(double length, double width, double height) {
 
 ## 5. Danh sách đơn hàng
 
+**Query params (tuỳ chọn):**
+
+| Param | Mô tả | Ví dụ |
+|---|---|---|
+| `page` | Trang (default 1) | `?page=2` |
+| `pageSize` | Số phần tử/trang (default 20) | `?pageSize=10` |
+| `status` | Lọc theo trạng thái | `?status=InTransit` |
+| `dateFrom` | Từ ngày (ISO 8601) | `?dateFrom=2026-04-01` |
+| `dateTo` | Đến ngày (ISO 8601) | `?dateTo=2026-04-30` |
+
 ```http
-GET /api/v1/orders?page=1&pageSize=20
+GET /api/v1/orders?page=1&pageSize=20&status=InTransit
 Authorization: Bearer <token>
 ```
 
@@ -250,6 +267,7 @@ Authorization: Bearer <token>
   "data": [
     {
       "id": "a1b2c3d4-...",
+      "shipmentId": "c4d5e6f7-...",
       "status": "InTransit",
       "pickupAddress": { "city": "TP. Hồ Chí Minh" },
       "deliveryAddress": { "city": "Hà Nội" },
@@ -303,6 +321,7 @@ Authorization: Bearer <token>
   "success": true,
   "data": {
     "id": "a1b2c3d4-...",
+    "shipmentId": "c4d5e6f7-...",
     "status": "InTransit",
     "pickupAddress": {
       "street": "123 Nguyễn Huệ",
@@ -573,6 +592,8 @@ void dispose() {
 
 ## 9. Thanh toán
 
+Hệ thống hỗ trợ 2 phương thức: **COD** (thanh toán tiền mặt khi nhận hàng) và **VNPay** (thanh toán online).
+
 ### 9.1 Xem thông tin thanh toán
 
 ```http
@@ -588,7 +609,7 @@ Authorization: Bearer <token>
     "orderId": "a1b2c3d4-...",
     "status": "Completed",
     "amount": 350000,
-    "method": "COD",
+    "method": "Cod",
     "completedAt": "2026-04-30T15:35:00Z"
   }
 }
@@ -600,13 +621,72 @@ Authorization: Bearer <token>
 |---|---|---|
 | `Created` | Đơn hàng vừa tạo, chưa tính phí | — |
 | `Pending` | Chờ xử lý | "Đang xử lý" |
-| `Completed` | Thanh toán COD thành công | "Đã thanh toán ✅" |
+| `Authorized` | VNPay đã xác nhận, chờ capture | "Đang xử lý" |
+| `Completed` | Thanh toán hoàn tất | "Đã thanh toán ✅" |
 | `Failed` | Thất bại | "Thanh toán thất bại ❌" |
 | `Refunded` | Đã hoàn tiền | "Đã hoàn tiền" |
 
-**Lưu ý:** Hiện tại hệ thống chỉ hỗ trợ **COD** (thanh toán khi nhận hàng). Payment tự động complete khi driver set status `Delivered`.
+**`method` enum:** `Cod` | `VnPay`
 
-### 9.2 Màn hình hoá đơn
+### 9.2 Luồng COD (thanh toán tiền mặt)
+
+COD tự động complete khi driver set status `Delivered`. App không cần gọi thêm API — chỉ poll payment status hoặc nhận push `PAYMENT_COMPLETED`.
+
+### 9.3 Luồng VNPay (thanh toán online)
+
+```
+1. Customer chọn "Thanh toán VNPay" → app gọi initiate API
+2. Backend tạo Payment record + sinh URL redirect VNPay
+3. App mở WebView / deep link đến paymentUrl
+4. Customer thanh toán trên trang VNPay
+5. VNPay callback về backend → backend verify HMAC → complete Payment
+6. Customer nhận push notification "Thanh toán thành công"
+```
+
+**Bước 1: Khởi tạo thanh toán VNPay**
+
+```http
+POST /api/v1/payments/orders/{orderId}/initiate
+Authorization: Bearer <token>     (role=Customer)
+Content-Type: application/json
+
+{
+  "method": "VnPay"
+}
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "paymentId": "p1q2r3s4-...",
+    "paymentUrl": "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?vnp_..."
+  }
+}
+```
+
+**Bước 2: Mở WebView**
+
+```dart
+// Mở URL VNPay trong WebView
+launchUrl(Uri.parse(data.paymentUrl), mode: LaunchMode.inAppWebView);
+
+// Lắng nghe redirect về returnUrl (cấu hình trong appsettings.json: VnPay:ReturnUrl)
+// VD: https://app.truckdelivery.vn/payment/result?vnp_ResponseCode=00&...
+// vnp_ResponseCode == "00" → thành công
+// vnp_ResponseCode != "00" → thất bại
+```
+
+**Bước 3: Sau khi WebView đóng, kiểm tra trạng thái**
+
+```http
+GET /api/v1/payments/orders/{orderId}
+Authorization: Bearer <token>
+```
+
+Nếu `status == "Completed"` → hiển thị màn hình thành công. Nếu `Failed` → cho phép retry.
+
+### 9.4 Màn hình hoá đơn
 
 ```
 ┌──────────────────────────────────────────┐
@@ -622,6 +702,7 @@ Authorization: Bearer <token>
 │                                          │
 │  ─── Thanh toán ───────────────────────  │
 │  Phương thức: Tiền mặt (COD)             │
+│       hoặc: VNPay                        │
 │  Số tiền: 350.000 ₫                     │
 │  Trạng thái: ✅ Đã thanh toán            │
 │                                          │
@@ -640,8 +721,8 @@ POST /api/v1/notifications/register-device
 Authorization: Bearer <token>
 
 {
-  "deviceToken": "fcm-device-token-here...",
-  "platform": "android"     // "android" | "ios"
+  "token": "fcm-device-token-here...",
+  "platform": "Android"     // "Android" | "Ios"
 }
 ```
 
@@ -652,7 +733,8 @@ Authorization: Bearer <token>
 | Tài xế được assign | "Tài xế đang đến lấy hàng" | Mở màn hình tracking |
 | Hàng đã lấy | "Tài xế đã lấy hàng, đang giao" | Mở màn hình tracking |
 | Giao thành công | "Đơn hàng đã giao thành công!" | Mở màn hình hoá đơn |
-| Thanh toán hoàn tất | "Thanh toán COD đã được xác nhận" | Mở màn hình hoá đơn |
+| Thanh toán COD hoàn tất | "Thanh toán COD đã được xác nhận" | Mở màn hình hoá đơn |
+| Thanh toán VNPay hoàn tất | "Thanh toán VNPay thành công" | Mở màn hình hoá đơn |
 | Đơn bị huỷ | "Đơn hàng #... đã bị huỷ" | Mở màn hình chi tiết đơn |
 
 ### 10.3 Notification payload format
@@ -777,7 +859,7 @@ connection.on("ShipmentStatusUpdated", (args) {
 - [ ] Connect SignalR `LocationUpdated` → update map marker
 - [ ] Connect SignalR `ShipmentStatusUpdated` → update timeline
 - [ ] Leave SignalR group khi thoát màn hình
-- [ ] Implement invoice / payment screen
+- [ ] Implement invoice / payment screen (COD auto + VNPay WebView flow)
 - [ ] Register FCM token sau login
 - [ ] Handle notification tap → navigate to correct screen
 - [ ] Handle token expiry (silent refresh)

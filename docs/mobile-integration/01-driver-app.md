@@ -1,7 +1,7 @@
 # Driver App — Mobile Integration Guide
 
 > Truck Delivery Backend · Tài liệu tích hợp cho ứng dụng mobile tài xế
-> Cập nhật: 2026-04-30
+> Cập nhật: 2026-05-01 (Sprint 4)
 
 ---
 
@@ -71,11 +71,15 @@ Content-Type: application/json
 {
   "email": "driver@example.com",
   "password": "P@ssw0rd123",
-  "fullName": "Trần Văn B",
-  "phone": "0901234567",
-  "role": "Driver"
+  "firstName": "Văn B",
+  "lastName": "Trần",
+  "phoneNumber": "0901234567",
+  "dateOfBirth": "1990-05-15",
+  "role": 2
 }
 ```
+
+`role`: Customer=1, Driver=2, Admin=3
 
 ```json
 {
@@ -116,9 +120,12 @@ POST /api/v1/auth/refresh
 Content-Type: application/json
 
 {
-  "refreshToken": "550e8400-..."
+  "userId": "550e8400-...",
+  "refreshToken": "abc123..."
 }
 ```
+
+Rotation được enforce: mỗi lần refresh → old token bị invalidate ngay. TTL refresh token: 30 ngày.
 
 **Khuyến nghị:** Auto-refresh khi còn 60s trước khi hết hạn. Lưu cả `accessToken` và `refreshToken` vào secure storage (Keychain / Keystore).
 
@@ -132,9 +139,9 @@ Content-Type: application/json
 
 ---
 
-## 4. Onboarding — Bước 2: Đăng ký thông tin tài xế
+## 4. Onboarding — Bước 2: Đăng ký thông tin tài xế + xe (all-in-one)
 
-> Sau khi tạo tài khoản, driver cần đăng ký profile để hệ thống biết thông tin cá nhân.
+> Sau khi upload ảnh giấy tờ lên MinIO (§5), gọi một endpoint duy nhất để tạo Driver + Vehicle và submit documents.
 
 ```http
 POST /api/v1/drivers/register
@@ -142,11 +149,29 @@ Authorization: Bearer <token>     (role=Driver)
 Content-Type: application/json
 
 {
+  "userId": "550e8400-...",
   "fullName": "Trần Văn B",
-  "phone": "0901234567",
-  "dateOfBirth": "1990-05-15",
   "idCardNumber": "079123456789",
-  "address": "123 Nguyễn Huệ, TP.HCM"
+  "dateOfBirth": "1990-05-15",
+  "address": "123 Nguyễn Huệ, TP.HCM",
+  "licenseGrade": "C",
+  "licenseExpiryDate": "2028-12-31",
+  "frontIdCardUrl": "trucker-driver-docs/uuid-front-id.jpg",
+  "backIdCardUrl": "trucker-driver-docs/uuid-back-id.jpg",
+  "selfieUrl": "trucker-driver-docs/uuid-selfie.jpg",
+  "frontLicenseUrl": "trucker-driver-docs/uuid-front-lic.jpg",
+  "backLicenseUrl": "trucker-driver-docs/uuid-back-lic.jpg",
+  "vehicleRegUrl": "trucker-driver-docs/uuid-vehicle-reg.jpg",
+  "vehicleFrontUrl": "trucker-driver-docs/uuid-vehicle-front.jpg",
+  "vehicleLicensePlate": "51A-12345",
+  "vehicleType": "Truck3T",
+  "vehicleMaxWeightKg": 3000,
+  "vehicleVolumeCbm": 15.0,
+  "vehicleLengthM": 4.2,
+  "vehicleWidthM": 1.8,
+  "vehicleHeightM": 1.8,
+  "vehicleRegistrationNumber": "HCM-20-1234",
+  "vehicleRegistrationExpiryDate": "2026-12-31"
 }
 ```
 
@@ -155,12 +180,14 @@ Content-Type: application/json
   "success": true,
   "data": {
     "driverId": "7b2f4c8e-...",
-    "verificationStatus": "Pending"
+    "verificationStatus": "PendingOcrVerification"
   }
 }
 ```
 
 > **Lưu `driverId`** — dùng cho tất cả request sau này.
+
+Sau khi gọi endpoint này, backend tự động publish `DriverDocumentsSubmittedEvent` → OCR service xử lý bất đồng bộ.
 
 ---
 
@@ -169,19 +196,19 @@ Content-Type: application/json
 ### 5.1 Luồng tổng quan
 
 ```
-1. Driver app xin pre-signed URL từ backend
-2. Upload ảnh trực tiếp lên MinIO/S3 qua pre-signed URL
-3. Gọi OCR extract endpoints → nhận data tự động điền form
+1. Driver app xin pre-signed URL từ backend (7 URLs)
+2. Upload 7 ảnh trực tiếp lên MinIO qua pre-signed URL
+3. (Optional) Gọi OCR extract endpoints → nhận data tự động điền form
 4. Driver review, chỉnh sửa nếu cần
-5. Submit toàn bộ data + photo URLs lên /drivers/register/documents
-6. Backend publish DriverDocumentsSubmittedEvent → OCR verify async
+5. Submit toàn bộ data + photo URLs qua POST /api/v1/drivers/register (all-in-one)
+6. Backend tự động publish DriverDocumentsSubmittedEvent → OCR verify async
 7. App poll hoặc nhận push notification về verification status
 ```
 
-### 5.2 Xin pre-signed URL upload
+### 5.2 Xin pre-signed URL upload (7 URLs cho 7 ảnh)
 
 ```http
-GET /api/v1/uploads/presigned-url?filename=id_card_front.jpg&contentType=image/jpeg
+GET /api/v1/uploads/presigned-url?type=driver-document
 Authorization: Bearer <token>
 ```
 
@@ -189,36 +216,45 @@ Authorization: Bearer <token>
 {
   "success": true,
   "data": {
-    "uploadUrl": "http://minio:9000/driver-documents/drivers/{driverId}/id_card_front.jpg?X-Amz-Signature=...",
-    "fileUrl": "http://minio:9000/driver-documents/drivers/{driverId}/id_card_front.jpg",
-    "expiresIn": 900
+    "urls": [
+      "http://minio:9000/trucker-driver-docs/uuid-front-id.jpg?X-Amz-Signature=...",
+      "http://minio:9000/trucker-driver-docs/uuid-back-id.jpg?X-Amz-Signature=...",
+      "http://minio:9000/trucker-driver-docs/uuid-selfie.jpg?X-Amz-Signature=...",
+      "http://minio:9000/trucker-driver-docs/uuid-front-lic.jpg?X-Amz-Signature=...",
+      "http://minio:9000/trucker-driver-docs/uuid-back-lic.jpg?X-Amz-Signature=...",
+      "http://minio:9000/trucker-driver-docs/uuid-vehicle-reg.jpg?X-Amz-Signature=...",
+      "http://minio:9000/trucker-driver-docs/uuid-vehicle-front.jpg?X-Amz-Signature=..."
+    ]
   }
 }
 ```
 
-**Tiến hành upload:**
+Thứ tự: `frontId`, `backId`, `selfie`, `frontLicense`, `backLicense`, `vehicleReg`, `vehicleFront`.
+
+**Tiến hành upload từng ảnh:**
 
 ```http
-PUT <uploadUrl>
+PUT <urls[i]>
 Content-Type: image/jpeg
 
 <binary image data>
 ```
 
-Response: `200 OK` (MinIO direct upload)
+Response: `200 OK` (MinIO direct upload). URL TTL: 15 phút.
 
-### 5.3 OCR Auto-fill — CCCD/CMND
+### 5.3 OCR Auto-fill — CCCD/CMND (optional, direct to OCR service)
+
+> **Lưu ý:** Các endpoint OCR extract bên dưới gọi trực tiếp tới OCR Service `:8090` — **không đi qua Gateway**. Chỉ dùng khi muốn auto-fill form cho driver. Xác minh chính thức vẫn diễn ra async qua Kafka sau khi submit.
 
 Sau khi upload ảnh CCCD mặt trước + mặt sau:
 
 ```http
-POST /api/v1/ocr/extract/id-card
-Authorization: Bearer <token>
+POST http://ocr-service:8090/api/v1/ocr/extract/id-card
 Content-Type: application/json
 
 {
-  "front_url": "http://minio:9000/driver-documents/drivers/{driverId}/id_card_front.jpg",
-  "back_url": "http://minio:9000/driver-documents/drivers/{driverId}/id_card_back.jpg"
+  "front_url": "http://minio:9000/trucker-driver-docs/uuid-front-id.jpg",
+  "back_url": "http://minio:9000/trucker-driver-docs/uuid-back-id.jpg"
 }
 ```
 
@@ -249,13 +285,12 @@ Content-Type: application/json
 ### 5.4 OCR Auto-fill — Giấy phép lái xe
 
 ```http
-POST /api/v1/ocr/extract/license
-Authorization: Bearer <token>
+POST http://ocr-service:8090/api/v1/ocr/extract/license
 Content-Type: application/json
 
 {
-  "front_url": "http://minio:9000/driver-documents/drivers/{driverId}/license_front.jpg",
-  "back_url": "http://minio:9000/driver-documents/drivers/{driverId}/license_back.jpg"
+  "front_url": "http://minio:9000/trucker-driver-docs/uuid-front-lic.jpg",
+  "back_url": "http://minio:9000/trucker-driver-docs/uuid-back-lic.jpg"
 }
 ```
 
@@ -284,14 +319,15 @@ Content-Type: application/json
 
 ### 5.5 OCR Auto-fill — Đăng ký xe
 
+> **Lưu ý:** Endpoint gọi trực tiếp tới OCR Service `:8090` — không đi qua Gateway.
+
 ```http
-POST /api/v1/ocr/extract/vehicle-reg
-Authorization: Bearer <token>
+POST http://ocr-service:8090/api/v1/ocr/extract/vehicle-reg
 Content-Type: application/json
 
 {
-  "front_url": "http://minio:9000/driver-documents/drivers/{driverId}/vehicle_reg_front.jpg",
-  "back_url": "http://minio:9000/driver-documents/drivers/{driverId}/vehicle_reg_back.jpg"
+  "front_url": "http://minio:9000/trucker-driver-docs/uuid-vehicle-reg.jpg",
+  "back_url": null
 }
 ```
 
@@ -318,44 +354,7 @@ Content-Type: application/json
 }
 ```
 
-### 5.6 Submit tất cả giấy tờ
-
-Sau khi driver review data OCR và điền đầy đủ form:
-
-```http
-POST /api/v1/drivers/{driverId}/documents
-Authorization: Bearer <token>     (role=Driver)
-Content-Type: application/json
-
-{
-  "portraitPhotoUrl": "http://minio:9000/.../portrait.jpg",
-  "idCardFrontUrl": "http://minio:9000/.../id_card_front.jpg",
-  "idCardBackUrl": "http://minio:9000/.../id_card_back.jpg",
-  "licenseFrontUrl": "http://minio:9000/.../license_front.jpg",
-  "licenseBackUrl": "http://minio:9000/.../license_back.jpg",
-  "vehicleRegFrontUrl": "http://minio:9000/.../vehicle_reg_front.jpg",
-  "vehicleRegBackUrl": "http://minio:9000/.../vehicle_reg_back.jpg",
-  "submittedFullName": "Trần Văn B",
-  "submittedDateOfBirth": "1990-05-15",
-  "submittedLicenseNumber": "123456789012",
-  "submittedLicenseGrade": "C",
-  "submittedLicenseExpiry": "2025-03-20",
-  "submittedLicensePlate": "51C-12345",
-  "submittedRegistrationNumber": "HCM-20-1234"
-}
-```
-
-```json
-{
-  "success": true,
-  "data": {
-    "verificationStatus": "Pending",
-    "message": "Tài liệu đã được gửi, đang xác minh tự động. Kết quả trong vài phút."
-  }
-}
-```
-
-### 5.7 Kiểm tra trạng thái xác minh
+### 5.6 Kiểm tra trạng thái xác minh
 
 ```http
 GET /api/v1/drivers/{driverId}
@@ -379,7 +378,7 @@ Authorization: Bearer <token>
 
 | Value | Ý nghĩa | Hành động cần làm |
 |---|---|---|
-| `Pending` | Chờ OCR xử lý (vài phút) | Polling hoặc chờ push notification |
+| `PendingOcrVerification` | Chờ OCR xử lý (vài phút) | Polling hoặc chờ push notification |
 | `OcrVerified` | OCR xác minh tự động thành công | Có thể bắt đầu nhận đơn |
 | `ManualReview` | Confidence thấp, Admin đang review | Chờ Admin duyệt (có thể mất 1–2 ngày) |
 | `Rejected` | Bị từ chối | Xem lý do, upload lại giấy tờ |
@@ -585,6 +584,27 @@ Authorization: Bearer <token>
 
 ### 8.2 API báo hỏng xe
 
+**Trước khi gọi API, upload ảnh hỏng xe qua pre-signed URL:**
+
+```http
+GET /api/v1/uploads/presigned-url?type=breakdown-photo&count=2
+Authorization: Bearer <token>
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "urls": [
+      "http://minio:9000/breakdown-photos/uuid1.jpg?X-Amz-Signature=...",
+      "http://minio:9000/breakdown-photos/uuid2.jpg?X-Amz-Signature=..."
+    ]
+  }
+}
+```
+
+Upload từng ảnh với `PUT <url>`, sau đó dùng phần path của URL (e.g. `breakdown-photos/uuid1.jpg`) làm giá trị trong `photoUrls`.
+
 ```http
 POST /api/v1/drivers/{driverId}/report-breakdown
 Authorization: Bearer <token>     (role=Driver)
@@ -594,8 +614,8 @@ Content-Type: application/json
   "latitude": 10.7769,
   "longitude": 106.7009,
   "photoUrls": [
-    "http://minio:9000/driver-documents/breakdown/photo1.jpg",
-    "http://minio:9000/driver-documents/breakdown/photo2.jpg"
+    "breakdown-photos/uuid1.jpg",
+    "breakdown-photos/uuid2.jpg"
   ],
   "description": "Xe bị nổ lốp, không thể tiếp tục"
 }
@@ -632,7 +652,7 @@ Content-Type: application/json
 | `Medium` | GPS cách xa tracking hiện tại (>2km) |
 | `High` | Nhiều yếu tố bất thường |
 
-**Lưu ý cho UI:** Luôn upload ảnh trước khi gọi API. Dùng cùng flow pre-signed URL như bước onboarding.
+**Lưu ý cho UI:** Luôn upload ảnh lên MinIO trước, lấy pre-signed URL qua `?type=breakdown-photo&count=N` (1–10 ảnh). Tối thiểu 1 ảnh, Anti-Fraud Gate sẽ reject nếu `photoUrls` rỗng.
 
 ---
 
@@ -736,8 +756,8 @@ POST /api/v1/notifications/register-device
 Authorization: Bearer <token>
 
 {
-  "deviceToken": "fcm-token-here...",
-  "platform": "android"     // "android" | "ios"
+  "token": "fcm-token-here...",
+  "platform": "Android"     // "Android" | "Ios"
 }
 ```
 

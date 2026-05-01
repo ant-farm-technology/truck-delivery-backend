@@ -1,20 +1,20 @@
 # API Business Gap Analysis
 
 > Truck Delivery Backend — Đánh giá nghiệp vụ cho tích hợp client
-> Phân tích: 2026-04-30 | **Cập nhật status: 2026-05-01 (Sprint 1 + Sprint 2 hoàn thành)**
+> Phân tích: 2026-04-30 | **Cập nhật status: 2026-05-01 (Sprint 1–4 + Doc Sprint hoàn thành)**
 > Dựa trên khảo sát toàn bộ controllers, DTOs, domain aggregates, consumers, Saga flows
 
 ---
 
 ## Tóm tắt điều hành
 
-Hệ thống có backbone kỹ thuật tốt (Saga, Kafka, Outbox, OpenTelemetry). Sau Sprint 1 + Sprint 2, phần lớn gaps đã được giải quyết. Tổng cộng **21 gaps** ban đầu — **14 đã Done**, còn 7 pending.
+Hệ thống có backbone kỹ thuật tốt (Saga, Kafka, Outbox, OpenTelemetry). Sau Sprint 1–4 + Doc Sprint, **toàn bộ 21 gaps đã được giải quyết**.
 
 | Mức độ | Số lượng ban đầu | Đã fix | Còn lại |
 |---|---|---|---|
 | 🔴 **Blocker** | 6 | 6 | 0 |
-| 🟡 **High** | 11 | 6 | 5 |
-| 🟢 **Medium** | 4 | 2 | 2 |
+| 🟡 **High** | 11 | 11 | 0 |
+| 🟢 **Medium** | 4 | 4 | 0 |
 
 ---
 

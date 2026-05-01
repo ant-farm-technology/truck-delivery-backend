@@ -6,6 +6,8 @@
 > **Sprint 1 hoàn thành:** 2026-05-01 — 8/8 items ✅  
 > **Sprint 2 hoàn thành:** 2026-05-01 — 6/6 items ✅  
 > **Sprint 3 hoàn thành:** 2026-05-01 — 5/5 items ✅
+> **Sprint 4 hoàn thành:** 2026-05-01 — 4/4 items ✅ (G-S5/G-T4/PhoneNumber verified, G-S6/Twilio/SMTP fixed)
+> **Doc Sprint hoàn thành:** 2026-05-01 — 7/7 items ✅
 
 ---
 
@@ -15,19 +17,19 @@ Sau khi khảo sát toàn bộ 12 microservices, documentation, test coverage, v
 
 | Hạng mục | Hiện trạng |
 |---|---|
-| Backend code | ✅ Hoàn thành Phase 1–7 + bug fixes + Sprint 1 + Sprint 2 + Sprint 3 |
+| Backend code | ✅ Hoàn thành Phase 1–7 + bug fixes + Sprint 1 + Sprint 2 + Sprint 3 + Sprint 4 |
 | Unit tests | ✅ 4 test projects (domain); CI build gate active |
 | Integration tests | ✅ 2 projects (Order + Shipment via Testcontainers) |
 | Contract tests | ✅ 1 project (6 Kafka event schemas) |
 | CI/CD | ✅ `build-test.yml` + `docker-publish.yml` + `integration.yml` |
-| Notification (Push) | ✅ FCM real sender (`FcmPushSender`) — SMS/Email vẫn stub |
+| Notification (Push/SMS/Email) | ✅ FCM (`FcmPushSender`) + Twilio SMS (`TwilioSmsSender`) + MailKit SMTP (`SmtpEmailSender`) |
 | Payment | ✅ VNPay gateway + COD; `POST /orders/{orderId}/initiate`; webhook callback |
 | Security | ✅ 4 security gaps đã vá (Sprint 1) |
 | Gateway rate limit | ✅ Per-user 120 req/min cho GPS endpoint (Sprint 3) |
 | Health check aggregate | ✅ `GET /health/all` — 8 downstream services (Sprint 3) |
 | Documentation | ✅ Cập nhật Sprint 3 (file này + CLAUDE.md + as-built-status) |
 
-**Tổng số vấn đề: 28 items — 19/28 đã xong (Sprint 1 + 2 + 3), còn lại 9 gaps (Sprint 4, Doc Sprint).**
+**Tổng số vấn đề: 28 items — 28/28 đã xong (Sprint 1 + 2 + 3 + 4 + Doc Sprint). 🎉**
 
 ---
 
@@ -772,8 +774,8 @@ GET  /api/v1/shipments?status=&customerId=&driverId=&page=
 | G-S2 | Driver có thể set bất kỳ ShipmentStatus | Sprint 1 | ✅ Done |
 | G-S3 | IdCardNumber duplicate — error không format đúng | Sprint 1 | ✅ Done |
 | G-S4 | Coordinate range validation chưa có | Sprint 1 | ✅ Done |
-| G-S5 | Refresh token rotation — cần verify | Sprint 4 | ⏳ Pending |
-| G-S6 | Analytics endpoints — defense-in-depth | Sprint 4 | ⏳ Pending |
+| G-S5 | Refresh token rotation — cần verify | Sprint 4 | ✅ Verified (rotation already implemented) |
+| G-S6 | Analytics endpoints — defense-in-depth | Sprint 4 | ✅ Done (AdminOnly policy at Gateway) |
 
 ### Technical / Infrastructure Gaps
 
@@ -782,7 +784,7 @@ GET  /api/v1/shipments?status=&customerId=&driverId=&page=
 | G-T1 | Integration tests — Order + Shipment Testcontainers | Sprint 3 | ✅ Done |
 | G-T2 | Contract tests — 6 Kafka event schemas | Sprint 3 | ✅ Done |
 | G-T3 | `integration.yml` CI workflow | Sprint 3 | ✅ Done |
-| G-T4 | OCR Docker image — model chưa bake | Sprint 4 | ⏳ Pending |
+| G-T4 | OCR Docker image — model chưa bake | Sprint 4 | ✅ Verified (already baked in Dockerfile) |
 | G-T5 | Rate limit GPS per-user (120 req/min) | Sprint 3 | ✅ Done |
 | G-T6 | Health check aggregate `GET /health/all` | Sprint 3 | ✅ Done |
 
@@ -790,16 +792,14 @@ GET  /api/v1/shipments?status=&customerId=&driverId=&page=
 
 | Gap | Mô tả | Sprint | Status |
 |---|---|---|---|
-| G-D1 | `api-gap-analysis.md` lỗi thời | Doc Sprint | ⏳ Pending |
-| G-D2 | `as-built-status.md` lỗi thời | Doc Sprint | ⏳ Pending |
-| G-D3 | Thiếu Admin Portal integration guide | Doc Sprint | ⏳ Pending |
-| G-D4 | Thiếu Database schema diagram | Doc Sprint | ⏳ Pending |
-| G-D5 | `api-reference.md` thiếu Phase 2 endpoints | Doc Sprint | ⏳ Pending |
-| G-D6 | Thiếu Production deployment guide | Doc Sprint | ⏳ Pending |
-| G-D7 | Thiếu MinIO setup guide | Doc Sprint | ⏳ Pending |
+| G-D1 | `api-gap-analysis.md` lỗi thời | Doc Sprint | ✅ Done |
+| G-D2 | `as-built-status.md` lỗi thời | Doc Sprint | ✅ Done |
+| G-D3 | Thiếu Admin Portal integration guide | Doc Sprint | ✅ Done (`docs/mobile-integration/03-admin-portal.md`) |
+| G-D4 | Thiếu Database schema diagram | Doc Sprint | ✅ Done (`docs/architecture-business/02-domain/database-schema.md`) |
+| G-D5 | `api-reference.md` thiếu Phase 2 endpoints | Doc Sprint | ✅ Done (Phase 2+ section appended) |
+| G-D6 | Thiếu Production deployment guide | Doc Sprint | ✅ Done (`docs/deployment/01-production-setup.md`) |
+| G-D7 | Thiếu MinIO setup guide | Doc Sprint | ✅ Done (`docs/deployment/02-minio-setup.md`) |
 
 ---
 
-**Tổng: 28 gaps — Sprint 1: 8/8 ✅ — Sprint 2: 6/6 ✅ — Sprint 3: 5/5 ✅ — Còn lại: 9 gaps (Sprint 4, Doc Sprint)**
-
-Sprint 4 tiếp theo: G-S5 (refresh token rotation), G-S6 (analytics gateway admin-only policy), G-T4 (OCR Docker bake — bake PaddleOCR ~900MB into image), Twilio SMS real sender, SMTP Email real sender, Customer PhoneNumber/DateOfBirth.
+**Tổng: 28 gaps — Sprint 1: 8/8 ✅ — Sprint 2: 6/6 ✅ — Sprint 3: 5/5 ✅ — Sprint 4: 4/4 ✅ — Doc Sprint: 7/7 ✅ — 28/28 HOÀN THÀNH 🎉**

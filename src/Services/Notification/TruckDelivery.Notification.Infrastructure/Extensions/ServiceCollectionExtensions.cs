@@ -50,8 +50,17 @@ public static class ServiceCollectionExtensions
         else
             services.AddScoped<IPushNotificationSender, StubPushSender>();
 
-        services.AddScoped<ISmsNotificationSender, StubSmsSender>();
-        services.AddScoped<IEmailNotificationSender, StubEmailSender>();
+        // Use real Twilio sender when credentials are configured; fall back to stub otherwise
+        if (!string.IsNullOrWhiteSpace(configuration["Twilio:AccountSid"]))
+            services.AddScoped<ISmsNotificationSender, TwilioSmsSender>();
+        else
+            services.AddScoped<ISmsNotificationSender, StubSmsSender>();
+
+        // Use real SMTP sender when host is configured; fall back to stub otherwise
+        if (!string.IsNullOrWhiteSpace(configuration["Smtp:Host"]))
+            services.AddScoped<IEmailNotificationSender, SmtpEmailSender>();
+        else
+            services.AddScoped<IEmailNotificationSender, StubEmailSender>();
     }
 
     private static void AddKafkaConsumers(IServiceCollection services, IConfiguration configuration)
