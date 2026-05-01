@@ -16,11 +16,23 @@
     <Project Path="src/Services/Identity/TruckDelivery.Identity.Domain/TruckDelivery.Identity.Domain.csproj" />
     <Project Path="src/Services/Identity/TruckDelivery.Identity.Infrastructure/TruckDelivery.Identity.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Services/Notification/">
+    <Project Path="src/Services/Notification/TruckDelivery.Notification.Api/TruckDelivery.Notification.Api.csproj" />
+    <Project Path="src/Services/Notification/TruckDelivery.Notification.Application/TruckDelivery.Notification.Application.csproj" />
+    <Project Path="src/Services/Notification/TruckDelivery.Notification.Domain/TruckDelivery.Notification.Domain.csproj" />
+    <Project Path="src/Services/Notification/TruckDelivery.Notification.Infrastructure/TruckDelivery.Notification.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/src/Services/Order/">
     <Project Path="src/Services/Order/TruckDelivery.Order.Api/TruckDelivery.Order.Api.csproj" />
     <Project Path="src/Services/Order/TruckDelivery.Order.Application/TruckDelivery.Order.Application.csproj" />
     <Project Path="src/Services/Order/TruckDelivery.Order.Domain/TruckDelivery.Order.Domain.csproj" />
     <Project Path="src/Services/Order/TruckDelivery.Order.Infrastructure/TruckDelivery.Order.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Payment/">
+    <Project Path="src/Services/Payment/TruckDelivery.Payment.Api/TruckDelivery.Payment.Api.csproj" />
+    <Project Path="src/Services/Payment/TruckDelivery.Payment.Application/TruckDelivery.Payment.Application.csproj" />
+    <Project Path="src/Services/Payment/TruckDelivery.Payment.Domain/TruckDelivery.Payment.Domain.csproj" />
+    <Project Path="src/Services/Payment/TruckDelivery.Payment.Infrastructure/TruckDelivery.Payment.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/src/Services/Shipment/">
     <Project Path="src/Services/Shipment/TruckDelivery.Shipment.Api/TruckDelivery.Shipment.Api.csproj" />
@@ -44,5 +56,12 @@
     <Project Path="src/Shared/TruckDelivery.Shared.Common/TruckDelivery.Shared.Common.csproj" />
     <Project Path="src/Shared/TruckDelivery.Shared.Contracts/TruckDelivery.Shared.Contracts.csproj" />
     <Project Path="src/Shared/TruckDelivery.Shared.Infrastructure/TruckDelivery.Shared.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/" />
+  <Folder Name="/tests/Unit/">
+    <Project Path="tests/Unit/TruckDelivery.Order.Domain.Tests/TruckDelivery.Order.Domain.Tests.csproj" />
+    <Project Path="tests/Unit/TruckDelivery.Driver.Domain.Tests/TruckDelivery.Driver.Domain.Tests.csproj" />
+    <Project Path="tests/Unit/TruckDelivery.Shipment.Domain.Tests/TruckDelivery.Shipment.Domain.Tests.csproj" />
+    <Project Path="tests/Unit/TruckDelivery.Payment.Domain.Tests/TruckDelivery.Payment.Domain.Tests.csproj" />
   </Folder>
 </Solution>

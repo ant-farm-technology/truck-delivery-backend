@@ -9,7 +9,8 @@
       "Bash(\"/Users/duhongquan/Library/Application Support/Code/User/globalStorage/ms-dotnettools.vscode-dotnet-runtime/.dotnet/10.0.7~x64~aspnetcore/dotnet\" --version)",
       "Bash(chmod +x /Users/duhongquan/Documents/work/aft-pos/truck-delivery-backend/src/Services/OCR/truck-delivery-ocr/setup.sh /Users/duhongquan/Documents/work/aft-pos/truck-delivery-backend/src/Services/OCR/truck-delivery-ocr/run.sh)",
       "Bash(xargs -I{} cat -n {})",
-      "Bash(grep -r \"\\\\\"shipment\\\\.\" /Users/duhongquan/Documents/work/aft-pos/truck-delivery-backend/src/Services -type f -name \"*.cs\")"
+      "Bash(grep -r \"\\\\\"shipment\\\\.\" /Users/duhongquan/Documents/work/aft-pos/truck-delivery-backend/src/Services -type f -name \"*.cs\")",
+      "Bash(python3 -c ' *)"
     ]
   }
 }

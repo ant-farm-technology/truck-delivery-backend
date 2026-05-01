@@ -1,0 +1,72 @@
+name: Build & Unit Tests
+
+on:
+  push:
+    branches: [develop, main, master]
+  pull_request:
+    branches: [develop, main, master]
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build-and-test:
+    name: Build & Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore TruckDelivery.slnx
+
+      - name: Build (no restore)
+        run: dotnet build TruckDelivery.slnx --no-restore -c Release
+
+      - name: Run unit tests
+        run: |
+          dotnet test tests/Unit/TruckDelivery.Order.Domain.Tests/ \
+            --no-build -c Release \
+            --logger "trx;LogFileName=order-results.trx" \
+            --collect:"XPlat Code Coverage" \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+
+          dotnet test tests/Unit/TruckDelivery.Driver.Domain.Tests/ \
+            --no-build -c Release \
+            --logger "trx;LogFileName=driver-results.trx" \
+            --collect:"XPlat Code Coverage" \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+
+          dotnet test tests/Unit/TruckDelivery.Shipment.Domain.Tests/ \
+            --no-build -c Release \
+            --logger "trx;LogFileName=shipment-results.trx" \
+            --collect:"XPlat Code Coverage" \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+
+          dotnet test tests/Unit/TruckDelivery.Payment.Domain.Tests/ \
+            --no-build -c Release \
+            --logger "trx;LogFileName=payment-results.trx" \
+            --collect:"XPlat Code Coverage" \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+
+      - name: Publish test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: '**/*.trx'
+
+      - name: Publish coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-reports
+          path: '**/coverage.cobertura.xml'
