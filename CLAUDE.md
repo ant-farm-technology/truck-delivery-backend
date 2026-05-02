@@ -169,6 +169,19 @@ All 28 items from the 2026-05-01 upgrade proposal are complete: Sprint 1 (8) + S
   - **`02-golden-signals.json`** — 9 panels: 4 stat/KPI (overall error rate, p95 latency, Kafka max lag, tracking events/sec) + HTTP error rate by service + p95 latency by service + Kafka consumer lag by topic + tracking ingestion rate + request throughput by service; refresh 30s
   - **`03-ocr-pipeline.json`** — 8 panels: 4 stats (OCR verified, manual review, rejected counts + auto-verify rate) + donut piechart (verification distribution) + verification outcomes timeseries + extraction p95 duration by document type + extraction rate by document type+status; all from `ocr_extraction_*` and `ocr_verification_*` metrics
 
+### Integration Tests — Driver + Payment (2026-05-02)
+- **`tests/Integration/TruckDelivery.Driver.Application.IntegrationTests/`** — Testcontainers MySQL + Redis; 3 test classes (13 tests total):
+  - **`DriverRepositoryTests`** — persist + retrieve by Id, find by LicenseNumber, ExistsByIdCardNumber true/false, null for non-existent
+  - **`SelfRegisterDriverCommandTests`** — creates Driver + Vehicle in one tx → PendingOcrVerification, outbox entry for `DriverDocumentsSubmitted`, conflict on duplicate IdCard (409), conflict on duplicate UserId, conflict on duplicate LicensePlate
+  - **`DriverIdempotencyTests`** — Redis idempotency store: new id returns false, mark+check returns true, prevents duplicate processing, independent ids tracked independently
+- **`tests/Integration/TruckDelivery.Payment.Application.IntegrationTests/`** — Testcontainers MySQL only; 3 test classes (13 tests total):
+  - **`PaymentRepositoryTests`** — persist Payment + retrieve by Id/OrderId, persist EscrowPayment + retrieve by ShipmentId, null returns for non-existent
+  - **`CodPaymentFlowTests`** — COD auto-complete: Payment persisted as Completed, outbox entry for `PaymentCompleted`, conflict on duplicate orderId, correct amount/currency stored
+  - **`EscrowPaymentTests`** — create escrow → Locked state, idempotent on duplicate shipmentId (returns same id), Confirm → Released, Dispute → Disputed
+- **Both projects** added to `TruckDelivery.slnx` under `/tests/Integration/` folder; `tests/Contract/` folder also added to slnx
+- **`integration.yml`** updated: 2 new `dotnet test` steps for Driver + Payment (10 min timeout each)
+- **`IUnitOfWork` mismatch fixed**: `Payment.Infrastructure/Persistence/EFCore/UnitOfWork.cs` and `Notification.Infrastructure/Persistence/EFCore/UnitOfWork.cs` corrected from `Task SaveChangesAsync` → `Task<int> SaveChangesAsync` to match `IUnitOfWork` interface
+
 ### Contract Tests — Phase 5–7 Events (2026-05-02)
 - **4 new event groups** added to `tests/Contract/TruckDelivery.Contracts.Tests/EventSchemaTests.cs`:
   - **`VehicleBreakdownEvent`** (Phase 5) — round-trip with all fields (DriverId, VehicleId?, Lat/Lng, PhotoUrls, TrustScore, FraudRiskLevel), null VehicleId case, forward-compatibility extra-field test
@@ -188,6 +201,22 @@ All 28 items from the 2026-05-01 upgrade proposal are complete: Sprint 1 (8) + S
 - **Env vars wired in compose:** Notification service: `Firebase__CredentialsJson`, `Twilio__*`, `Smtp__*`, `Notification__AdminEmail`; Payment service: `VnPay__TmnCode/HashSecret/PaymentUrl/ReturnUrl`; Driver service: `MinIO__Endpoint/AccessKey/SecretKey`
 - **`docker/.env.example`** updated with all new env vars: Firebase, Twilio, SMTP, VNPay, Notification admin email — all have safe empty/fallback defaults (services fall back to stubs when unset)
 - **`.github/workflows/build-test.yml`** updated — added `dotnet test` steps for 3 new unit test projects: Notification, Tracking, Analytics domain tests
+
+### API & Observability Improvements (2026-05-03)
+- **Swagger / OpenAPI:** `Swashbuckle.AspNetCore v7.3.1` added to all 8 .NET service `.csproj` files; each service's `Program.cs` registers `AddSwaggerGen` (Bearer JWT security definition) and `app.UseSwagger()` → exposes `/swagger/v1/swagger.json`; **Gateway aggregation:** `UseSwaggerUI` at `/swagger` pulls all 8 specs; YARP routes `swagger-{service}-route` proxy `/swagger/{service}/v1/swagger.json` → each service's `/swagger/v1/swagger.json` with `PathPattern` transform; `Swashbuckle.AspNetCore` added to Gateway `.csproj`
+- **Request logging enrichment:** All 8 services' `UseSerilogRequestLogging()` updated to enrich with `CorrelationId` (from `X-Correlation-Id` header), `UserId` (from JWT `NameIdentifier` claim), `UserAgent` — consistent with Gateway enrichment pattern; no request/response body logging (security: passwords, tokens, PII)
+- **UnitOfWork decision:** `IUnitOfWork` intentionally keeps only `SaveChangesAsync` — no `BeginTransaction/Commit/Rollback` needed; each command handles one aggregate, entity + OutboxMessage share the same DbContext → single implicit EFCore transaction; explicit transaction methods would be over-engineering given event-driven compensation pattern
+- **Data layer ports:** Already exposed in `docker/docker-compose.yml` — MySQL `3306:3306`, MongoDB `27017:27017`, PostGIS `5432:5432`, Redis `6379:6379`; no changes needed
+
+### GPS Batch Endpoint (2026-05-03)
+Implemented `POST /api/v1/tracking/batch` to solve offline-cache flush problem (mobile team proposal `docs/mobile-suggestion.md`):
+- **Problem:** Driver goes offline → caches up to 100 GPS points → reconnects → flushes 100 requests simultaneously → hits 120 req/min rate limit
+- **Solution:** Batch endpoint accepts array of up to 100 points in one HTTP call; rate limit set to 10 req/min (10 batches × 100 points = 1000 points/min capacity)
+- **`BatchUpdateLocationCommand`** (`Tracking.Application/Commands/BatchUpdateLocation/`) — handler sorts by `RecordedAt` ASC (client-provided timestamp), calls `ITrackingPointRepository.AddManyAsync()` (MongoDB `InsertManyAsync`), updates session + GPS cache + Kafka + SignalR for **last point only** (most recent; historical catch-up doesn't need N events)
+- **`BatchUpdateLocationCommandValidator`** — max 100 points, coordinates range check, `RecordedAt` in past and within 24h
+- **`ITrackingPointRepository.AddManyAsync()`** added; implemented via `InsertManyAsync` in `TrackingPointRepository`
+- **Gateway:** `tracking-batch-route` YARP entry + `POST:/api/v1/tracking/batch → 10 req/min` rate limit rule in `IpRateLimiting.EndpointRules`
+- **API:** `POST /api/v1/tracking/batch` (Driver role) — body: `{ "points": [{ "latitude", "longitude", "recordedAt", "speedKmh?", "headingDeg?" }] }`
 
 ### Mobile Integration Documentation
 - **Driver App:** `docs/mobile-integration/01-driver-app.md` — Onboarding (3 bước), GPS push, breakdown report, SignalR, FCM; updated 2026-05-01 for Sprint 4 accuracy (all-in-one register, PendingOcrVerification enum, breakdown-photos bucket)

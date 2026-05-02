@@ -11,7 +11,8 @@
       "Bash(xargs -I{} cat -n {})",
       "Bash(grep -r \"\\\\\"shipment\\\\.\" /Users/duhongquan/Documents/work/aft-pos/truck-delivery-backend/src/Services -type f -name \"*.cs\")",
       "Bash(python3 -c ' *)",
-      "Bash(grep \".cs$\")"
+      "Bash(grep \".cs$\")",
+      "Bash(python3 -c \"import json; f=open\\('/Users/duhongquan/Documents/work/aft-pos/truck-delivery-backend/docs/postman/TruckDelivery.postman_collection.json'\\); d=json.load\\(f\\); print\\('Valid JSON ✓'\\); print\\(f'Folders: {[x[\\\\\"name\\\\\"] for x in d[\\\\\"item\\\\\"]]}'\\); print\\(f'Total requests: {sum\\(len\\(x[\\\\\"item\\\\\"]\\) for x in d[\\\\\"item\\\\\"]\\)} top-level'\\)\")"
     ]
   }
 }

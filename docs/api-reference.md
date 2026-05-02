@@ -722,7 +722,58 @@ Driver ID is extracted from the JWT `sub` claim automatically — no need to inc
 **Error responses:**
 - `400 Bad Request` — invalid coordinates or no active shipment for driver
 
-> **Performance note:** Update every 1s when moving, every 5s when stationary. Batch and replay cached points if network was lost.
+> **Performance note:** Update every 1s when moving, every 5s when stationary. Use the batch endpoint below to replay cached points after reconnect.
+
+---
+
+### POST /api/v1/tracking/batch
+
+Flush offline-cached GPS points after network reconnect. Accepts up to 100 points per call.
+
+**Auth:** Bearer — Role: `Driver`
+
+Driver ID is extracted from the JWT `sub` claim automatically.
+
+**Request body:**
+
+```json
+{
+  "points": [
+    {
+      "latitude": 10.7769,
+      "longitude": 106.7009,
+      "recordedAt": "2026-04-30T10:05:00Z",
+      "speedKmh": 45.5,
+      "headingDeg": 270.0
+    },
+    {
+      "latitude": 10.7812,
+      "longitude": 106.6987,
+      "recordedAt": "2026-04-30T10:05:02Z",
+      "speedKmh": 46.0,
+      "headingDeg": 268.0
+    }
+  ]
+}
+```
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `points` | array | Yes | 1–100 items |
+| `points[].latitude` | double | Yes | WGS-84 latitude (-90 to 90) |
+| `points[].longitude` | double | Yes | WGS-84 longitude (-180 to 180) |
+| `points[].recordedAt` | datetime | Yes | Original client timestamp (UTC); must be within last 24h |
+| `points[].speedKmh` | double | No | Speed at time of recording |
+| `points[].headingDeg` | double | No | Bearing in degrees |
+
+**Response `204 No Content`**
+
+**Error responses:**
+- `400 Bad Request` — validation failure or no active shipment for driver
+
+> **Behaviour:** All points are persisted with original `recordedAt` timestamps. Only the most recent point (by `recordedAt`) triggers SignalR `LocationUpdated` and a Kafka event — historical points are stored silently.
+
+> **Rate limit:** 10 req/min per authenticated user (vs 120 for single-point endpoint).
 
 ---
 
@@ -1146,55 +1197,39 @@ await connection.start();
 | Group | Join method | Leave method | Who subscribes |
 |---|---|---|---|
 | `shipment:{shipmentId}` | `JoinShipmentGroup(shipmentId)` | `LeaveShipmentGroup(shipmentId)` | Customer tracking their order |
-| `driver:{driverId}` | `JoinDriverGroup(driverId)` | `LeaveDriverGroup(driverId)` | Driver receiving assignments |
-| `admin` | `JoinAdminGroup()` | `LeaveAdminGroup()` | Admin monitoring all activity |
+| `driver:{driverId}` | `JoinDriverGroup(driverId)` | — | Driver receiving assignments |
+
+> **Note:** Only two groups are implemented. There is no admin group or `LeaveDriverGroup` hub method.
 
 ### Server → Client events
 
 #### `LocationUpdated`
 
-Emitted when a driver pushes a GPS update.
+Emitted when a driver pushes a GPS update. Sent to the `shipment:{shipmentId}` group.
 
 ```javascript
 connection.on("LocationUpdated", (data) => {
-  // Received by: shipment group + admin group
-  console.log(data.driverId, data.latitude, data.longitude, data.recordedAt);
+  // Received by: shipment group subscribers
+  console.log(data.driverId, data.latitude, data.longitude, data.speedKmh, data.recordedAt);
 });
 ```
 
 | Field | Type | Notes |
 |---|---|---|
-| `shipmentId` | GUID | |
 | `driverId` | GUID | |
 | `latitude` | double | |
 | `longitude` | double | |
-| `speedKmh` | double | |
+| `speedKmh` | double? | May be null |
 | `recordedAt` | datetime | UTC |
-
-#### `ShipmentStatusUpdated`
-
-Emitted when shipment status changes.
-
-```javascript
-connection.on("ShipmentStatusUpdated", (data) => {
-  // Received by: shipment group + admin group
-  console.log(data.shipmentId, data.status, data.updatedAt);
-});
-```
-
-| Field | Type | Notes |
-|---|---|---|
-| `shipmentId` | GUID | |
-| `status` | string | New status |
-| `updatedAt` | datetime | UTC |
 
 #### `DriverAssigned`
 
-Emitted when a driver is assigned to a shipment.
+Emitted when a driver is assigned to a shipment. Sent to the `driver:{driverId}` group.
 
 ```javascript
 connection.on("DriverAssigned", (data) => {
   // Received by: driver group
+  // After receiving, call GET /api/v1/shipments/{data.shipmentId} for full details
   showNewAssignmentNotification(data);
 });
 ```
@@ -1203,25 +1238,10 @@ connection.on("DriverAssigned", (data) => {
 |---|---|---|
 | `shipmentId` | GUID | |
 | `orderId` | GUID | |
-| `pickupAddress` | object | `{ street, city, province }` |
-| `deliveryAddress` | object | `{ street, city, province }` |
+| `vehicleId` | GUID | |
+| `assignedAt` | datetime | UTC |
 
-#### `DispatcherConfirmationRequired`
-
-Emitted when a shipment needs manual Admin approval (bin-check flagged).
-
-```javascript
-connection.on("DispatcherConfirmationRequired", (data) => {
-  // Received by: admin group only
-  addToReviewQueue(data);
-});
-```
-
-| Field | Type | Notes |
-|---|---|---|
-| `shipmentId` | GUID | |
-| `orderId` | GUID | |
-| `reason` | string | Why manual review is needed |
+> **Note:** `ShipmentStatusUpdated` and `DispatcherConfirmationRequired` are **not** implemented in the SignalR hub. Use polling `GET /api/v1/shipments/{id}` or `GET /api/v1/orders/{id}` for status updates.
 
 ### Full example (Customer)
 
@@ -1229,16 +1249,24 @@ connection.on("DispatcherConfirmationRequired", (data) => {
 await connection.start();
 await connection.invoke("JoinShipmentGroup", shipmentId);
 
-connection.on("LocationUpdated", ({ latitude, longitude }) => {
+// Real-time driver location
+connection.on("LocationUpdated", ({ driverId, latitude, longitude, speedKmh, recordedAt }) => {
   updateMapPin(latitude, longitude);
 });
 
-connection.on("ShipmentStatusUpdated", ({ status }) => {
-  updateStatusBanner(status);
-});
+// Poll order status every 30s — ShipmentStatusUpdated is not available via SignalR
+const statusPoller = setInterval(async () => {
+  const order = await fetch(`/api/v1/orders/${orderId}`, { headers: authHeaders });
+  updateStatusBanner(order.status);
+  if (['Delivered', 'Completed', 'Cancelled'].includes(order.status)) {
+    clearInterval(statusPoller);
+    await connection.invoke("LeaveShipmentGroup", shipmentId);
+  }
+}, 30_000);
 
 // Cleanup when leaving screen
 window.addEventListener("beforeunload", async () => {
+  clearInterval(statusPoller);
   await connection.invoke("LeaveShipmentGroup", shipmentId);
 });
 ```
@@ -1424,7 +1452,9 @@ window.addEventListener("beforeunload", async () => {
 | `GET` | `/api/v1/uploads/presigned-url?type=driver-document` | Driver | Get 7 PUT URLs for driver onboarding photos |
 | `GET` | `/api/v1/uploads/presigned-url?type=breakdown-photo&count=3` | Driver | Get N PUT URLs for breakdown photos (1–10) |
 
-Response shape: `{ "urls": ["https://minio/bucket/key?X-Amz-Signature=..."] }`
+Response shape: `{ "urls": [{ "field": "portraitUrl", "uploadUrl": "https://minio/...", "finalUrl": "driver-documents/uuid.jpg" }, ...] }`
+
+Each entry: `field` = field name for the `photos` object in the register body, `uploadUrl` = PUT directly to MinIO, `finalUrl` = stored path used as the field value when submitting registration.
 
 ### Shipment — Admin Operations
 

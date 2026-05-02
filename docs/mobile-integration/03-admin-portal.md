@@ -345,10 +345,9 @@ connection.on("ShipmentStatusUpdated", (payload) => {
 
 ```http
 GET /health/all
-Authorization: Bearer <admin-token>
 ```
 
-Returns health status of all 8 downstream services:
+No authentication required — endpoint is public (anonymous). Returns health status of all 8 downstream services:
 
 ```json
 {

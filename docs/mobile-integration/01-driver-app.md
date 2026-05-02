@@ -1,7 +1,7 @@
 # Driver App — Mobile Integration Guide
 
 > Truck Delivery Backend · Tài liệu tích hợp cho ứng dụng mobile tài xế
-> Cập nhật: 2026-05-01 (Sprint 4)
+> Cập nhật: 2026-05-02 (Sprint 4, final review)
 
 ---
 
@@ -106,7 +106,7 @@ Content-Type: application/json
   "data": {
     "accessToken": "eyJhbGci...",
     "refreshToken": "550e8400-...",
-    "expiresIn": 3600,
+    "expiresAt": "2026-06-01T10:30:00Z",
     "role": "Driver",
     "userId": "550e8400-..."
   }
@@ -149,31 +149,40 @@ Authorization: Bearer <token>     (role=Driver)
 Content-Type: application/json
 
 {
-  "userId": "550e8400-...",
-  "fullName": "Trần Văn B",
   "idCardNumber": "079123456789",
   "dateOfBirth": "1990-05-15",
   "address": "123 Nguyễn Huệ, TP.HCM",
+  "licenseNumber": "123456789012",
   "licenseGrade": "C",
   "licenseExpiryDate": "2028-12-31",
-  "frontIdCardUrl": "trucker-driver-docs/uuid-front-id.jpg",
-  "backIdCardUrl": "trucker-driver-docs/uuid-back-id.jpg",
-  "selfieUrl": "trucker-driver-docs/uuid-selfie.jpg",
-  "frontLicenseUrl": "trucker-driver-docs/uuid-front-lic.jpg",
-  "backLicenseUrl": "trucker-driver-docs/uuid-back-lic.jpg",
-  "vehicleRegUrl": "trucker-driver-docs/uuid-vehicle-reg.jpg",
-  "vehicleFrontUrl": "trucker-driver-docs/uuid-vehicle-front.jpg",
-  "vehicleLicensePlate": "51A-12345",
-  "vehicleType": "Truck3T",
-  "vehicleMaxWeightKg": 3000,
-  "vehicleVolumeCbm": 15.0,
-  "vehicleLengthM": 4.2,
-  "vehicleWidthM": 1.8,
-  "vehicleHeightM": 1.8,
-  "vehicleRegistrationNumber": "HCM-20-1234",
-  "vehicleRegistrationExpiryDate": "2026-12-31"
+  "photos": {
+    "portraitUrl": "driver-documents/uuid-portrait.jpg",
+    "idCardFrontUrl": "driver-documents/uuid-id-front.jpg",
+    "idCardBackUrl": "driver-documents/uuid-id-back.jpg",
+    "licenseFrontUrl": "driver-documents/uuid-lic-front.jpg",
+    "licenseBackUrl": "driver-documents/uuid-lic-back.jpg",
+    "vehicleRegFrontUrl": "driver-documents/uuid-reg-front.jpg",
+    "vehicleRegBackUrl": "driver-documents/uuid-reg-back.jpg"
+  },
+  "vehicle": {
+    "licensePlate": "51A-12345",
+    "brand": "Hino",
+    "model": "XZU720L",
+    "type": "Truck3T",
+    "maxWeightKg": 3000,
+    "maxVolumeCbm": 15.0,
+    "lengthM": 4.2,
+    "widthM": 1.8,
+    "heightM": 1.8,
+    "yearOfManufacture": 2020,
+    "registrationNumber": "HCM-20-1234",
+    "registrationExpiryDate": "2026-12-31"
+  }
 }
 ```
+
+> **Lưu ý:** `userId`, `email`, `firstName`, `lastName`, `phoneNumber` được lấy tự động từ JWT claims — không cần truyền lên trong body.
+> Dùng `finalUrl` từ presigned URL response (§5.2) làm giá trị cho từng field trong `photos`.
 
 ```json
 {
@@ -217,24 +226,24 @@ Authorization: Bearer <token>
   "success": true,
   "data": {
     "urls": [
-      "http://minio:9000/trucker-driver-docs/uuid-front-id.jpg?X-Amz-Signature=...",
-      "http://minio:9000/trucker-driver-docs/uuid-back-id.jpg?X-Amz-Signature=...",
-      "http://minio:9000/trucker-driver-docs/uuid-selfie.jpg?X-Amz-Signature=...",
-      "http://minio:9000/trucker-driver-docs/uuid-front-lic.jpg?X-Amz-Signature=...",
-      "http://minio:9000/trucker-driver-docs/uuid-back-lic.jpg?X-Amz-Signature=...",
-      "http://minio:9000/trucker-driver-docs/uuid-vehicle-reg.jpg?X-Amz-Signature=...",
-      "http://minio:9000/trucker-driver-docs/uuid-vehicle-front.jpg?X-Amz-Signature=..."
+      { "field": "portraitUrl",        "uploadUrl": "http://minio:9000/driver-documents/uuid-portrait.jpg?X-Amz-Signature=...",       "finalUrl": "driver-documents/uuid-portrait.jpg" },
+      { "field": "idCardFrontUrl",     "uploadUrl": "http://minio:9000/driver-documents/uuid-id-front.jpg?X-Amz-Signature=...",       "finalUrl": "driver-documents/uuid-id-front.jpg" },
+      { "field": "idCardBackUrl",      "uploadUrl": "http://minio:9000/driver-documents/uuid-id-back.jpg?X-Amz-Signature=...",        "finalUrl": "driver-documents/uuid-id-back.jpg" },
+      { "field": "licenseFrontUrl",    "uploadUrl": "http://minio:9000/driver-documents/uuid-lic-front.jpg?X-Amz-Signature=...",      "finalUrl": "driver-documents/uuid-lic-front.jpg" },
+      { "field": "licenseBackUrl",     "uploadUrl": "http://minio:9000/driver-documents/uuid-lic-back.jpg?X-Amz-Signature=...",       "finalUrl": "driver-documents/uuid-lic-back.jpg" },
+      { "field": "vehicleRegFrontUrl", "uploadUrl": "http://minio:9000/driver-documents/uuid-reg-front.jpg?X-Amz-Signature=...",      "finalUrl": "driver-documents/uuid-reg-front.jpg" },
+      { "field": "vehicleRegBackUrl",  "uploadUrl": "http://minio:9000/driver-documents/uuid-reg-back.jpg?X-Amz-Signature=...",       "finalUrl": "driver-documents/uuid-reg-back.jpg" }
     ]
   }
 }
 ```
 
-Thứ tự: `frontId`, `backId`, `selfie`, `frontLicense`, `backLicense`, `vehicleReg`, `vehicleFront`.
+Mỗi entry trong `urls` gồm: `field` (tên field trong body §4), `uploadUrl` (dùng để PUT ảnh lên MinIO), `finalUrl` (dùng làm giá trị trong `photos` khi submit §4).
 
 **Tiến hành upload từng ảnh:**
 
 ```http
-PUT <urls[i]>
+PUT <entry.uploadUrl>
 Content-Type: image/jpeg
 
 <binary image data>
@@ -498,13 +507,16 @@ POST /api/v1/tracking/location
 Authorization: Bearer <token>
 
 {
-  "shipmentId": "c4d5e6f7-...",
   "latitude": 10.7769,
-  "longitude": 106.7009
+  "longitude": 106.7009,
+  "speedKmh": 45.5,
+  "headingDeg": 270.0
 }
 ```
 
-Response: `200 OK` hoặc `204 No Content`
+`driverId` được lấy tự động từ JWT `sub` — không cần truyền trong body.
+
+Response: `204 No Content`
 
 **Adaptive interval (tiết kiệm battery):**
 
@@ -515,7 +527,56 @@ Response: `200 OK` hoặc `204 No Content`
 | Dừng lâu (> 30s bất động) | 15–30 giây | Đang bốc/dỡ hàng |
 | Shipment = `Delivered` hoặc `Completed` | Dừng hẳn | Không cần push nữa |
 
-**Offline handling:** Cache các location points khi mất kết nối, gửi batch khi có mạng lại (tối đa 100 points/batch).
+**Offline handling:** Cache các location points khi mất kết nối, gửi batch khi có mạng lại (tối đa 100 points/batch). Xem §7.1.1.
+
+### 7.1.1 Flush Offline GPS Cache (batch)
+
+Khi driver mất kết nối, app cache GPS points locally. Sau khi có mạng lại, gửi tất cả cùng một lúc:
+
+```http
+POST /api/v1/tracking/batch
+Authorization: Bearer <token>
+Rate limit: 10 requests/minute/user
+
+{
+  "points": [
+    {
+      "latitude": 10.7769,
+      "longitude": 106.7009,
+      "recordedAt": "2026-05-03T10:05:00Z",
+      "speedKmh": 45.5,
+      "headingDeg": 270.0
+    },
+    {
+      "latitude": 10.7812,
+      "longitude": 106.6987,
+      "recordedAt": "2026-05-03T10:05:02Z",
+      "speedKmh": 46.0,
+      "headingDeg": 268.0
+    }
+  ]
+}
+```
+
+Response: `204 No Content`
+
+**Giới hạn & ràng buộc:**
+
+| Constraint | Giá trị |
+|---|---|
+| Max points per call | 100 |
+| Rate limit | 10 req/phút/user (= tối đa 1000 points/phút) |
+| `recordedAt` | Phải ≤ hiện tại và ≥ 24 giờ trước |
+| `recordedAt` | Dùng timestamp thực tế khi GPS ghi (không dùng thời điểm gửi) |
+
+**Logic phía backend:**
+- Bulk insert tất cả points vào MongoDB (1 DB call)
+- Chỉ gửi SignalR `LocationUpdated` và Kafka event cho **point mới nhất** (point có `recordedAt` lớn nhất)
+- Các point lịch sử được lưu nhưng không trigger real-time notification
+
+**Tại sao không dùng endpoint đơn khi reconnect?**
+
+`POST /api/v1/tracking/location` có rate limit 120 req/phút. Nếu flush 100 points qua đó sau khi offline, sẽ dùng hết toàn bộ quota của minute đó. Batch endpoint giải quyết 100 points chỉ tốn 1 trong 10 lần cho phép.
 
 ### 7.2 Cập nhật trạng thái shipment
 
@@ -596,14 +657,14 @@ Authorization: Bearer <token>
   "success": true,
   "data": {
     "urls": [
-      "http://minio:9000/breakdown-photos/uuid1.jpg?X-Amz-Signature=...",
-      "http://minio:9000/breakdown-photos/uuid2.jpg?X-Amz-Signature=..."
+      { "field": "photo_1", "uploadUrl": "http://minio:9000/breakdown-photos/uuid1.jpg?X-Amz-Signature=...", "finalUrl": "breakdown-photos/uuid1.jpg" },
+      { "field": "photo_2", "uploadUrl": "http://minio:9000/breakdown-photos/uuid2.jpg?X-Amz-Signature=...", "finalUrl": "breakdown-photos/uuid2.jpg" }
     ]
   }
 }
 ```
 
-Upload từng ảnh với `PUT <url>`, sau đó dùng phần path của URL (e.g. `breakdown-photos/uuid1.jpg`) làm giá trị trong `photoUrls`.
+Upload từng ảnh với `PUT <entry.uploadUrl>`, sau đó dùng `entry.finalUrl` làm giá trị trong `photoUrls`.
 
 ```http
 POST /api/v1/drivers/{driverId}/report-breakdown
@@ -702,26 +763,17 @@ connection.on("DriverAssigned", (args) {
   // {
   //   "shipmentId": "c4d5e6f7-...",
   //   "orderId": "a1b2c3d4-...",
-  //   "pickupAddress": { "street": "...", "city": "...", "province": "..." },
-  //   "deliveryAddress": { "street": "...", "city": "...", "province": "..." },
-  //   "packages": [
-  //     { "productName": "...", "weightKg": 45.0, "lengthM": 0.6, ... }
-  //   ],
-  //   "estimatedDistance": 12.5,   // km (nếu có)
-  //   "estimatedDuration": 35      // phút (nếu có)
+  //   "vehicleId": "a1b2c3d4-...",
+  //   "assignedAt": "2026-04-30T08:05:00Z"
   // }
-  showAssignmentNotification(args[0]);
+  // Sau khi nhận event, gọi GET /api/v1/shipments/{shipmentId} để lấy chi tiết địa chỉ và hàng hoá
+  final shipmentId = args[0]['shipmentId'];
+  fetchShipmentDetail(shipmentId);
+  showAssignmentNotification();
 });
 ```
 
-#### Shipment bị reassign (hỏng xe của driver khác → nhận lại)
-
-```dart
-connection.on("ShipmentReassigned", (args) {
-  // args[0]: { "shipmentId": "...", "reason": "Xe trước bị hỏng" }
-  showReassignmentDialog(args[0]);
-});
-```
+> **Lưu ý:** `DriverAssigned` SignalR event chỉ gửi `shipmentId`, `orderId`, `vehicleId`, `assignedAt`. App cần gọi thêm `GET /api/v1/shipments/{shipmentId}` để lấy địa chỉ lấy/giao hàng và danh sách kiện hàng.
 
 ### 9.4 Xử lý reconnect
 
@@ -893,6 +945,6 @@ Authorization: Bearer <token>
 - [ ] Implement breakdown report flow
 - [ ] Register FCM token sau login
 - [ ] Handle notification tap → navigate to correct screen
-- [ ] Implement offline GPS caching
+- [ ] Implement offline GPS caching + batch flush khi reconnect (`POST /api/v1/tracking/batch`)
 - [ ] Handle token expiry (silent refresh)
 - [ ] Handle SignalR reconnect + group rejoin

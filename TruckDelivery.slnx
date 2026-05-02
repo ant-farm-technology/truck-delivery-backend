@@ -67,6 +67,15 @@
     <Project Path="tests/Unit/TruckDelivery.Tracking.Domain.Tests/TruckDelivery.Tracking.Domain.Tests.csproj" />
     <Project Path="tests/Unit/TruckDelivery.Analytics.Domain.Tests/TruckDelivery.Analytics.Domain.Tests.csproj" />
   </Folder>
+  <Folder Name="/tests/Integration/">
+    <Project Path="tests/Integration/TruckDelivery.Order.Application.IntegrationTests/TruckDelivery.Order.Application.IntegrationTests.csproj" />
+    <Project Path="tests/Integration/TruckDelivery.Shipment.Application.IntegrationTests/TruckDelivery.Shipment.Application.IntegrationTests.csproj" />
+    <Project Path="tests/Integration/TruckDelivery.Driver.Application.IntegrationTests/TruckDelivery.Driver.Application.IntegrationTests.csproj" />
+    <Project Path="tests/Integration/TruckDelivery.Payment.Application.IntegrationTests/TruckDelivery.Payment.Application.IntegrationTests.csproj" />
+  </Folder>
+  <Folder Name="/tests/Contract/">
+    <Project Path="tests/Contract/TruckDelivery.Contracts.Tests/TruckDelivery.Contracts.Tests.csproj" />
+  </Folder>
   <Folder Name="/tests/E2E/">
     <Project Path="tests/E2E/TruckDelivery.E2E.Tests/TruckDelivery.E2E.Tests.csproj" />
   </Folder>

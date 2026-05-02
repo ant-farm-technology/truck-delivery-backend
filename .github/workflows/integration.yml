@@ -50,6 +50,24 @@ jobs:
             -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
         timeout-minutes: 10
 
+      - name: Run integration tests — Driver
+        run: |
+          dotnet test tests/Integration/TruckDelivery.Driver.Application.IntegrationTests/ \
+            --no-build -c Release \
+            --logger "trx;LogFileName=driver-integration-results.trx" \
+            --collect:"XPlat Code Coverage" \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+        timeout-minutes: 10
+
+      - name: Run integration tests — Payment
+        run: |
+          dotnet test tests/Integration/TruckDelivery.Payment.Application.IntegrationTests/ \
+            --no-build -c Release \
+            --logger "trx;LogFileName=payment-integration-results.trx" \
+            --collect:"XPlat Code Coverage" \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+        timeout-minutes: 10
+
       - name: Run contract tests
         run: |
           dotnet test tests/Contract/TruckDelivery.Contracts.Tests/ \

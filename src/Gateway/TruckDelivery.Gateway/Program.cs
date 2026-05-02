@@ -117,6 +117,20 @@ app.MapHealthChecks("/health/all", new HealthCheckOptions
 
 app.MapPrometheusScrapingEndpoint("/metrics");
 
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/identity/v1/swagger.json", "Identity API v1");
+    c.SwaggerEndpoint("/swagger/order/v1/swagger.json", "Order API v1");
+    c.SwaggerEndpoint("/swagger/driver/v1/swagger.json", "Driver & Vehicle API v1");
+    c.SwaggerEndpoint("/swagger/shipment/v1/swagger.json", "Shipment API v1");
+    c.SwaggerEndpoint("/swagger/tracking/v1/swagger.json", "Tracking API v1");
+    c.SwaggerEndpoint("/swagger/notification/v1/swagger.json", "Notification API v1");
+    c.SwaggerEndpoint("/swagger/payment/v1/swagger.json", "Payment API v1");
+    c.SwaggerEndpoint("/swagger/analytics/v1/swagger.json", "Analytics API v1");
+    c.RoutePrefix = "swagger";
+    c.DocumentTitle = "Truck Delivery API";
+});
+
 app.MapReverseProxy();
 
 await app.RunAsync();

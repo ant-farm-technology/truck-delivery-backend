@@ -104,7 +104,7 @@ Content-Type: application/json
   "data": {
     "accessToken": "eyJhbGci...",
     "refreshToken": "550e8400-...",
-    "expiresIn": 3600,
+    "expiresAt": "2026-06-01T10:30:00Z",
     "role": "Customer",
     "userId": "550e8400-..."
   }
@@ -515,10 +515,10 @@ await connection.invoke("LeaveShipmentGroup", args: [shipmentId]);
 connection.on("LocationUpdated", (args) {
   // args[0]:
   // {
-  //   "shipmentId": "c4d5e6f7-...",
   //   "driverId": "7b2f4c8e-...",
   //   "latitude": 10.7850,
   //   "longitude": 106.6940,
+  //   "speedKmh": 52.3,
   //   "recordedAt": "2026-04-30T10:07:00Z"
   // }
   updateDriverMarkerOnMap(args[0]['latitude'], args[0]['longitude']);
@@ -526,24 +526,7 @@ connection.on("LocationUpdated", (args) {
 });
 ```
 
-#### Cập nhật trạng thái shipment
-
-```dart
-connection.on("ShipmentStatusUpdated", (args) {
-  // args[0]:
-  // {
-  //   "shipmentId": "c4d5e6f7-...",
-  //   "status": "Delivered",
-  //   "updatedAt": "2026-04-30T15:30:00Z"
-  // }
-  updateStatusBanner(args[0]['status']);
-  addTimelineEntry(args[0]);
-
-  if (args[0]['status'] == 'Delivered') {
-    stopTrackingAndShowCompletionScreen();
-  }
-});
-```
+> **Lưu ý:** `ShipmentStatusUpdated` không được phát qua SignalR. Dùng polling `GET /api/v1/orders/{orderId}` mỗi 30 giây để cập nhật timeline trạng thái đơn hàng.
 
 ### 8.4 Xử lý reconnect
 
@@ -830,22 +813,23 @@ Authorization: Bearer <token>
 | Order detail | Polling mỗi 30s | Status thay đổi chậm |
 | Tracking (tài xế di chuyển) | SignalR `LocationUpdated` | Real-time 1–5s |
 | Home / Order list | Polling mỗi 60s hoặc pull-to-refresh | Không cần real-time |
-| Payment | Event-driven (SignalR `ShipmentStatusUpdated`) | Trigger sau khi Delivered |
+| Payment | Poll every 30s | Sau khi nhận push `PAYMENT_COMPLETED` hoặc polling |
 
 **Khi nào dừng SignalR subscription:**
 
+SignalR (`LocationUpdated`) chỉ cần khi tài xế đang di chuyển. Khi nào thoát khỏi màn hình tracking thì leave group. Trạng thái đơn hàng theo dõi bằng polling.
+
 ```dart
-// Dừng tracking khi shipment hoàn tất hoặc bị huỷ
-connection.on("ShipmentStatusUpdated", (args) {
-  final status = args[0]['status'];
-  if (status == 'Completed' || status == 'Cancelled') {
-    // Delivered → stay connected to receive Completed event (payment confirm)
-    // Completed/Cancelled → leave group and navigate to invoice screen
-    connection.invoke("LeaveShipmentGroup", args: [shipmentId]);
-  }
-  if (status == 'Delivered') {
-    // Keep connection open — wait for Completed (payment) then show invoice
-    showDeliveredBanner();
+// Poll trạng thái đơn mỗi 30 giây
+Timer.periodic(Duration(seconds: 30), (_) async {
+  final order = await orderApi.getOrder(orderId);
+  updateStatusTimeline(order.status);
+
+  if (order.status == 'Delivered' || order.status == 'Completed' || order.status == 'Cancelled') {
+    // Thoát màn hình tracking, sang màn hình hoá đơn
+    await connection.invoke("LeaveShipmentGroup", args: [shipmentId]);
+    pollingTimer?.cancel();
+    navigateToInvoiceScreen();
   }
 });
 ```
@@ -863,7 +847,7 @@ connection.on("ShipmentStatusUpdated", (args) {
 - [ ] Implement tracking screen với bản đồ
 - [ ] Load GPS history (polyline) khi mở tracking
 - [ ] Connect SignalR `LocationUpdated` → update map marker
-- [ ] Connect SignalR `ShipmentStatusUpdated` → update timeline
+- [ ] Poll `GET /api/v1/orders/{orderId}` mỗi 30s → update status timeline
 - [ ] Leave SignalR group khi thoát màn hình
 - [ ] Implement invoice / payment screen (COD auto + VNPay WebView flow)
 - [ ] Register FCM token sau login
