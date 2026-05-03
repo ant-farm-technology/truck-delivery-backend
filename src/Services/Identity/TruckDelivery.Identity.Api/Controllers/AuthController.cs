@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using TruckDelivery.Identity.Application.Commands.Login;
 using TruckDelivery.Identity.Application.Commands.RefreshToken;
 using TruckDelivery.Identity.Application.Commands.RegisterUser;
+using TruckDelivery.Identity.Application.Commands.RevokeRefreshToken;
 using TruckDelivery.Identity.Domain.ValueObjects;
 
 namespace TruckDelivery.Identity.Api.Controllers;
@@ -83,9 +84,22 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
         if (result.IsFailure)
         {
             return Unauthorized(new { result.Error.Code, result.Error.Description });
-        }    
+        }
 
         return Ok(result.Value);
+    }
+
+    /// <summary>Revoke the current user's refresh token. The JWT itself will expire naturally.</summary>
+    [HttpPost("logout")]
+    [Authorize]
+    public async Task<IActionResult> Logout(CancellationToken ct)
+    {
+        var sub = User.FindFirst("sub")?.Value;
+        if (!Guid.TryParse(sub, out var userId))
+            return Unauthorized();
+
+        await mediator.Send(new RevokeRefreshTokenCommand(userId), ct);
+        return NoContent();
     }
 }
 

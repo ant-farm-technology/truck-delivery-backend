@@ -88,7 +88,7 @@ public sealed class OrderDeliveredConsumer(
 
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
         var commandResult = await mediator.Send(
-            new CreatePaymentCommand(@event.OrderId, @event.CustomerId, @event.TotalFee, @event.Currency), ct);
+            new CreatePaymentCommand(@event.OrderId, @event.CustomerId, @event.TotalFee, @event.Currency, @event.DriverId), ct);
 
         if (commandResult.IsFailure)
         {

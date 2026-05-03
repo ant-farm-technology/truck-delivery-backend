@@ -11,6 +11,7 @@ public sealed class PaymentConfiguration : IEntityTypeConfiguration<Domain.Aggre
         builder.HasKey(p => p.Id);
         builder.Property(p => p.OrderId).IsRequired();
         builder.Property(p => p.CustomerId).IsRequired();
+        builder.Property(p => p.DriverId);
         builder.Property(p => p.Amount).HasColumnType("decimal(18,2)").IsRequired();
         builder.Property(p => p.Currency).HasMaxLength(10).IsRequired();
         builder.Property(p => p.Method).HasConversion<string>().HasMaxLength(20).IsRequired();
@@ -20,5 +21,6 @@ public sealed class PaymentConfiguration : IEntityTypeConfiguration<Domain.Aggre
         builder.Property(p => p.UpdatedAt).IsRequired();
         builder.HasIndex(p => p.OrderId).IsUnique();
         builder.HasIndex(p => p.CustomerId);
+        builder.HasIndex(p => p.DriverId);
     }
 }

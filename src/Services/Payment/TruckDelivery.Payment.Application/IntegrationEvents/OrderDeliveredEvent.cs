@@ -6,4 +6,5 @@ public sealed record OrderDeliveredEvent(
     Guid OrderId,
     Guid CustomerId,
     decimal TotalFee,
+    Guid DriverId,
     string Currency = "VND") : IntegrationEvent;

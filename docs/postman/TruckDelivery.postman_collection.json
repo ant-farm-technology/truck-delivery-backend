@@ -195,6 +195,62 @@
               "path": ["api", "v1", "auth", "refresh"]
             }
           }
+        },
+        {
+          "name": "Logout (Customer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{customer_token}}" },
+              { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "logout"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 204) {",
+                  "  pm.collectionVariables.set('customer_token', '');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout (Driver)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{driver_token}}" },
+              { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "logout"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 204) {",
+                  "  pm.collectionVariables.set('driver_token', '');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         }
       ]
     },
@@ -202,6 +258,28 @@
       "name": "01 Customer",
       "description": "All endpoints used by the Customer mobile app. Requires `customer_token`.",
       "item": [
+        {
+          "name": "Get Pricing Estimate",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/pricing/estimate?vehicleType=Truck3T&pickupLat=10.7769&pickupLng=106.7009&deliveryLat=21.0285&deliveryLng=105.8542&weightKg=45",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders", "pricing", "estimate"],
+              "query": [
+                { "key": "vehicleType",  "value": "Truck3T" },
+                { "key": "pickupLat",    "value": "10.7769" },
+                { "key": "pickupLng",    "value": "106.7009" },
+                { "key": "deliveryLat",  "value": "21.0285" },
+                { "key": "deliveryLng",  "value": "105.8542" },
+                { "key": "weightKg",     "value": "45" }
+              ]
+            }
+          }
+        },
         {
           "name": "Register FCM Device Token",
           "request": {
@@ -721,6 +799,32 @@
                   "raw": "{{base_url}}/api/v1/tracking/shipments/{{shipment_id}}/points",
                   "host": ["{{base_url}}"],
                   "path": ["api", "v1", "tracking", "shipments", "{{shipment_id}}", "points"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Earnings",
+          "item": [
+            {
+              "name": "Get Driver Earnings",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{driver_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/payments/drivers/{{driver_id}}/earnings?page=1&pageSize=20",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "payments", "drivers", "{{driver_id}}", "earnings"],
+                  "query": [
+                    { "key": "page",     "value": "1" },
+                    { "key": "pageSize", "value": "20" },
+                    { "key": "dateFrom", "value": "2026-01-01", "disabled": true },
+                    { "key": "dateTo",   "value": "2026-12-31", "disabled": true }
+                  ]
                 }
               }
             }
