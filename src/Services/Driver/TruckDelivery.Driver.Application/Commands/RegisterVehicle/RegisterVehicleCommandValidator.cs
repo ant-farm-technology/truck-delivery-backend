@@ -12,6 +12,11 @@ public sealed class RegisterVehicleCommandValidator : AbstractValidator<Register
         RuleFor(x => x.Type).IsInEnum();
         RuleFor(x => x.MaxWeightKg).GreaterThan(0);
         RuleFor(x => x.MaxVolumeCbm).GreaterThan(0);
+        RuleFor(x => x.LengthM).GreaterThan(0);
+        RuleFor(x => x.WidthM).GreaterThan(0);
+        RuleFor(x => x.HeightM).GreaterThan(0);
         RuleFor(x => x.YearOfManufacture).InclusiveBetween(2000, DateTime.UtcNow.Year + 1);
+        RuleFor(x => x.RegistrationNumber).NotEmpty().MaximumLength(50);
+        RuleFor(x => x.RegistrationExpiryDate).GreaterThan(DateOnly.FromDateTime(DateTime.UtcNow));
     }
 }

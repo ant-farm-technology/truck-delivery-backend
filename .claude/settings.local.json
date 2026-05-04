@@ -13,7 +13,23 @@
       "Bash(python3 -c ' *)",
       "Bash(grep \".cs$\")",
       "Bash(python3 -c \"import json; f=open\\('/Users/duhongquan/Documents/work/aft-pos/truck-delivery-backend/docs/postman/TruckDelivery.postman_collection.json'\\); d=json.load\\(f\\); print\\('Valid JSON ✓'\\); print\\(f'Folders: {[x[\\\\\"name\\\\\"] for x in d[\\\\\"item\\\\\"]]}'\\); print\\(f'Total requests: {sum\\(len\\(x[\\\\\"item\\\\\"]\\) for x in d[\\\\\"item\\\\\"]\\)} top-level'\\)\")",
-      "Bash(python3 -c \"import json; json.load\\(open\\('/Users/duhongquan/Documents/work/aft-pos/truck-delivery-backend/docs/postman/TruckDelivery.postman_collection.json'\\)\\); print\\('JSON valid'\\)\")"
+      "Bash(python3 -c \"import json; json.load\\(open\\('/Users/duhongquan/Documents/work/aft-pos/truck-delivery-backend/docs/postman/TruckDelivery.postman_collection.json'\\)\\); print\\('JSON valid'\\)\")",
+      "Bash(sed -n '30,60p' /Users/duhongquan/Documents/work/aft-pos/truck-delivery-backend/src/Services/Driver/TruckDelivery.Driver.Domain/Aggregates/Vehicle.cs)",
+      "Bash(sed -n '44,70p' /Users/duhongquan/Documents/work/aft-pos/truck-delivery-backend/src/Services/Driver/TruckDelivery.Driver.Domain/Aggregates/Driver.cs)",
+      "Bash(sed -n '50,70p' /Users/duhongquan/Documents/work/aft-pos/truck-delivery-backend/src/Services/Driver/TruckDelivery.Driver.Infrastructure/Services/BreakdownFraudGate.cs)",
+      "Bash(sed -n '25,55p' /Users/duhongquan/Documents/work/aft-pos/truck-delivery-backend/src/Services/Driver/TruckDelivery.Driver.Infrastructure/Services/MinIOStorageService.cs)",
+      "Bash(sed -i '' 's/new\\\\[\\\\] { ShipmentStatus\\\\.PickedUp, ShipmentStatus\\\\.InTransit, ShipmentStatus\\\\.Delivered }/new[] { ShipmentStatus.InProgress, ShipmentStatus.Completed }/' /Users/duhongquan/Documents/work/aft-pos/truck-delivery-backend/src/Services/Shipment/TruckDelivery.Shipment.Api/Controllers/ShipmentsController.cs)",
+      "Bash(sed -i '' 's/<PackageReference Include=\"FluentValidation\" Version=\"12\\\\.0\\\\.0\" \\\\/>/<PackageReference Include=\"FluentValidation\" Version=\"12.0.0\" \\\\/>\\\\n    <PackageReference Include=\"FluentValidation.DependencyInjectionExtensions\" Version=\"12.0.0\" \\\\/>/' /Users/duhongquan/Documents/work/aft-pos/truck-delivery-backend/src/Services/Payment/TruckDelivery.Payment.Api/TruckDelivery.Payment.Api.csproj)",
+      "Bash(python3 -c \"import sys,json; c=json.load\\(sys.stdin\\); e=[x.get\\('Env',[]\\) for x in c][0]; [print\\(x\\) for x in e if 'DATABASE' in x or 'POSTGRES' in x]\")",
+      "Bash(python3 -c \"import sys,json; c=json.load\\(sys.stdin\\); [[print\\(x\\) for x in e['Env'] if 'DATABASE' in x] for e in c]\")",
+      "Bash(grep -v \"^$\")",
+      "Bash(echo \"exit: $?\")",
+      "Bash(curl -s http://localhost:8081/health)",
+      "Bash(sed -i '' 's/wget -qO- http:\\\\/\\\\/localhost:8080\\\\/health || exit 1/bash -c \"echo > \\\\/dev\\\\/tcp\\\\/localhost\\\\/8080\" 2>\\\\/dev\\\\/null/g' docker-compose.yml)",
+      "Bash(sed -i '' 's/wget -qO- http:\\\\/\\\\/localhost:8081\\\\/health || exit 1/bash -c \"echo > \\\\/dev\\\\/tcp\\\\/localhost\\\\/8081\" 2>\\\\/dev\\\\/null/g' docker-compose.yml)",
+      "Bash(sed -i '' 's/wget -qO- http:\\\\/\\\\/localhost:8082\\\\/health || exit 1/bash -c \"echo > \\\\/dev\\\\/tcp\\\\/localhost\\\\/8082\" 2>\\\\/dev\\\\/null/g' docker-compose.yml)",
+      "Bash(sed -i '' 's/wget -qO- http:\\\\/\\\\/localhost:8083\\\\/health || exit 1/bash -c \"echo > \\\\/dev\\\\/tcp\\\\/localhost\\\\/8083\" 2>\\\\/dev\\\\/null/g' docker-compose.yml)",
+      "Bash(sed -i '' 's/wget -qO- http:\\\\/\\\\/localhost:8084\\\\/health || exit 1/bash -c \"echo > \\\\/dev\\\\/tcp\\\\/localhost\\\\/8084\" 2>\\\\/dev\\\\/null/g' docker-compose.yml)"
     ]
   }
 }

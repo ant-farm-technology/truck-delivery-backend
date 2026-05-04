@@ -39,6 +39,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<IOutboxRepository, OutboxRepository<NotificationDbContext>>();
         services.AddScoped<IDeviceTokenStore, DeviceTokenStore>();
+        services.AddHostedService<TruckDelivery.Shared.Infrastructure.Persistence.DatabaseInitializerService<NotificationDbContext>>();
         services.AddHostedService<OutboxProcessor<NotificationDbContext>>();
     }
 
@@ -82,7 +83,7 @@ public static class ServiceCollectionExtensions
             new ProducerBuilder<string, string>(new ProducerConfig
             {
                 BootstrapServers = bootstrapServers,
-                Acks = Acks.Leader,
+                Acks = Acks.All,
                 EnableIdempotence = true
             }).Build());
 

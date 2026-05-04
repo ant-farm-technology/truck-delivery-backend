@@ -38,7 +38,7 @@ public sealed class MinIOStorageService(IMinioClient minioClient, IConfiguration
                 new PresignedPutObjectArgs()
                     .WithBucket(bucket)
                     .WithObject(objectName)
-                    .WithExpiry((int)UrlTtl.TotalSeconds), ct);
+                    .WithExpiry((int)UrlTtl.TotalSeconds));
 
             var finalUrl = $"{publicEndpoint}/{bucket}/{objectName}";
             results.Add(new PresignedUrlEntry(field, uploadUrl, finalUrl));

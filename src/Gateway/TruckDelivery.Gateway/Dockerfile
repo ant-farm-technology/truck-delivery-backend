@@ -14,10 +14,8 @@ RUN dotnet publish src/Gateway/TruckDelivery.Gateway/TruckDelivery.Gateway.cspro
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
-RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
-USER appuser
-
-COPY --from=build /app/publish .
+COPY --from=build --chown=app:app /app/publish .
+USER app
 
 ENV ASPNETCORE_URLS=http://+:8080
 ENV ASPNETCORE_ENVIRONMENT=Production

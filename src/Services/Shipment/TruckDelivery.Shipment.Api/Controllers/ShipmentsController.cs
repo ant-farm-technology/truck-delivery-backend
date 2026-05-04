@@ -83,7 +83,7 @@ public sealed class ShipmentsController(IMediator mediator, ShipmentQueryReposit
         // Drivers may only advance a shipment through their own lifecycle steps
         if (User.IsInRole("Driver"))
         {
-            var driverAllowed = new[] { ShipmentStatus.PickedUp, ShipmentStatus.InTransit, ShipmentStatus.Delivered };
+            var driverAllowed = new[] { ShipmentStatus.InProgress, ShipmentStatus.Completed };
             if (!driverAllowed.Contains(status))
                 return Forbid();
         }

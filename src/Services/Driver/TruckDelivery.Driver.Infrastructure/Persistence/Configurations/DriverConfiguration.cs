@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using TruckDelivery.Driver.Domain.ValueObjects;
 
 namespace TruckDelivery.Driver.Infrastructure.Persistence.Configurations;
 
@@ -29,7 +30,7 @@ public sealed class DriverConfiguration : IEntityTypeConfiguration<Domain.Aggreg
         builder.Property(d => d.VehicleRegFrontUrl).HasMaxLength(1000);
         builder.Property(d => d.VehicleRegBackUrl).HasMaxLength(1000);
 
-        builder.Property(d => d.VerificationStatus).HasConversion<int>().IsRequired().HasDefaultValue(0);
+        builder.Property(d => d.VerificationStatus).HasConversion<int>().IsRequired().HasDefaultValue(DriverVerificationStatus.Draft);
         builder.Property(d => d.OcrConfidenceScore);
         builder.Property(d => d.VerificationNotes).HasMaxLength(1000);
 

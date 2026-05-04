@@ -33,7 +33,7 @@ public sealed class UpdateVehicleStatusCommandHandler(
             vehicle.UnassignDriver();
 
         vehicleRepository.Update(vehicle);
-        await unitOfWork.CommitAsync(ct);
+        await unitOfWork.SaveChangesAsync(ct);
         return Result.Success();
     }
 }

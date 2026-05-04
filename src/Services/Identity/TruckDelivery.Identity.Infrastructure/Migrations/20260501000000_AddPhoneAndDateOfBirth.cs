@@ -5,15 +5,12 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace TruckDelivery.Identity.Infrastructure.Migrations
 {
-    /// <inheritdoc />
     public partial class AddPhoneAndDateOfBirth : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<string>(
                 name: "PhoneNumber",
-                schema: "identity",
                 table: "users",
                 type: "varchar(20)",
                 maxLength: 20,
@@ -22,24 +19,15 @@ namespace TruckDelivery.Identity.Infrastructure.Migrations
 
             migrationBuilder.AddColumn<DateOnly>(
                 name: "DateOfBirth",
-                schema: "identity",
                 table: "users",
                 type: "date",
                 nullable: true);
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "PhoneNumber",
-                schema: "identity",
-                table: "users");
-
-            migrationBuilder.DropColumn(
-                name: "DateOfBirth",
-                schema: "identity",
-                table: "users");
+            migrationBuilder.DropColumn(name: "PhoneNumber", table: "users");
+            migrationBuilder.DropColumn(name: "DateOfBirth", table: "users");
         }
     }
 }

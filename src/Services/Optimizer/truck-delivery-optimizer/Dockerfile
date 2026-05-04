@@ -24,6 +24,7 @@ COPY --from=builder /app/src /app/src
 USER appuser
 
 ENV PORT=8085
+ENV PYTHONPATH=/app/src
 EXPOSE 8085
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \

@@ -66,7 +66,7 @@ public static class ServiceCollectionExtensions
             new ProducerBuilder<string, string>(new ProducerConfig
             {
                 BootstrapServers = bootstrapServers,
-                Acks = Acks.Leader,
+                Acks = Acks.All,
                 EnableIdempotence = true
             }).Build());
 

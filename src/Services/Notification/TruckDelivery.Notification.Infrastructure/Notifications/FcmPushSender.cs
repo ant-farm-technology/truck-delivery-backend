@@ -65,7 +65,7 @@ public sealed class FcmPushSender : IPushNotificationSender
         var messages = tokens.Select(token => new Message
         {
             Token = token,
-            Notification = new Notification { Title = title, Body = body }
+            Notification = new FirebaseAdmin.Messaging.Notification { Title = title, Body = body }
         }).ToList();
 
         var response = await FirebaseMessaging.DefaultInstance.SendEachAsync(messages, ct);

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Minio;
+using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using StackExchange.Redis;
 using TruckDelivery.Driver.Application.Consumers;
 using TruckDelivery.Driver.Application.Interfaces;
@@ -27,7 +28,8 @@ public static class ServiceCollectionExtensions
             ?? throw new InvalidOperationException("ConnectionStrings:DriverDb not configured");
 
         services.AddDbContext<DriverDbContext>(opts =>
-            opts.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+            opts.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString),
+                mysqlOpts => mysqlOpts.SchemaBehavior(MySqlSchemaBehavior.Ignore)));
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IDriverRepository, DriverRepository>();
@@ -35,6 +37,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IBreakdownReportRepository, BreakdownReportRepository>();
         services.AddScoped<IDriverSwapRecordRepository, DriverSwapRecordRepository>();
         services.AddScoped<IOutboxRepository, OutboxRepository<DriverDbContext>>();
+        services.AddHostedService<TruckDelivery.Shared.Infrastructure.Persistence.DatabaseInitializerService<DriverDbContext>>();
 
         var redisConnection = configuration.GetConnectionString("Redis")
             ?? throw new InvalidOperationException("ConnectionStrings:Redis not configured");
@@ -62,7 +65,7 @@ public static class ServiceCollectionExtensions
             new ProducerBuilder<string, string>(new ProducerConfig
             {
                 BootstrapServers = bootstrapServers,
-                Acks = Acks.Leader,
+                Acks = Acks.All,
                 EnableIdempotence = true
             }).Build());
 

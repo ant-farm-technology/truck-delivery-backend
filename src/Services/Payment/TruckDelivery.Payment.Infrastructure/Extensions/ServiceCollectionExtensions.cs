@@ -49,6 +49,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IEscrowPaymentRepository, EscrowPaymentRepository>();
         services.AddScoped<IOutboxRepository, OutboxRepository<PaymentDbContext>>();
         services.AddScoped<IDbConnection>(_ => new MySqlConnection(connectionString));
+        services.AddHostedService<TruckDelivery.Shared.Infrastructure.Persistence.DatabaseInitializerService<PaymentDbContext>>();
         services.AddHostedService<OutboxProcessor<PaymentDbContext>>();
     }
 
@@ -70,7 +71,7 @@ public static class ServiceCollectionExtensions
             new ProducerBuilder<string, string>(new ProducerConfig
             {
                 BootstrapServers = bootstrapServers,
-                Acks = Acks.Leader,
+                Acks = Acks.All,
                 EnableIdempotence = true
             }).Build());
 

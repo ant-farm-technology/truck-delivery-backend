@@ -2,6 +2,7 @@ using Confluent.Kafka;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using MongoDB.Driver;
 using TruckDelivery.Shipment.Application.Consumers;
 using TruckDelivery.Shipment.Application.Interfaces;
@@ -38,12 +39,14 @@ public static class ServiceCollectionExtensions
             ?? throw new InvalidOperationException("ConnectionStrings:ShipmentDb not configured");
 
         services.AddDbContext<ShipmentDbContext>(opts =>
-            opts.UseMySql(connectionString, Microsoft.EntityFrameworkCore.ServerVersion.AutoDetect(connectionString)));
+            opts.UseMySql(connectionString, Microsoft.EntityFrameworkCore.ServerVersion.AutoDetect(connectionString),
+                mysqlOpts => mysqlOpts.SchemaBehavior(MySqlSchemaBehavior.Ignore)));
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IShipmentRepository, ShipmentRepository>();
         services.AddScoped<IOutboxRepository, OutboxRepository<ShipmentDbContext>>();
         services.AddScoped<ShipmentQueryRepository>();
+        services.AddHostedService<TruckDelivery.Shared.Infrastructure.Persistence.DatabaseInitializerService<ShipmentDbContext>>();
         services.AddHostedService<OutboxProcessor<ShipmentDbContext>>();
     }
 
@@ -90,7 +93,7 @@ public static class ServiceCollectionExtensions
             new ProducerBuilder<string, string>(new ProducerConfig
             {
                 BootstrapServers = bootstrapServers,
-                Acks = Acks.Leader,
+                Acks = Acks.All,
                 EnableIdempotence = true
             }).Build());
 

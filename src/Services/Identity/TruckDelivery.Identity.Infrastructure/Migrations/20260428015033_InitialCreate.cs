@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -11,15 +11,11 @@ namespace TruckDelivery.Identity.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.EnsureSchema(
-                name: "identity");
-
             migrationBuilder.AlterDatabase()
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "outbox_messages",
-                schema: "identity",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
@@ -45,7 +41,6 @@ namespace TruckDelivery.Identity.Infrastructure.Migrations
 
             migrationBuilder.CreateTable(
                 name: "users",
-                schema: "identity",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
@@ -73,19 +68,16 @@ namespace TruckDelivery.Identity.Infrastructure.Migrations
 
             migrationBuilder.CreateIndex(
                 name: "IX_outbox_messages_ProcessedAt",
-                schema: "identity",
                 table: "outbox_messages",
                 column: "ProcessedAt");
 
             migrationBuilder.CreateIndex(
                 name: "IX_outbox_messages_ProcessedAt_RetryCount",
-                schema: "identity",
                 table: "outbox_messages",
                 columns: new[] { "ProcessedAt", "RetryCount" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_users_Email",
-                schema: "identity",
                 table: "users",
                 column: "Email",
                 unique: true);
@@ -94,13 +86,8 @@ namespace TruckDelivery.Identity.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "outbox_messages",
-                schema: "identity");
-
-            migrationBuilder.DropTable(
-                name: "users",
-                schema: "identity");
+            migrationBuilder.DropTable(name: "outbox_messages");
+            migrationBuilder.DropTable(name: "users");
         }
     }
 }

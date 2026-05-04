@@ -273,7 +273,7 @@ services:
       - truck-data
       - truck-observability
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8080' 2>/dev/null"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -305,13 +305,13 @@ services:
       Jwt__RefreshTokenExpiryDays: "30"
       Otel__Endpoint: "http://tempo:4317"
     ports:
-      - "8081:8081"
+      - "8081:8080"
     networks:
       - truck-data
       - truck-messaging
       - truck-observability
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/health || exit 1"]
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8080' 2>/dev/null"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -341,13 +341,13 @@ services:
       Jwt__Audience: "truck-delivery-api"
       Otel__Endpoint: "http://tempo:4317"
     ports:
-      - "8082:8082"
+      - "8082:8080"
     networks:
       - truck-data
       - truck-messaging
       - truck-observability
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/health || exit 1"]
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8080' 2>/dev/null"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -383,13 +383,13 @@ services:
       MinIO__UseSsl: "false"
       Otel__Endpoint: "http://tempo:4317"
     ports:
-      - "8083:8083"
+      - "8083:8080"
     networks:
       - truck-data
       - truck-messaging
       - truck-observability
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8083/health || exit 1"]
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8080' 2>/dev/null"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -406,17 +406,17 @@ services:
       redis:
         condition: service_started
     environment:
-      DATABASE_URL: "postgresql://${POSTGIS_USER}:${POSTGIS_PASSWORD}@postgis:5432/${POSTGIS_DATABASE}"
-      REDIS_URL: "redis://:${REDIS_PASSWORD}@redis:6379"
-      PORT: "8084"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://tempo:4317"
+      APP__DATABASE__URL: "postgresql://${POSTGIS_USER}:${POSTGIS_PASSWORD}@postgis:5432/${POSTGIS_DATABASE}"
+      APP__REDIS__URL: "redis://:${REDIS_PASSWORD}@redis:6379"
+      APP__SERVER__PORT: "8084"
+      APP__OTEL__ENDPOINT: "http://tempo:4317"
     ports:
       - "8084:8084"
     networks:
       - truck-data
       - truck-observability
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8084/health || exit 1"]
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8084' 2>/dev/null"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -479,7 +479,7 @@ services:
       - truck-messaging
       - truck-observability
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8086/health || exit 1"]
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8086' 2>/dev/null"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -514,7 +514,7 @@ services:
       - truck-messaging
       - truck-observability
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8087/health || exit 1"]
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8087' 2>/dev/null"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -561,7 +561,7 @@ services:
       - truck-messaging
       - truck-observability
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8088/health || exit 1"]
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8088' 2>/dev/null"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -601,7 +601,7 @@ services:
       - truck-messaging
       - truck-observability
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8089/health || exit 1"]
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8089' 2>/dev/null"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -637,7 +637,7 @@ services:
       - truck-messaging
       - truck-observability
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8095/health || exit 1"]
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8095' 2>/dev/null"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -690,8 +690,7 @@ services:
 
   ocr-service:
     build:
-      context: ..
-      dockerfile: src/Services/OCR/truck-delivery-ocr/Dockerfile
+      context: ../src/Services/OCR/truck-delivery-ocr
     container_name: truck-ocr
     restart: unless-stopped
     depends_on:
@@ -713,7 +712,7 @@ services:
     ports:
       - "8090:8090"
     volumes:
-      - paddle-models:/home/appuser/.paddleocr
+      - paddle-models:/home/appuser/.paddlex
     networks:
       - truck-data
       - truck-messaging

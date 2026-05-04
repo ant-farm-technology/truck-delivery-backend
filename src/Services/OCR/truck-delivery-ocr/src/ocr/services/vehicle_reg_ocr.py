@@ -31,7 +31,7 @@ class VehicleRegistrationOcrService:
 
     def __init__(self) -> None:
         from paddleocr import PaddleOCR
-        self._ocr = PaddleOCR(use_angle_cls=True, lang="vi", show_log=False)
+        self._ocr = PaddleOCR(use_textline_orientation=True, lang="vi")
         logger.info("vehicle_reg_ocr_initialized")
 
     @classmethod

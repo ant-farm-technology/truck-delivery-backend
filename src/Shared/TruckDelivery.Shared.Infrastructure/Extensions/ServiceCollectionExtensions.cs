@@ -41,7 +41,8 @@ public static class ServiceCollectionExtensions
 
     private static IServiceCollection AddMySqlConnectionFactory(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("MySQL") ?? throw new InvalidOperationException("MySQL connection string is not configured.");
+        var connectionString = configuration.GetConnectionString("MySQL");
+        if (connectionString is null) return services; // services with no Dapper queries (e.g. Analytics, Tracking) skip MySQL
         services.AddScoped<IDbConnectionFactory>(_ => new MySqlConnectionFactory(connectionString));
         return services;
     }

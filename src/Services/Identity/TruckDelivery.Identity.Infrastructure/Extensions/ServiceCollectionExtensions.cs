@@ -2,6 +2,7 @@ using Confluent.Kafka;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using TruckDelivery.Identity.Application.Services;
 using TruckDelivery.Identity.Domain.Repositories;
 using TruckDelivery.Identity.Infrastructure.Authentication;
@@ -20,7 +21,8 @@ public static class ServiceCollectionExtensions
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
 
         var connectionString = configuration.GetConnectionString("IdentityDb") ?? throw new InvalidOperationException("ConnectionStrings:IdentityDb not configured");
-        services.AddDbContext<IdentityDbContext>(opts => opts.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+        services.AddDbContext<IdentityDbContext>(opts => opts.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString),
+            mysqlOpts => mysqlOpts.SchemaBehavior(MySqlSchemaBehavior.Ignore)));
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IUserRepository, UserRepository>();
@@ -31,7 +33,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IProducer<string, string>>(_ => new ProducerBuilder<string, string>(new ProducerConfig
         {
             BootstrapServers = bootstrapServers,
-            Acks = Acks.Leader,
+            Acks = Acks.All,
             EnableIdempotence = true
         }).Build());
         services.AddHostedService<DatabaseInitializerService>();

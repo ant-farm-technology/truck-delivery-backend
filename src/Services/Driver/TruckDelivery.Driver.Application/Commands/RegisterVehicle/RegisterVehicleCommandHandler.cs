@@ -22,7 +22,12 @@ public sealed class RegisterVehicleCommandHandler(
             request.Type,
             request.MaxWeightKg,
             request.MaxVolumeCbm,
-            request.YearOfManufacture);
+            request.LengthM,
+            request.WidthM,
+            request.HeightM,
+            request.YearOfManufacture,
+            request.RegistrationNumber,
+            request.RegistrationExpiryDate);
 
         if (vehicleResult.IsFailure)
             return Result.Failure<Guid>(vehicleResult.Error);

@@ -16,7 +16,7 @@ namespace TruckDelivery.Driver.Infrastructure.Migrations
                 table: "drivers",
                 type: "int",
                 nullable: false,
-                defaultValue: 3); // C = 3 as safe default
+                defaultValueSql: "3"); // C = 3 as safe default
 
             migrationBuilder.AddColumn<DateOnly>(
                 name: "LicenseExpiryDate",
@@ -125,7 +125,7 @@ namespace TruckDelivery.Driver.Infrastructure.Migrations
                 table: "drivers",
                 type: "int",
                 nullable: false,
-                defaultValue: 0);
+                defaultValueSql: "0");
 
             migrationBuilder.AddColumn<float>(
                 name: "OcrConfidenceScore",
@@ -145,7 +145,7 @@ namespace TruckDelivery.Driver.Infrastructure.Migrations
 
             // Also add TrustScore if missing (may already exist from Phase 5)
             migrationBuilder.Sql(
-                "ALTER TABLE `driver`.`drivers` ADD COLUMN IF NOT EXISTS `TrustScore` int NOT NULL DEFAULT 70;");
+                "ALTER TABLE `drivers` ADD COLUMN IF NOT EXISTS `TrustScore` int NOT NULL DEFAULT 70;");
 
             // Unique index on IdCardNumber
             migrationBuilder.CreateIndex(

@@ -6,4 +6,8 @@ public sealed record TrustScoreUpdatedDomainEvent(
     Guid DriverId,
     int NewScore,
     int Delta,
-    string Reason) : IDomainEvent;
+    string Reason) : IDomainEvent
+{
+    public Guid EventId { get; } = Guid.NewGuid();
+    public DateTime OccurredAt { get; } = DateTime.UtcNow;
+}
