@@ -1,170 +1,100 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace TruckDelivery.Order.Infrastructure.Migrations
 {
-    /// <inheritdoc />
     public partial class InitialCreate : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.EnsureSchema(
-                name: "order");
+            migrationBuilder.EnsureSchema(name: "order");
+            migrationBuilder.AlterDatabase().Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.AlterDatabase()
-                .Annotation("MySql:CharSet", "utf8mb4");
+            // ── orders ────────────────────────────────────────────────────────────────
+            migrationBuilder.Sql("""
+                CREATE TABLE IF NOT EXISTS `orders` (
+                    `Id`                  char(36) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+                    `CustomerId`          char(36) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+                    `PickupStreet`        varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+                    `PickupCity`          varchar(100) CHARACTER SET utf8mb4 NOT NULL,
+                    `PickupProvince`      varchar(100) CHARACTER SET utf8mb4 NOT NULL,
+                    `PickupPostalCode`    varchar(20)  CHARACTER SET utf8mb4 NOT NULL,
+                    `PickupCountry`       varchar(10)  CHARACTER SET utf8mb4 NOT NULL,
+                    `DeliveryStreet`      varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+                    `DeliveryCity`        varchar(100) CHARACTER SET utf8mb4 NOT NULL,
+                    `DeliveryProvince`    varchar(100) CHARACTER SET utf8mb4 NOT NULL,
+                    `DeliveryPostalCode`  varchar(20)  CHARACTER SET utf8mb4 NOT NULL,
+                    `DeliveryCountry`     varchar(10)  CHARACTER SET utf8mb4 NOT NULL,
+                    `Status`             int NOT NULL DEFAULT 1,
+                    `Notes`              varchar(1000) CHARACTER SET utf8mb4 NULL,
+                    `TotalWeightKg`      decimal(10,3) NOT NULL,
+                    `TotalVolumeCbm`     decimal(10,3) NOT NULL,
+                    `CreatedAt`          datetime(6) NOT NULL,
+                    `UpdatedAt`          datetime(6) NOT NULL,
+                    `CancellationReason` varchar(500) CHARACTER SET utf8mb4 NULL,
+                    `ShipmentId`         char(36) CHARACTER SET ascii COLLATE ascii_general_ci NULL,
+                    `PickupLatitude`     double NULL,
+                    `PickupLongitude`    double NULL,
+                    `DeliveryLatitude`   double NULL,
+                    `DeliveryLongitude`  double NULL,
+                    CONSTRAINT `PK_orders` PRIMARY KEY (`Id`)
+                ) CHARACTER SET=utf8mb4;
+                """);
 
-            migrationBuilder.CreateTable(
-                name: "orders",
-                schema: "order",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    CustomerId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    PickupStreet = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    PickupCity = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    PickupProvince = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    PickupPostalCode = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    PickupCountry = table.Column<string>(type: "varchar(10)", maxLength: 10, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    DeliveryStreet = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    DeliveryCity = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    DeliveryProvince = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    DeliveryPostalCode = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    DeliveryCountry = table.Column<string>(type: "varchar(10)", maxLength: 10, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Status = table.Column<int>(type: "int", nullable: false),
-                    Notes = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    TotalWeightKg = table.Column<decimal>(type: "decimal(10,3)", nullable: false),
-                    TotalVolumeCbm = table.Column<decimal>(type: "decimal(10,3)", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    CancellationReason = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4")
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_orders", x => x.Id);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
+            migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS `IX_orders_CreatedAt`  ON `orders` (`CreatedAt`);");
+            migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS `IX_orders_CustomerId` ON `orders` (`CustomerId`);");
+            migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS `IX_orders_Status`     ON `orders` (`Status`);");
+            migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS `IX_orders_ShipmentId` ON `orders` (`ShipmentId`);");
 
-            migrationBuilder.CreateTable(
-                name: "outbox_messages",
-                schema: "order",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    EventType = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Topic = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    PartitionKey = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Payload = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    OccurredAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    ProcessedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    RetryCount = table.Column<int>(type: "int", nullable: false),
-                    LastError = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4")
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_outbox_messages", x => x.Id);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
+            // ── order_items ───────────────────────────────────────────────────────────
+            migrationBuilder.Sql("""
+                CREATE TABLE IF NOT EXISTS `order_items` (
+                    `Id`          char(36) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+                    `OrderId`     char(36) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+                    `ProductName` varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+                    `Quantity`    int NOT NULL,
+                    `WeightKg`    decimal(10,3) NOT NULL,
+                    `VolumeCbm`   decimal(10,3) NOT NULL,
+                    `Notes`       varchar(500) CHARACTER SET utf8mb4 NULL,
+                    `CanTilt`     tinyint(1) NOT NULL DEFAULT 0,
+                    `HeightM`     decimal(8,3) NULL,
+                    `LengthM`     decimal(8,3) NULL,
+                    `WidthM`      decimal(8,3) NULL,
+                    CONSTRAINT `PK_order_items` PRIMARY KEY (`Id`),
+                    CONSTRAINT `FK_order_items_orders_OrderId`
+                        FOREIGN KEY (`OrderId`) REFERENCES `orders` (`Id`) ON DELETE CASCADE
+                ) CHARACTER SET=utf8mb4;
+                """);
 
-            migrationBuilder.CreateTable(
-                name: "order_items",
-                schema: "order",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    OrderId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    ProductName = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Quantity = table.Column<int>(type: "int", nullable: false),
-                    WeightKg = table.Column<decimal>(type: "decimal(10,3)", nullable: false),
-                    VolumeCbm = table.Column<decimal>(type: "decimal(10,3)", nullable: false),
-                    Notes = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4")
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_order_items", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_order_items_orders_OrderId",
-                        column: x => x.OrderId,
-                        principalSchema: "order",
-                        principalTable: "orders",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
+            migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS `IX_order_items_OrderId` ON `order_items` (`OrderId`);");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_order_items_OrderId",
-                schema: "order",
-                table: "order_items",
-                column: "OrderId");
+            // ── outbox_messages ───────────────────────────────────────────────────────
+            migrationBuilder.Sql("""
+                CREATE TABLE IF NOT EXISTS `outbox_messages` (
+                    `Id`           char(36) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+                    `EventType`    varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+                    `Topic`        varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+                    `PartitionKey` varchar(100) CHARACTER SET utf8mb4 NOT NULL,
+                    `Payload`      longtext CHARACTER SET utf8mb4 NOT NULL,
+                    `OccurredAt`   datetime(6) NOT NULL,
+                    `ProcessedAt`  datetime(6) NULL,
+                    `RetryCount`   int NOT NULL DEFAULT 0,
+                    `LastError`    varchar(1000) CHARACTER SET utf8mb4 NULL,
+                    CONSTRAINT `PK_outbox_messages` PRIMARY KEY (`Id`)
+                ) CHARACTER SET=utf8mb4;
+                """);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_orders_CreatedAt",
-                schema: "order",
-                table: "orders",
-                column: "CreatedAt");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_orders_CustomerId",
-                schema: "order",
-                table: "orders",
-                column: "CustomerId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_orders_Status",
-                schema: "order",
-                table: "orders",
-                column: "Status");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_outbox_messages_ProcessedAt",
-                schema: "order",
-                table: "outbox_messages",
-                column: "ProcessedAt");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_outbox_messages_ProcessedAt_RetryCount",
-                schema: "order",
-                table: "outbox_messages",
-                columns: new[] { "ProcessedAt", "RetryCount" });
+            migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS `IX_outbox_messages_ProcessedAt`            ON `outbox_messages` (`ProcessedAt`);");
+            migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS `IX_outbox_messages_ProcessedAt_RetryCount` ON `outbox_messages` (`ProcessedAt`, `RetryCount`);");
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "order_items",
-                schema: "order");
-
-            migrationBuilder.DropTable(
-                name: "outbox_messages",
-                schema: "order");
-
-            migrationBuilder.DropTable(
-                name: "orders",
-                schema: "order");
+            migrationBuilder.DropTable(name: "order_items");
+            migrationBuilder.DropTable(name: "outbox_messages");
+            migrationBuilder.DropTable(name: "orders");
         }
     }
 }

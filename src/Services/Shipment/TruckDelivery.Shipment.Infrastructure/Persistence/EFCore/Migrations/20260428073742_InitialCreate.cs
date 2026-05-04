@@ -1,120 +1,76 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace TruckDelivery.Shipment.Infrastructure.Persistence.EFCore.Migrations
 {
-    /// <inheritdoc />
     public partial class InitialCreate : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.EnsureSchema(
-                name: "shipment");
+            migrationBuilder.EnsureSchema(name: "shipment");
+            migrationBuilder.AlterDatabase().Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.AlterDatabase()
-                .Annotation("MySql:CharSet", "utf8mb4");
+            // ── shipments ─────────────────────────────────────────────────────────────
+            migrationBuilder.Sql("""
+                CREATE TABLE IF NOT EXISTS `shipments` (
+                    `id`                              char(36) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+                    `order_id`                        char(36) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+                    `customer_id`                     char(36) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+                    `status`                          int NOT NULL DEFAULT 1,
+                    `pickup_city`                     varchar(100) CHARACTER SET utf8mb4 NOT NULL,
+                    `pickup_province`                 varchar(100) CHARACTER SET utf8mb4 NOT NULL,
+                    `delivery_city`                   varchar(100) CHARACTER SET utf8mb4 NOT NULL,
+                    `delivery_province`               varchar(100) CHARACTER SET utf8mb4 NOT NULL,
+                    `total_weight_kg`                 decimal(10,3) NOT NULL,
+                    `total_volume_cbm`                decimal(10,3) NOT NULL,
+                    `assigned_driver_id`              char(36) CHARACTER SET ascii COLLATE ascii_general_ci NULL,
+                    `assigned_vehicle_id`             char(36) CHARACTER SET ascii COLLATE ascii_general_ci NULL,
+                    `route_distance_m`                double NULL,
+                    `route_duration_s`                double NULL,
+                    `route_polyline`                  varchar(5000) CHARACTER SET utf8mb4 NULL,
+                    `failure_reason`                  varchar(500) CHARACTER SET utf8mb4 NULL,
+                    `created_at`                      datetime(6) NOT NULL,
+                    `updated_at`                      datetime(6) NOT NULL,
+                    `bin_check_warnings`              varchar(2000) CHARACTER SET utf8mb4 NULL,
+                    `packages_json`                   longtext CHARACTER SET utf8mb4 NULL,
+                    `requires_dispatcher_confirmation` tinyint(1) NOT NULL DEFAULT 0,
+                    `pickup_lat`                      double NULL,
+                    `pickup_lng`                      double NULL,
+                    `delivery_lat`                    double NULL,
+                    `delivery_lng`                    double NULL,
+                    CONSTRAINT `PK_shipments` PRIMARY KEY (`id`)
+                ) CHARACTER SET=utf8mb4;
+                """);
 
-            migrationBuilder.CreateTable(
-                name: "outbox_messages",
-                schema: "shipment",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    EventType = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Topic = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    PartitionKey = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Payload = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    OccurredAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    ProcessedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    RetryCount = table.Column<int>(type: "int", nullable: false),
-                    LastError = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4")
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_outbox_messages", x => x.Id);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
+            migrationBuilder.Sql("CREATE UNIQUE INDEX IF NOT EXISTS `IX_shipments_order_id` ON `shipments` (`order_id`);");
+            migrationBuilder.Sql("CREATE        INDEX IF NOT EXISTS `IX_shipments_status`   ON `shipments` (`status`);");
 
-            migrationBuilder.CreateTable(
-                name: "shipments",
-                schema: "shipment",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    order_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    customer_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    status = table.Column<int>(type: "int", nullable: false),
-                    pickup_city = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    pickup_province = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    delivery_city = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    delivery_province = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    total_weight_kg = table.Column<decimal>(type: "decimal(10,3)", precision: 10, scale: 3, nullable: false),
-                    total_volume_cbm = table.Column<decimal>(type: "decimal(10,3)", precision: 10, scale: 3, nullable: false),
-                    assigned_driver_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
-                    assigned_vehicle_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
-                    route_distance_m = table.Column<double>(type: "double", nullable: true),
-                    route_duration_s = table.Column<double>(type: "double", nullable: true),
-                    route_polyline = table.Column<string>(type: "varchar(5000)", maxLength: 5000, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    failure_reason = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_shipments", x => x.id);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
+            // ── outbox_messages ───────────────────────────────────────────────────────
+            migrationBuilder.Sql("""
+                CREATE TABLE IF NOT EXISTS `outbox_messages` (
+                    `Id`           char(36) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+                    `EventType`    varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+                    `Topic`        varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+                    `PartitionKey` varchar(100) CHARACTER SET utf8mb4 NOT NULL,
+                    `Payload`      longtext CHARACTER SET utf8mb4 NOT NULL,
+                    `OccurredAt`   datetime(6) NOT NULL,
+                    `ProcessedAt`  datetime(6) NULL,
+                    `RetryCount`   int NOT NULL DEFAULT 0,
+                    `LastError`    varchar(1000) CHARACTER SET utf8mb4 NULL,
+                    CONSTRAINT `PK_outbox_messages` PRIMARY KEY (`Id`)
+                ) CHARACTER SET=utf8mb4;
+                """);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_outbox_messages_ProcessedAt",
-                schema: "shipment",
-                table: "outbox_messages",
-                column: "ProcessedAt");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_outbox_messages_ProcessedAt_RetryCount",
-                schema: "shipment",
-                table: "outbox_messages",
-                columns: new[] { "ProcessedAt", "RetryCount" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_shipments_order_id",
-                schema: "shipment",
-                table: "shipments",
-                column: "order_id",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_shipments_status",
-                schema: "shipment",
-                table: "shipments",
-                column: "status");
+            migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS `IX_outbox_messages_ProcessedAt`            ON `outbox_messages` (`ProcessedAt`);");
+            migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS `IX_outbox_messages_ProcessedAt_RetryCount` ON `outbox_messages` (`ProcessedAt`, `RetryCount`);");
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "outbox_messages",
-                schema: "shipment");
-
-            migrationBuilder.DropTable(
-                name: "shipments",
-                schema: "shipment");
+            migrationBuilder.DropTable(name: "outbox_messages");
+            migrationBuilder.DropTable(name: "shipments");
         }
     }
 }

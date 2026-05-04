@@ -5,85 +5,54 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace TruckDelivery.Identity.Infrastructure.Migrations
 {
-    /// <inheritdoc />
     public partial class InitialCreate : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AlterDatabase()
-                .Annotation("MySql:CharSet", "utf8mb4");
+            migrationBuilder.AlterDatabase().Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
-                name: "outbox_messages",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    EventType = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Topic = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    PartitionKey = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Payload = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    OccurredAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    ProcessedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    RetryCount = table.Column<int>(type: "int", nullable: false),
-                    LastError = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4")
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_outbox_messages", x => x.Id);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
+            // ── users ─────────────────────────────────────────────────────────────────
+            migrationBuilder.Sql("""
+                CREATE TABLE IF NOT EXISTS `users` (
+                    `Id`                    char(36) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+                    `Email`                 varchar(256) CHARACTER SET utf8mb4 NOT NULL,
+                    `PasswordHash`          varchar(256) CHARACTER SET utf8mb4 NOT NULL,
+                    `FirstName`             varchar(100) CHARACTER SET utf8mb4 NOT NULL,
+                    `LastName`              varchar(100) CHARACTER SET utf8mb4 NOT NULL,
+                    `Role`                  int NOT NULL DEFAULT 1,
+                    `IsActive`              tinyint(1) NOT NULL DEFAULT 1,
+                    `CreatedAt`             datetime(6) NOT NULL,
+                    `LastLoginAt`           datetime(6) NULL,
+                    `RefreshToken`          varchar(512) CHARACTER SET utf8mb4 NULL,
+                    `RefreshTokenExpiresAt` datetime(6) NULL,
+                    `PhoneNumber`           varchar(20) CHARACTER SET utf8mb4 NULL,
+                    `DateOfBirth`           date NULL,
+                    CONSTRAINT `PK_users` PRIMARY KEY (`Id`)
+                ) CHARACTER SET=utf8mb4;
+                """);
 
-            migrationBuilder.CreateTable(
-                name: "users",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    Email = table.Column<string>(type: "varchar(256)", maxLength: 256, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    PasswordHash = table.Column<string>(type: "varchar(256)", maxLength: 256, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    FirstName = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    LastName = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Role = table.Column<int>(type: "int", nullable: false),
-                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    LastLoginAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    RefreshToken = table.Column<string>(type: "varchar(512)", maxLength: 512, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    RefreshTokenExpiresAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_users", x => x.Id);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
+            migrationBuilder.Sql("CREATE UNIQUE INDEX IF NOT EXISTS `IX_users_Email` ON `users` (`Email`);");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_outbox_messages_ProcessedAt",
-                table: "outbox_messages",
-                column: "ProcessedAt");
+            // ── outbox_messages ───────────────────────────────────────────────────────
+            migrationBuilder.Sql("""
+                CREATE TABLE IF NOT EXISTS `outbox_messages` (
+                    `Id`           char(36) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+                    `EventType`    varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+                    `Topic`        varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+                    `PartitionKey` varchar(100) CHARACTER SET utf8mb4 NOT NULL,
+                    `Payload`      longtext CHARACTER SET utf8mb4 NOT NULL,
+                    `OccurredAt`   datetime(6) NOT NULL,
+                    `ProcessedAt`  datetime(6) NULL,
+                    `RetryCount`   int NOT NULL DEFAULT 0,
+                    `LastError`    varchar(1000) CHARACTER SET utf8mb4 NULL,
+                    CONSTRAINT `PK_outbox_messages` PRIMARY KEY (`Id`)
+                ) CHARACTER SET=utf8mb4;
+                """);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_outbox_messages_ProcessedAt_RetryCount",
-                table: "outbox_messages",
-                columns: new[] { "ProcessedAt", "RetryCount" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_users_Email",
-                table: "users",
-                column: "Email",
-                unique: true);
+            migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS `IX_outbox_messages_ProcessedAt`            ON `outbox_messages` (`ProcessedAt`);");
+            migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS `IX_outbox_messages_ProcessedAt_RetryCount` ON `outbox_messages` (`ProcessedAt`, `RetryCount`);");
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(name: "outbox_messages");
