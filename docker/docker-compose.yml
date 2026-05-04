@@ -1,0 +1,782 @@
+name: truck-delivery
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Infrastructure stack: Data · Messaging · Observability
+# Usage:
+#   cp .env.example .env          # fill in secrets
+#   docker compose up -d          # start all
+#   docker compose up -d mysql    # start single service
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ══════════════════════════════════════════════════════
+  # DATA LAYER
+  # ══════════════════════════════════════════════════════
+
+  mysql:
+    image: mysql:8.0
+    container_name: truck-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./init/mysql:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - truck-data
+
+  mongodb:
+    image: mongo:7.0
+    container_name: truck-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - truck-data
+
+  postgis:
+    image: postgis/postgis:16-3.4
+    container_name: truck-postgis
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGIS_USER}
+      POSTGRES_PASSWORD: ${POSTGIS_PASSWORD}
+      POSTGRES_DB: ${POSTGIS_DATABASE}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgis-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGIS_USER} -d ${POSTGIS_DATABASE}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - truck-data
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: truck-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD}
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --save 60 1
+      --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - truck-data
+
+  # ══════════════════════════════════════════════════════
+  # MESSAGING LAYER
+  # ══════════════════════════════════════════════════════
+
+  kafka:
+    image: confluentinc/cp-kafka:7.7.0
+    container_name: truck-kafka
+    restart: unless-stopped
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,PLAINTEXT_HOST://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    ports:
+      - "29092:29092"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 > /dev/null 2>&1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks:
+      - truck-messaging
+      - truck-data
+
+  # ══════════════════════════════════════════════════════
+  # OBSERVABILITY LAYER
+  # ══════════════════════════════════════════════════════
+
+  prometheus:
+    image: prom/prometheus:v2.54.0
+    container_name: truck-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-lifecycle
+      - --web.enable-remote-write-receiver
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - truck-observability
+      - truck-data
+
+  loki:
+    image: grafana/loki:3.2.0
+    container_name: truck-loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/loki-config.yaml
+    volumes:
+      - ./loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - loki-data:/loki
+    ports:
+      - "3100:3100"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3100/ready || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - truck-observability
+
+  tempo:
+    image: grafana/tempo:2.6.0
+    container_name: truck-tempo
+    restart: unless-stopped
+    command: -config.file=/etc/tempo/tempo-config.yaml
+    volumes:
+      - ./tempo/tempo-config.yaml:/etc/tempo/tempo-config.yaml:ro
+      - tempo-data:/var/tempo
+    ports:
+      - "3200:3200"   # Tempo HTTP API
+      - "4317:4317"   # OTLP gRPC (services → Tempo)
+      - "4318:4318"   # OTLP HTTP (services → Tempo)
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3200/ready || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - truck-observability
+
+  # Kafka topic provisioner — creates all topics with correct partition counts on first boot
+  kafka-init:
+    image: confluentinc/cp-kafka:7.7.0
+    container_name: truck-kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic userregistered --partitions 3 --replication-factor 1 &&
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic order.order.created --partitions 3 --replication-factor 1 &&
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic order.order.cancelled --partitions 3 --replication-factor 1 &&
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic driver.driver.status-updated --partitions 3 --replication-factor 1 &&
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic driver.vehicle.assigned --partitions 3 --replication-factor 1 &&
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic driver.documents.submitted --partitions 3 --replication-factor 1 &&
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic driver.driver.manual-review-required --partitions 3 --replication-factor 1 &&
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic driver.vehicle.breakdown --partitions 3 --replication-factor 1 &&
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic driver.fraud.suspicious-pair-detected --partitions 3 --replication-factor 1 &&
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic ocr.driver.verification-completed --partitions 3 --replication-factor 1 &&
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic shipment.shipment.status-updated --partitions 3 --replication-factor 1 &&
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic shipment.driver.assigned --partitions 3 --replication-factor 1 &&
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic shipment.shipment.completed --partitions 3 --replication-factor 1 &&
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic shipment.shipment.failed --partitions 3 --replication-factor 1 &&
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic shipment.breakdown.reassignment-completed --partitions 3 --replication-factor 1 &&
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic tracking.location.updated --partitions 3 --replication-factor 1 &&
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic payment.payment.completed --partitions 3 --replication-factor 1 &&
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic payment.payment.failed --partitions 3 --replication-factor 1 &&
+        echo 'All Kafka topics provisioned'
+      "
+    networks:
+      - truck-messaging
+
+  # ══════════════════════════════════════════════════════
+  # APPLICATION SERVICES
+  # ══════════════════════════════════════════════════════
+
+  gateway:
+    build:
+      context: ..
+      dockerfile: src/Gateway/TruckDelivery.Gateway/Dockerfile
+    container_name: truck-gateway
+    restart: unless-stopped
+    depends_on:
+      identity-service:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+      driver-service:
+        condition: service_healthy
+      shipment-service:
+        condition: service_healthy
+      tracking-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
+      analytics-service:
+        condition: service_healthy
+    environment:
+      Jwt__SecretKey: "${JWT_SECRET_KEY}"
+      Jwt__Issuer: "truck-delivery"
+      Jwt__Audience: "truck-delivery-api"
+      Otel__Endpoint: "http://tempo:4317"
+    ports:
+      - "8080:8080"
+    networks:
+      - truck-data
+      - truck-observability
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8080' 2>/dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  identity-service:
+    build:
+      context: ..
+      dockerfile: src/Services/Identity/TruckDelivery.Identity.Api/Dockerfile
+    container_name: truck-identity
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      ConnectionStrings__IdentityDb: "Server=mysql;Port=3306;Database=truck_identity;User=${MYSQL_USER};Password=${MYSQL_PASSWORD};"
+      ConnectionStrings__MySQL: "Server=mysql;Port=3306;Database=truck_identity;User=${MYSQL_USER};Password=${MYSQL_PASSWORD};"
+      ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD}"
+      Kafka__BootstrapServers: "kafka:9092"
+      Kafka__GroupId: "identity-service"
+      Jwt__SecretKey: "${JWT_SECRET_KEY}"
+      Jwt__Issuer: "truck-delivery"
+      Jwt__Audience: "truck-delivery-api"
+      Jwt__ExpiryMinutes: "60"
+      Jwt__RefreshTokenExpiryDays: "30"
+      Otel__Endpoint: "http://tempo:4317"
+    ports:
+      - "8081:8080"
+    networks:
+      - truck-data
+      - truck-messaging
+      - truck-observability
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8080' 2>/dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  order-service:
+    build:
+      context: ..
+      dockerfile: src/Services/Order/TruckDelivery.Order.Api/Dockerfile
+    container_name: truck-order
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      ConnectionStrings__OrderDb: "Server=mysql;Port=3306;Database=truck_order;User=${MYSQL_USER};Password=${MYSQL_PASSWORD};"
+      ConnectionStrings__MySQL: "Server=mysql;Port=3306;Database=truck_order;User=${MYSQL_USER};Password=${MYSQL_PASSWORD};"
+      ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD}"
+      Kafka__BootstrapServers: "kafka:9092"
+      Kafka__GroupId: "order-service"
+      Jwt__SecretKey: "${JWT_SECRET_KEY}"
+      Jwt__Issuer: "truck-delivery"
+      Jwt__Audience: "truck-delivery-api"
+      Otel__Endpoint: "http://tempo:4317"
+    ports:
+      - "8082:8080"
+    networks:
+      - truck-data
+      - truck-messaging
+      - truck-observability
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8080' 2>/dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  driver-service:
+    build:
+      context: ..
+      dockerfile: src/Services/Driver/TruckDelivery.Driver.Api/Dockerfile
+    container_name: truck-driver
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      minio:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__DriverDb: "Server=mysql;Port=3306;Database=truck_driver;User=${MYSQL_USER};Password=${MYSQL_PASSWORD};"
+      ConnectionStrings__MySQL: "Server=mysql;Port=3306;Database=truck_driver;User=${MYSQL_USER};Password=${MYSQL_PASSWORD};"
+      ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD}"
+      Kafka__BootstrapServers: "kafka:9092"
+      Kafka__GroupId: "driver-service"
+      Jwt__SecretKey: "${JWT_SECRET_KEY}"
+      Jwt__Issuer: "truck-delivery"
+      Jwt__Audience: "truck-delivery-api"
+      MinIO__Endpoint: "minio:9000"
+      MinIO__AccessKey: "${MINIO_ROOT_USER}"
+      MinIO__SecretKey: "${MINIO_ROOT_PASSWORD}"
+      MinIO__UseSsl: "false"
+      Otel__Endpoint: "http://tempo:4317"
+    ports:
+      - "8083:8080"
+    networks:
+      - truck-data
+      - truck-messaging
+      - truck-observability
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8080' 2>/dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  route-service:
+    build:
+      context: ../src/Services/Route/truck-delivery-route
+    container_name: truck-route
+    restart: unless-stopped
+    depends_on:
+      postgis:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      APP__DATABASE__URL: "postgresql://${POSTGIS_USER}:${POSTGIS_PASSWORD}@postgis:5432/${POSTGIS_DATABASE}"
+      APP__REDIS__URL: "redis://:${REDIS_PASSWORD}@redis:6379"
+      APP__SERVER__PORT: "8084"
+      APP__OTEL__ENDPOINT: "http://tempo:4317"
+    ports:
+      - "8084:8084"
+    networks:
+      - truck-data
+      - truck-observability
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8084' 2>/dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  optimizer-service:
+    build:
+      context: ../src/Services/Optimizer/truck-delivery-optimizer
+    container_name: truck-optimizer
+    restart: unless-stopped
+    environment:
+      PORT: "8085"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://tempo:4317"
+      OTEL_ENABLED: "true"
+      LOG_LEVEL: "INFO"
+    ports:
+      - "8085:8085"
+    networks:
+      - truck-data
+      - truck-observability
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8085/health')\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  shipment-service:
+    build:
+      context: ..
+      dockerfile: src/Services/Shipment/TruckDelivery.Shipment.Api/Dockerfile
+    container_name: truck-shipment
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      ConnectionStrings__ShipmentDb: "Server=mysql;Port=3306;Database=truck_shipment;User=${MYSQL_USER};Password=${MYSQL_PASSWORD};"
+      ConnectionStrings__MySQL: "Server=mysql;Port=3306;Database=truck_shipment;User=${MYSQL_USER};Password=${MYSQL_PASSWORD};"
+      ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD}"
+      ConnectionStrings__MongoDB: "mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017"
+      Kafka__BootstrapServers: "kafka:9092"
+      Kafka__GroupId: "shipment-service"
+      Services__RouteService: "http://route-service:8084"
+      Services__OptimizerService: "http://optimizer-service:8085"
+      Jwt__SecretKey: "${JWT_SECRET_KEY}"
+      Jwt__Issuer: "truck-delivery"
+      Jwt__Audience: "truck-delivery-api"
+      Otel__Endpoint: "http://tempo:4317"
+    ports:
+      - "8086:8086"
+    networks:
+      - truck-data
+      - truck-messaging
+      - truck-observability
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8086' 2>/dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  tracking-service:
+    build:
+      context: ..
+      dockerfile: src/Services/Tracking/TruckDelivery.Tracking.Api/Dockerfile
+    container_name: truck-tracking
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      ConnectionStrings__MongoDB: "mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017"
+      ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD}"
+      Kafka__BootstrapServers: "kafka:9092"
+      Kafka__GroupId: "tracking-service"
+      Jwt__SecretKey: "${JWT_SECRET_KEY}"
+      Jwt__Issuer: "truck-delivery"
+      Jwt__Audience: "truck-delivery-api"
+      Otel__Endpoint: "http://tempo:4317"
+    ports:
+      - "8087:8087"
+    networks:
+      - truck-data
+      - truck-messaging
+      - truck-observability
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8087' 2>/dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  notification-service:
+    build:
+      context: ..
+      dockerfile: src/Services/Notification/TruckDelivery.Notification.Api/Dockerfile
+    container_name: truck-notification
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      ConnectionStrings__NotificationDb: "Server=mysql;Port=3306;Database=truck_notification;User=${MYSQL_USER};Password=${MYSQL_PASSWORD};"
+      ConnectionStrings__MySQL: "Server=mysql;Port=3306;Database=truck_notification;User=${MYSQL_USER};Password=${MYSQL_PASSWORD};"
+      ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD}"
+      Kafka__BootstrapServers: "kafka:9092"
+      Kafka__GroupId: "notification-service"
+      Jwt__SecretKey: "${JWT_SECRET_KEY}"
+      Jwt__Issuer: "truck-delivery"
+      Jwt__Audience: "truck-delivery-api"
+      Notification__AdminEmail: "${NOTIFICATION_ADMIN_EMAIL:-admin@truck-delivery.com}"
+      Firebase__CredentialsJson: "${FIREBASE_CREDENTIALS_JSON:-}"
+      Twilio__AccountSid: "${TWILIO_ACCOUNT_SID:-}"
+      Twilio__AuthToken: "${TWILIO_AUTH_TOKEN:-}"
+      Twilio__FromNumber: "${TWILIO_FROM_NUMBER:-}"
+      Smtp__Host: "${SMTP_HOST:-}"
+      Smtp__Port: "${SMTP_PORT:-587}"
+      Smtp__Username: "${SMTP_USERNAME:-}"
+      Smtp__Password: "${SMTP_PASSWORD:-}"
+      Smtp__FromEmail: "${SMTP_FROM_EMAIL:-noreply@truck-delivery.com}"
+      Smtp__FromName: "${SMTP_FROM_NAME:-Truck Delivery}"
+      Otel__Endpoint: "http://tempo:4317"
+    ports:
+      - "8088:8088"
+    networks:
+      - truck-data
+      - truck-messaging
+      - truck-observability
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8088' 2>/dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  payment-service:
+    build:
+      context: ..
+      dockerfile: src/Services/Payment/TruckDelivery.Payment.Api/Dockerfile
+    container_name: truck-payment
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      ConnectionStrings__PaymentDb: "Server=mysql;Port=3306;Database=truck_payment;User=${MYSQL_USER};Password=${MYSQL_PASSWORD};"
+      ConnectionStrings__MySQL: "Server=mysql;Port=3306;Database=truck_payment;User=${MYSQL_USER};Password=${MYSQL_PASSWORD};"
+      ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD}"
+      Kafka__BootstrapServers: "kafka:9092"
+      Kafka__GroupId: "payment-service"
+      Jwt__SecretKey: "${JWT_SECRET_KEY}"
+      Jwt__Issuer: "truck-delivery"
+      Jwt__Audience: "truck-delivery-api"
+      VnPay__TmnCode: "${VNPAY_TMN_CODE:-}"
+      VnPay__HashSecret: "${VNPAY_HASH_SECRET:-}"
+      VnPay__PaymentUrl: "${VNPAY_PAYMENT_URL:-https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}"
+      VnPay__ReturnUrl: "${VNPAY_RETURN_URL:-}"
+      Otel__Endpoint: "http://tempo:4317"
+    ports:
+      - "8089:8089"
+    networks:
+      - truck-data
+      - truck-messaging
+      - truck-observability
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8089' 2>/dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  analytics-service:
+    build:
+      context: ..
+      dockerfile: src/Services/Analytics/TruckDelivery.Analytics.Api/Dockerfile
+    container_name: truck-analytics
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      ConnectionStrings__MongoDB: "mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017"
+      ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD}"
+      MongoDB__Database: "truck_analytics"
+      Kafka__BootstrapServers: "kafka:9092"
+      Kafka__GroupId: "analytics-service"
+      Jwt__SecretKey: "${JWT_SECRET_KEY}"
+      Jwt__Issuer: "truck-delivery"
+      Jwt__Audience: "truck-delivery-api"
+      Otel__Endpoint: "http://tempo:4317"
+    ports:
+      - "8095:8095"
+    networks:
+      - truck-data
+      - truck-messaging
+      - truck-observability
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8095' 2>/dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  # ══════════════════════════════════════════════════════
+  # OBJECT STORAGE — MinIO (S3-compatible, driver document photos)
+  # ══════════════════════════════════════════════════════
+
+  minio:
+    image: minio/minio:RELEASE.2024-11-07T00-52-20Z
+    container_name: truck-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Web console
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    networks:
+      - truck-data
+
+  # MinIO bucket initializer — creates driver-documents + breakdown-photos buckets
+  minio-init:
+    image: minio/mc:RELEASE.2024-11-21T17-21-54Z
+    container_name: truck-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} &&
+        mc mb --ignore-existing local/driver-documents &&
+        mc mb --ignore-existing local/breakdown-photos &&
+        mc anonymous set none local/driver-documents &&
+        mc anonymous set none local/breakdown-photos &&
+        echo 'MinIO buckets ready'
+      "
+    networks:
+      - truck-data
+
+  ocr-service:
+    build:
+      context: ../src/Services/OCR/truck-delivery-ocr
+    container_name: truck-ocr
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+      KAFKA_CONSUMER_GROUP: "ocr-service"
+      KAFKA_TOPIC_DOCUMENTS_SUBMITTED: "driver.documents.submitted"
+      KAFKA_TOPIC_VERIFICATION_COMPLETED: "ocr.driver.verification-completed"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://tempo:4317"
+      OTEL_ENABLED: "true"
+      LOG_LEVEL: "INFO"
+      HTTP_TIMEOUT_SECONDS: "30"
+      OCR_CONFIDENCE_THRESHOLD_VERIFIED: "0.85"
+      OCR_CONFIDENCE_THRESHOLD_MANUAL_REVIEW: "0.65"
+    ports:
+      - "8090:8090"
+    volumes:
+      - paddle-models:/home/appuser/.paddlex
+    networks:
+      - truck-data
+      - truck-messaging
+      - truck-observability
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8090/health')\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: truck-grafana
+    restart: unless-stopped
+    depends_on:
+      prometheus:
+        condition: service_started
+      loki:
+        condition: service_healthy
+      tempo:
+        condition: service_healthy
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_FEATURE_TOGGLES_ENABLE: traceqlEditor
+      GF_INSTALL_PLUGINS: grafana-clock-panel
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - truck-observability
+
+# ══════════════════════════════════════════════════════
+# NETWORKS
+# ══════════════════════════════════════════════════════
+
+networks:
+  truck-data:
+    name: truck-data
+    driver: bridge
+  truck-messaging:
+    name: truck-messaging
+    driver: bridge
+  truck-observability:
+    name: truck-observability
+    driver: bridge
+
+# ══════════════════════════════════════════════════════
+# VOLUMES
+# ══════════════════════════════════════════════════════
+
+volumes:
+  mysql-data:
+  mongodb-data:
+  postgis-data:
+  redis-data:
+  kafka-data:
+  prometheus-data:
+  loki-data:
+  tempo-data:
+  grafana-data:
+  minio-data:
+  paddle-models:

@@ -1,0 +1,11 @@
+[server]
+port = 8084
+
+[database]
+url = "postgres://truckdelivery:changeme@postgis:5432/truck_spatial"
+
+[redis]
+url = "redis://redis:6379"
+
+[otel]
+endpoint = "http://tempo:4317"

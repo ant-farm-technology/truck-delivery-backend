@@ -1,0 +1,1531 @@
+{
+  "info": {
+    "name": "Truck Delivery API",
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "description": "Truck Delivery Backend — full API collection.\n\n**Variables:** Set `base_url` (default: http://localhost:8080) in the collection variables.\n\nAfter login, copy the `accessToken` into `customer_token`, `driver_token`, or `admin_token` accordingly.\n\n**Folders:**\n- 00 Auth — shared login/register/refresh\n- 01 Customer — order lifecycle, tracking, payment\n- 02 Driver — onboarding, GPS, shipment, breakdown\n- 03 Admin — driver/vehicle/shipment/payment/analytics management",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url",      "value": "http://localhost:8080", "type": "string" },
+    { "key": "customer_token","value": "", "type": "string" },
+    { "key": "driver_token",  "value": "", "type": "string" },
+    { "key": "admin_token",   "value": "", "type": "string" },
+    { "key": "customer_id",   "value": "", "type": "string" },
+    { "key": "driver_id",     "value": "", "type": "string" },
+    { "key": "order_id",      "value": "", "type": "string" },
+    { "key": "shipment_id",   "value": "", "type": "string" },
+    { "key": "payment_id",    "value": "", "type": "string" },
+    { "key": "vehicle_id",    "value": "", "type": "string" },
+    { "key": "escrow_id",     "value": "", "type": "string" },
+    { "key": "fraud_alert_id","value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "00 Auth",
+      "description": "Shared auth endpoints — anonymous, no token required.",
+      "item": [
+        {
+          "name": "Register Customer",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"customer@example.com\",\n  \"password\": \"P@ssw0rd123\",\n  \"firstName\": \"Văn A\",\n  \"lastName\": \"Nguyễn\",\n  \"phoneNumber\": \"0901234567\",\n  \"dateOfBirth\": \"1990-01-15\",\n  \"role\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "register"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('customer_id', body.data.userId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register Driver",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"driver@example.com\",\n  \"password\": \"P@ssw0rd123\",\n  \"firstName\": \"Văn B\",\n  \"lastName\": \"Trần\",\n  \"phoneNumber\": \"0901234568\",\n  \"dateOfBirth\": \"1990-05-15\",\n  \"role\": 2\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login Customer",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"customer@example.com\",\n  \"password\": \"P@ssw0rd123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('customer_token', body.data.accessToken);",
+                  "  pm.collectionVariables.set('customer_id', body.data.userId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Driver",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"driver@example.com\",\n  \"password\": \"P@ssw0rd123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('driver_token', body.data.accessToken);",
+                  "  pm.collectionVariables.set('driver_id', body.data.userId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"AdminP@ss123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('admin_token', body.data.accessToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{customer_id}}\",\n  \"refreshToken\": \"<paste-refresh-token>\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "refresh"]
+            }
+          }
+        },
+        {
+          "name": "Logout (Customer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{customer_token}}" },
+              { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "logout"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 204) {",
+                  "  pm.collectionVariables.set('customer_token', '');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout (Driver)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{driver_token}}" },
+              { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "logout"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 204) {",
+                  "  pm.collectionVariables.set('driver_token', '');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 Customer",
+      "description": "All endpoints used by the Customer mobile app. Requires `customer_token`.",
+      "item": [
+        {
+          "name": "Get Pricing Estimate",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/pricing/estimate?vehicleType=Truck3T&pickupLat=10.7769&pickupLng=106.7009&deliveryLat=21.0285&deliveryLng=105.8542&weightKg=45",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders", "pricing", "estimate"],
+              "query": [
+                { "key": "vehicleType",  "value": "Truck3T" },
+                { "key": "pickupLat",    "value": "10.7769" },
+                { "key": "pickupLng",    "value": "106.7009" },
+                { "key": "deliveryLat",  "value": "21.0285" },
+                { "key": "deliveryLng",  "value": "105.8542" },
+                { "key": "weightKg",     "value": "45" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Register FCM Device Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{customer_token}}" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"fcm-device-token-here\",\n  \"platform\": \"Android\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/notifications/register-device",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "notifications", "register-device"]
+            }
+          }
+        },
+        {
+          "name": "Orders",
+          "item": [
+            {
+              "name": "Create Order",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{customer_token}}" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"pickupAddress\": {\n    \"street\": \"123 Nguyễn Huệ\",\n    \"city\": \"TP. Hồ Chí Minh\",\n    \"province\": \"Hồ Chí Minh\",\n    \"country\": \"VN\"\n  },\n  \"deliveryAddress\": {\n    \"street\": \"456 Lê Lợi\",\n    \"city\": \"Hà Nội\",\n    \"province\": \"Hà Nội\",\n    \"country\": \"VN\"\n  },\n  \"items\": [\n    {\n      \"productName\": \"Tủ lạnh Samsung\",\n      \"quantity\": 1,\n      \"weightKg\": 45.0,\n      \"volumeCbm\": 0.756,\n      \"lengthM\": 0.6,\n      \"widthM\": 0.7,\n      \"heightM\": 1.8,\n      \"canTilt\": false,\n      \"notes\": \"Handle with care\"\n    }\n  ],\n  \"notes\": \"Call before delivery\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/orders",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "orders"]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const body = pm.response.json();",
+                      "  pm.collectionVariables.set('order_id', body.data.orderId);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get Order by ID",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{customer_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/orders/{{order_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "orders", "{{order_id}}"]
+                }
+              }
+            },
+            {
+              "name": "List My Orders",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{customer_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/orders?page=1&pageSize=20",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "orders"],
+                  "query": [
+                    { "key": "page", "value": "1" },
+                    { "key": "pageSize", "value": "20" },
+                    { "key": "status", "value": "InTransit", "disabled": true },
+                    { "key": "dateFrom", "value": "2026-01-01", "disabled": true },
+                    { "key": "dateTo", "value": "2026-12-31", "disabled": true }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Cancel Order",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{customer_token}}" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Customer changed plans\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/orders/{{order_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "orders", "{{order_id}}"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tracking",
+          "item": [
+            {
+              "name": "Get Shipment for Order",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{customer_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments?orderId={{order_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "shipments"],
+                  "query": [
+                    { "key": "orderId", "value": "{{order_id}}" }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  const body = pm.response.json();",
+                      "  if (body.data && body.data.id) {",
+                      "    pm.collectionVariables.set('shipment_id', body.data.id);",
+                      "  }",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get GPS Trail for Shipment",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{customer_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/tracking/shipments/{{shipment_id}}/points?limit=100",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "tracking", "shipments", "{{shipment_id}}", "points"],
+                  "query": [
+                    { "key": "limit", "value": "100" }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Payment",
+          "item": [
+            {
+              "name": "Get Payment for Order",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{customer_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/payments/orders/{{order_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "payments", "orders", "{{order_id}}"]
+                }
+              }
+            },
+            {
+              "name": "Initiate VNPay Payment",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{customer_token}}" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"customerId\": \"{{customer_id}}\",\n  \"amount\": 350000,\n  \"method\": \"VnPay\",\n  \"currency\": \"VND\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/payments/orders/{{order_id}}/initiate",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "payments", "orders", "{{order_id}}", "initiate"]
+                }
+              }
+            },
+            {
+              "name": "Confirm Escrow (Breakdown Surcharge)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{customer_token}}" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"note\": \"Accepted the breakdown surcharge\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/payments/escrow/{{escrow_id}}/confirm",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "payments", "escrow", "{{escrow_id}}", "confirm"]
+                }
+              }
+            },
+            {
+              "name": "Dispute Escrow (Breakdown Surcharge)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{customer_token}}" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"note\": \"The breakdown was suspicious\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/payments/escrow/{{escrow_id}}/dispute",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "payments", "escrow", "{{escrow_id}}", "dispute"]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 Driver",
+      "description": "All endpoints used by the Driver mobile app. Requires `driver_token`.",
+      "item": [
+        {
+          "name": "Onboarding",
+          "item": [
+            {
+              "name": "Get Presigned URLs (Driver Documents)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{driver_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/uploads/presigned-url?type=driver-document",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "uploads", "presigned-url"],
+                  "query": [
+                    { "key": "type", "value": "driver-document" }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "// Response: { data: { urls: [{ field, uploadUrl, finalUrl }] } }",
+                      "// Use entry.uploadUrl to PUT each photo directly to MinIO",
+                      "// Use entry.finalUrl as the value in the photos object when self-registering"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Self-Register Driver + Vehicle",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{driver_token}}" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"idCardNumber\": \"079123456789\",\n  \"dateOfBirth\": \"1990-05-15\",\n  \"address\": \"123 Nguyễn Huệ, TP.HCM\",\n  \"licenseNumber\": \"123456789012\",\n  \"licenseGrade\": \"C\",\n  \"licenseExpiryDate\": \"2028-12-31\",\n  \"photos\": {\n    \"portraitUrl\": \"driver-documents/uuid-portrait.jpg\",\n    \"idCardFrontUrl\": \"driver-documents/uuid-id-front.jpg\",\n    \"idCardBackUrl\": \"driver-documents/uuid-id-back.jpg\",\n    \"licenseFrontUrl\": \"driver-documents/uuid-lic-front.jpg\",\n    \"licenseBackUrl\": \"driver-documents/uuid-lic-back.jpg\",\n    \"vehicleRegFrontUrl\": \"driver-documents/uuid-reg-front.jpg\",\n    \"vehicleRegBackUrl\": \"driver-documents/uuid-reg-back.jpg\"\n  },\n  \"vehicle\": {\n    \"licensePlate\": \"51A-12345\",\n    \"brand\": \"Hino\",\n    \"model\": \"XZU720L\",\n    \"type\": \"Truck3T\",\n    \"maxWeightKg\": 3000,\n    \"maxVolumeCbm\": 15.0,\n    \"lengthM\": 4.2,\n    \"widthM\": 1.8,\n    \"heightM\": 1.8,\n    \"yearOfManufacture\": 2020,\n    \"registrationNumber\": \"HCM-20-1234\",\n    \"registrationExpiryDate\": \"2026-12-31\"\n  }\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/drivers/register",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "drivers", "register"]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const body = pm.response.json();",
+                      "  pm.collectionVariables.set('driver_id', body.data.driverId);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get Driver Profile",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{driver_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/drivers/{{driver_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "drivers", "{{driver_id}}"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Dashboard",
+          "item": [
+            {
+              "name": "Set Driver Status (Available)",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{driver_token}}" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"Available\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/drivers/{{driver_id}}/status",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "drivers", "{{driver_id}}", "status"]
+                }
+              }
+            },
+            {
+              "name": "Set Driver Status (Offline)",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{driver_token}}" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"Offline\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/drivers/{{driver_id}}/status",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "drivers", "{{driver_id}}", "status"]
+                }
+              }
+            },
+            {
+              "name": "Get Shipment Detail",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{driver_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments/{{shipment_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "shipments", "{{shipment_id}}"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Active Delivery",
+          "item": [
+            {
+              "name": "Push GPS Location (single)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{driver_token}}" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"latitude\": 10.7769,\n  \"longitude\": 106.7009,\n  \"speedKmh\": 45.5,\n  \"headingDeg\": 270.0\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/tracking/location",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "tracking", "location"]
+                }
+              }
+            },
+            {
+              "name": "Flush Offline GPS Cache (batch)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{driver_token}}" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"points\": [\n    {\n      \"latitude\": 10.7769,\n      \"longitude\": 106.7009,\n      \"recordedAt\": \"2026-04-30T10:05:00Z\",\n      \"speedKmh\": 45.5,\n      \"headingDeg\": 270.0\n    },\n    {\n      \"latitude\": 10.7812,\n      \"longitude\": 106.6987,\n      \"recordedAt\": \"2026-04-30T10:05:02Z\",\n      \"speedKmh\": 46.0,\n      \"headingDeg\": 268.0\n    },\n    {\n      \"latitude\": 10.7850,\n      \"longitude\": 106.6940,\n      \"recordedAt\": \"2026-04-30T10:05:05Z\",\n      \"speedKmh\": 47.2,\n      \"headingDeg\": 265.0\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/tracking/batch",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "tracking", "batch"]
+                }
+              }
+            },
+            {
+              "name": "Update Shipment Status — PickedUp",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{driver_token}}" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"PickedUp\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments/{{shipment_id}}/status",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "shipments", "{{shipment_id}}", "status"]
+                }
+              }
+            },
+            {
+              "name": "Update Shipment Status — InTransit",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{driver_token}}" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"InTransit\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments/{{shipment_id}}/status",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "shipments", "{{shipment_id}}", "status"]
+                }
+              }
+            },
+            {
+              "name": "Update Shipment Status — Delivered",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{driver_token}}" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"Delivered\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments/{{shipment_id}}/status",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "shipments", "{{shipment_id}}", "status"]
+                }
+              }
+            },
+            {
+              "name": "Get GPS Trail (own shipment)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{driver_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/tracking/shipments/{{shipment_id}}/points",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "tracking", "shipments", "{{shipment_id}}", "points"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Earnings",
+          "item": [
+            {
+              "name": "Get Driver Earnings",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{driver_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/payments/drivers/{{driver_id}}/earnings?page=1&pageSize=20",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "payments", "drivers", "{{driver_id}}", "earnings"],
+                  "query": [
+                    { "key": "page",     "value": "1" },
+                    { "key": "pageSize", "value": "20" },
+                    { "key": "dateFrom", "value": "2026-01-01", "disabled": true },
+                    { "key": "dateTo",   "value": "2026-12-31", "disabled": true }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Breakdown",
+          "item": [
+            {
+              "name": "Get Presigned URLs (Breakdown Photos)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{driver_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/uploads/presigned-url?type=breakdown-photo&count=2",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "uploads", "presigned-url"],
+                  "query": [
+                    { "key": "type", "value": "breakdown-photo" },
+                    { "key": "count", "value": "2" }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Report Breakdown",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{driver_token}}" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"latitude\": 10.7769,\n  \"longitude\": 106.7009,\n  \"photoUrls\": [\n    \"breakdown-photos/uuid1.jpg\",\n    \"breakdown-photos/uuid2.jpg\"\n  ],\n  \"description\": \"Xe bị nổ lốp, không thể tiếp tục\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/drivers/{{driver_id}}/report-breakdown",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "drivers", "{{driver_id}}", "report-breakdown"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register FCM Device Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{driver_token}}" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"fcm-device-token-here\",\n  \"platform\": \"Android\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/notifications/register-device",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "notifications", "register-device"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Admin",
+      "description": "All endpoints requiring Admin role. Requires `admin_token`.",
+      "item": [
+        {
+          "name": "Account Management",
+          "item": [
+            {
+              "name": "Create Admin Account",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"newadmin@example.com\",\n  \"password\": \"AdminP@ss456\",\n  \"firstName\": \"Nguyen\",\n  \"lastName\": \"Van A\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/accounts",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "admin", "accounts"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Driver Management",
+          "item": [
+            {
+              "name": "List Drivers",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/drivers?page=1&pageSize=20",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "drivers"],
+                  "query": [
+                    { "key": "page", "value": "1" },
+                    { "key": "pageSize", "value": "20" },
+                    { "key": "status", "value": "Available", "disabled": true }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Driver by ID",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/drivers/{{driver_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "drivers", "{{driver_id}}"]
+                }
+              }
+            },
+            {
+              "name": "List Available Drivers",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/drivers/available",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "drivers", "available"]
+                }
+              }
+            },
+            {
+              "name": "Register Driver (Admin-created)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"userId\": \"{{driver_id}}\",\n  \"email\": \"driver@example.com\",\n  \"firstName\": \"Văn B\",\n  \"lastName\": \"Trần\",\n  \"phoneNumber\": \"0901234568\",\n  \"licenseNumber\": \"B2-123456\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/drivers",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "drivers"]
+                }
+              }
+            },
+            {
+              "name": "Assign Vehicle to Driver",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"vehicleId\": \"{{vehicle_id}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/drivers/{{driver_id}}/assign-vehicle",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "drivers", "{{driver_id}}", "assign-vehicle"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Driver Verification",
+          "item": [
+            {
+              "name": "List Pending Verification",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/drivers/pending-verification",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "drivers", "pending-verification"]
+                }
+              }
+            },
+            {
+              "name": "Approve Driver Verification",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/drivers/{{driver_id}}/verify",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "drivers", "{{driver_id}}", "verify"]
+                }
+              }
+            },
+            {
+              "name": "Reject Driver Verification",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"ID card does not match selfie photo\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/drivers/{{driver_id}}/reject-verification",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "drivers", "{{driver_id}}", "reject-verification"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Vehicle Management",
+          "item": [
+            {
+              "name": "Register Vehicle",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"licensePlate\": \"51A-12345\",\n  \"brand\": \"Hyundai\",\n  \"model\": \"HD120\",\n  \"type\": \"Truck5T\",\n  \"maxWeightKg\": 5000,\n  \"maxVolumeCbm\": 20.0,\n  \"yearOfManufacture\": 2022\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/vehicles",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "vehicles"]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const body = pm.response.json();",
+                      "  pm.collectionVariables.set('vehicle_id', body.data.vehicleId);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get Vehicle by ID",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/vehicles/{{vehicle_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "vehicles", "{{vehicle_id}}"]
+                }
+              }
+            },
+            {
+              "name": "List Vehicles",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/vehicles?page=1&pageSize=20",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "vehicles"],
+                  "query": [
+                    { "key": "page", "value": "1" },
+                    { "key": "pageSize", "value": "20" },
+                    { "key": "status", "value": "Available", "disabled": true },
+                    { "key": "type", "value": "Truck5T", "disabled": true },
+                    { "key": "driverId", "value": "{{driver_id}}", "disabled": true }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Vehicle Status",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"Maintenance\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/vehicles/{{vehicle_id}}/status",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "vehicles", "{{vehicle_id}}", "status"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Shipment Management",
+          "item": [
+            {
+              "name": "List Shipments",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments?page=1&pageSize=20",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "shipments"],
+                  "query": [
+                    { "key": "page", "value": "1" },
+                    { "key": "pageSize", "value": "20" },
+                    { "key": "status", "value": "DispatcherReviewRequired", "disabled": true },
+                    { "key": "customerId", "value": "{{customer_id}}", "disabled": true },
+                    { "key": "driverId", "value": "{{driver_id}}", "disabled": true },
+                    { "key": "orderId", "value": "{{order_id}}", "disabled": true }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Shipment by ID",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments/{{shipment_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "shipments", "{{shipment_id}}"]
+                }
+              }
+            },
+            {
+              "name": "Confirm Dispatch (after bin-check review)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments/{{shipment_id}}/confirm-dispatch",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "shipments", "{{shipment_id}}", "confirm-dispatch"]
+                }
+              }
+            },
+            {
+              "name": "Decline Dispatch",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments/{{shipment_id}}/decline-dispatch",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "shipments", "{{shipment_id}}", "decline-dispatch"]
+                }
+              }
+            },
+            {
+              "name": "Update Shipment Status (Admin)",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"InProgress\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments/{{shipment_id}}/status",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "shipments", "{{shipment_id}}", "status"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Payment Management",
+          "item": [
+            {
+              "name": "List Payments",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/payments?page=1&pageSize=20",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "payments"],
+                  "query": [
+                    { "key": "page", "value": "1" },
+                    { "key": "pageSize", "value": "20" },
+                    { "key": "status", "value": "Completed", "disabled": true },
+                    { "key": "dateFrom", "value": "2026-01-01", "disabled": true },
+                    { "key": "dateTo", "value": "2026-12-31", "disabled": true }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Payment (Admin)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"orderId\": \"{{order_id}}\",\n  \"customerId\": \"{{customer_id}}\",\n  \"amount\": 350000,\n  \"currency\": \"VND\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/payments",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "payments"]
+                }
+              }
+            },
+            {
+              "name": "Get Payment for Order",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/payments/orders/{{order_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "payments", "orders", "{{order_id}}"]
+                }
+              }
+            },
+            {
+              "name": "Get Escrow for Order",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/payments/orders/{{order_id}}/escrow",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "payments", "orders", "{{order_id}}", "escrow"]
+                }
+              }
+            },
+            {
+              "name": "Confirm Escrow (Admin)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"note\": \"Confirmed by admin after review\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/payments/escrow/{{escrow_id}}/confirm",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "payments", "escrow", "{{escrow_id}}", "confirm"]
+                }
+              }
+            },
+            {
+              "name": "Dispute Escrow (Admin)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"note\": \"Disputed after reviewing evidence\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/payments/escrow/{{escrow_id}}/dispute",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "payments", "escrow", "{{escrow_id}}", "dispute"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Analytics",
+          "item": [
+            {
+              "name": "Get KPI Dashboard",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/analytics/kpis?days=30",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "analytics", "kpis"],
+                  "query": [
+                    { "key": "days", "value": "30" }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "List Breakdown Incidents",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/analytics/breakdown/incidents?days=30&limit=50",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "analytics", "breakdown", "incidents"],
+                  "query": [
+                    { "key": "days", "value": "30" },
+                    { "key": "limit", "value": "50" }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "List Fraud Alerts",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/analytics/fraud/alerts?days=30&limit=50",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "analytics", "fraud", "alerts"],
+                  "query": [
+                    { "key": "days", "value": "30" },
+                    { "key": "limit", "value": "50" }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Acknowledge Fraud Alert",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/analytics/fraud/alerts/{{fraud_alert_id}}/acknowledge",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "analytics", "fraud", "alerts", "{{fraud_alert_id}}", "acknowledge"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Notifications",
+          "item": [
+            {
+              "name": "Register FCM Device Token (Admin)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"token\": \"fcm-admin-device-token\",\n  \"platform\": \"Android\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/notifications/register-device",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "notifications", "register-device"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "System Health",
+          "item": [
+            {
+              "name": "Aggregate Health (all services)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "X-Correlation-Id", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/health/all",
+                  "host": ["{{base_url}}"],
+                  "path": ["health", "all"]
+                }
+              }
+            },
+            {
+              "name": "Gateway Liveness",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/health",
+                  "host": ["{{base_url}}"],
+                  "path": ["health"]
+                }
+              }
+            },
+            {
+              "name": "Gateway Readiness",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/ready",
+                  "host": ["{{base_url}}"],
+                  "path": ["ready"]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,115 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [develop, main, master]
+  pull_request:
+    branches: [develop, main, master]
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+
+    # Testcontainers manages its own Docker containers — no docker-compose needed here
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore TruckDelivery.slnx
+
+      - name: Build (Release, no restore)
+        run: dotnet build TruckDelivery.slnx --no-restore -c Release
+
+      - name: Run integration tests — Order
+        run: |
+          dotnet test tests/Integration/TruckDelivery.Order.Application.IntegrationTests/ \
+            --no-build -c Release \
+            --logger "trx;LogFileName=order-integration-results.trx" \
+            --collect:"XPlat Code Coverage" \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+        timeout-minutes: 10
+
+      - name: Run integration tests — Shipment
+        run: |
+          dotnet test tests/Integration/TruckDelivery.Shipment.Application.IntegrationTests/ \
+            --no-build -c Release \
+            --logger "trx;LogFileName=shipment-integration-results.trx" \
+            --collect:"XPlat Code Coverage" \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+        timeout-minutes: 10
+
+      - name: Run integration tests — Driver
+        run: |
+          dotnet test tests/Integration/TruckDelivery.Driver.Application.IntegrationTests/ \
+            --no-build -c Release \
+            --logger "trx;LogFileName=driver-integration-results.trx" \
+            --collect:"XPlat Code Coverage" \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+        timeout-minutes: 10
+
+      - name: Run integration tests — Payment
+        run: |
+          dotnet test tests/Integration/TruckDelivery.Payment.Application.IntegrationTests/ \
+            --no-build -c Release \
+            --logger "trx;LogFileName=payment-integration-results.trx" \
+            --collect:"XPlat Code Coverage" \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+        timeout-minutes: 10
+
+      - name: Run contract tests
+        run: |
+          dotnet test tests/Contract/TruckDelivery.Contracts.Tests/ \
+            --no-build -c Release \
+            --logger "trx;LogFileName=contract-results.trx"
+        timeout-minutes: 5
+
+      - name: Publish test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results
+          path: '**/*.trx'
+
+      - name: Publish coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-coverage
+          path: '**/coverage.cobertura.xml'
+
+  contract-tests:
+    name: Contract Tests (schema validation)
+    runs-on: ubuntu-latest
+    needs: []
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore & build contracts only
+        run: |
+          dotnet restore tests/Contract/TruckDelivery.Contracts.Tests/TruckDelivery.Contracts.Tests.csproj
+          dotnet build tests/Contract/TruckDelivery.Contracts.Tests/TruckDelivery.Contracts.Tests.csproj -c Release
+
+      - name: Run contract tests
+        run: |
+          dotnet test tests/Contract/TruckDelivery.Contracts.Tests/ \
+            -c Release \
+            --logger "trx;LogFileName=contract-results.trx"

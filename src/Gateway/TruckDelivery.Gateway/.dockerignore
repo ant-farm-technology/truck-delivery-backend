@@ -1,0 +1,46 @@
+# ** User & IDE specific **
+**.user
+**.suo
+**.vs/
+**.vscode/
+**.idea/
+**/.run/
+
+# ** Build artifacts **
+**/bin/
+**/obj/
+
+# ** Git **
+**/.git/
+**/.gitignore
+**/.gitattributes
+
+# ** Docker related **
+**/.dockerignore
+**/Dockerfile*
+**/docker-compose*
+**/compose.yaml
+**/README.Docker.md
+
+# ** Environment & Secrets **
+**.env
+**/*.Secrets.json
+**/secrets.dev.yaml
+**/values.dev.yaml
+
+# ** Logs & Temp files **
+**/*.log
+**/*.tmp
+**/*.pid
+
+# ** OS generated files **
+**/Thumbs.db
+**/Desktop.ini
+**/.DS_Store
+
+# ** Project specific **
+**/*.*proj.user
+**/*.dbmdl
+**/*.jfm
+**/*.pfx
+**/publish/
