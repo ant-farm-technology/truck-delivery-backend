@@ -9,208 +9,40 @@ namespace TruckDelivery.Driver.Infrastructure.Migrations
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // ── Driver: new fields ──────────────────────────────────────
-            migrationBuilder.AddColumn<int>(
-                name: "LicenseGrade",
-                schema: "driver",
-                table: "drivers",
-                type: "int",
-                nullable: false,
-                defaultValueSql: "3"); // C = 3 as safe default
+            // All DDL uses IF NOT EXISTS so re-applying this migration on a DB that already
+            // has the columns (but missing the __EFMigrationsHistory row) is safe.
 
-            migrationBuilder.AddColumn<DateOnly>(
-                name: "LicenseExpiryDate",
-                schema: "driver",
-                table: "drivers",
-                type: "date",
-                nullable: false,
-                defaultValue: new DateOnly(2099, 12, 31));
+            // ── Driver: new columns ─────────────────────────────────────
+            migrationBuilder.Sql("ALTER TABLE `drivers` ADD COLUMN IF NOT EXISTS `LicenseGrade` int NOT NULL DEFAULT 3;");
+            migrationBuilder.Sql("ALTER TABLE `drivers` ADD COLUMN IF NOT EXISTS `LicenseExpiryDate` date NOT NULL DEFAULT '2099-12-31';");
+            migrationBuilder.Sql("ALTER TABLE `drivers` ADD COLUMN IF NOT EXISTS `DateOfBirth` date NOT NULL DEFAULT '1990-01-01';");
+            migrationBuilder.Sql("ALTER TABLE `drivers` ADD COLUMN IF NOT EXISTS `Address` varchar(500) CHARACTER SET utf8mb4 NOT NULL DEFAULT '';");
+            migrationBuilder.Sql("ALTER TABLE `drivers` ADD COLUMN IF NOT EXISTS `IdCardNumber` varchar(20) CHARACTER SET utf8mb4 NOT NULL DEFAULT '';");
+            migrationBuilder.Sql("ALTER TABLE `drivers` ADD COLUMN IF NOT EXISTS `PortraitPhotoUrl` varchar(1000) CHARACTER SET utf8mb4 NULL;");
+            migrationBuilder.Sql("ALTER TABLE `drivers` ADD COLUMN IF NOT EXISTS `IdCardFrontUrl` varchar(1000) CHARACTER SET utf8mb4 NULL;");
+            migrationBuilder.Sql("ALTER TABLE `drivers` ADD COLUMN IF NOT EXISTS `IdCardBackUrl` varchar(1000) CHARACTER SET utf8mb4 NULL;");
+            migrationBuilder.Sql("ALTER TABLE `drivers` ADD COLUMN IF NOT EXISTS `LicenseFrontUrl` varchar(1000) CHARACTER SET utf8mb4 NULL;");
+            migrationBuilder.Sql("ALTER TABLE `drivers` ADD COLUMN IF NOT EXISTS `LicenseBackUrl` varchar(1000) CHARACTER SET utf8mb4 NULL;");
+            migrationBuilder.Sql("ALTER TABLE `drivers` ADD COLUMN IF NOT EXISTS `VehicleRegFrontUrl` varchar(1000) CHARACTER SET utf8mb4 NULL;");
+            migrationBuilder.Sql("ALTER TABLE `drivers` ADD COLUMN IF NOT EXISTS `VehicleRegBackUrl` varchar(1000) CHARACTER SET utf8mb4 NULL;");
+            migrationBuilder.Sql("ALTER TABLE `drivers` ADD COLUMN IF NOT EXISTS `VerificationStatus` int NOT NULL DEFAULT 0;");
+            migrationBuilder.Sql("ALTER TABLE `drivers` ADD COLUMN IF NOT EXISTS `OcrConfidenceScore` float NULL;");
+            migrationBuilder.Sql("ALTER TABLE `drivers` ADD COLUMN IF NOT EXISTS `VerificationNotes` varchar(1000) CHARACTER SET utf8mb4 NULL;");
+            migrationBuilder.Sql("ALTER TABLE `drivers` ADD COLUMN IF NOT EXISTS `TrustScore` int NOT NULL DEFAULT 70;");
 
-            migrationBuilder.AddColumn<DateOnly>(
-                name: "DateOfBirth",
-                schema: "driver",
-                table: "drivers",
-                type: "date",
-                nullable: false,
-                defaultValue: new DateOnly(1990, 1, 1));
+            // ── Driver: indexes ─────────────────────────────────────────
+            migrationBuilder.Sql("CREATE UNIQUE INDEX IF NOT EXISTS `IX_drivers_IdCardNumber` ON `drivers` (`IdCardNumber`);");
+            migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS `IX_drivers_VerificationStatus` ON `drivers` (`VerificationStatus`);");
 
-            migrationBuilder.AddColumn<string>(
-                name: "Address",
-                schema: "driver",
-                table: "drivers",
-                type: "varchar(500)",
-                maxLength: 500,
-                nullable: false,
-                defaultValue: "")
-                .Annotation("MySql:CharSet", "utf8mb4");
+            // ── Vehicle: new columns ────────────────────────────────────
+            migrationBuilder.Sql("ALTER TABLE `vehicles` ADD COLUMN IF NOT EXISTS `LengthM` decimal(8,3) NOT NULL DEFAULT 4.200;");
+            migrationBuilder.Sql("ALTER TABLE `vehicles` ADD COLUMN IF NOT EXISTS `WidthM` decimal(8,3) NOT NULL DEFAULT 1.800;");
+            migrationBuilder.Sql("ALTER TABLE `vehicles` ADD COLUMN IF NOT EXISTS `HeightM` decimal(8,3) NOT NULL DEFAULT 1.800;");
+            migrationBuilder.Sql("ALTER TABLE `vehicles` ADD COLUMN IF NOT EXISTS `RegistrationNumber` varchar(50) CHARACTER SET utf8mb4 NOT NULL DEFAULT '';");
+            migrationBuilder.Sql("ALTER TABLE `vehicles` ADD COLUMN IF NOT EXISTS `RegistrationExpiryDate` date NOT NULL DEFAULT '2099-12-31';");
 
-            migrationBuilder.AddColumn<string>(
-                name: "IdCardNumber",
-                schema: "driver",
-                table: "drivers",
-                type: "varchar(20)",
-                maxLength: 20,
-                nullable: false,
-                defaultValue: "")
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            // Document photo URLs
-            migrationBuilder.AddColumn<string>(
-                name: "PortraitPhotoUrl",
-                schema: "driver",
-                table: "drivers",
-                type: "varchar(1000)",
-                maxLength: 1000,
-                nullable: true)
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.AddColumn<string>(
-                name: "IdCardFrontUrl",
-                schema: "driver",
-                table: "drivers",
-                type: "varchar(1000)",
-                maxLength: 1000,
-                nullable: true)
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.AddColumn<string>(
-                name: "IdCardBackUrl",
-                schema: "driver",
-                table: "drivers",
-                type: "varchar(1000)",
-                maxLength: 1000,
-                nullable: true)
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.AddColumn<string>(
-                name: "LicenseFrontUrl",
-                schema: "driver",
-                table: "drivers",
-                type: "varchar(1000)",
-                maxLength: 1000,
-                nullable: true)
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.AddColumn<string>(
-                name: "LicenseBackUrl",
-                schema: "driver",
-                table: "drivers",
-                type: "varchar(1000)",
-                maxLength: 1000,
-                nullable: true)
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.AddColumn<string>(
-                name: "VehicleRegFrontUrl",
-                schema: "driver",
-                table: "drivers",
-                type: "varchar(1000)",
-                maxLength: 1000,
-                nullable: true)
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.AddColumn<string>(
-                name: "VehicleRegBackUrl",
-                schema: "driver",
-                table: "drivers",
-                type: "varchar(1000)",
-                maxLength: 1000,
-                nullable: true)
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            // Verification fields
-            migrationBuilder.AddColumn<int>(
-                name: "VerificationStatus",
-                schema: "driver",
-                table: "drivers",
-                type: "int",
-                nullable: false,
-                defaultValueSql: "0");
-
-            migrationBuilder.AddColumn<float>(
-                name: "OcrConfidenceScore",
-                schema: "driver",
-                table: "drivers",
-                type: "float",
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "VerificationNotes",
-                schema: "driver",
-                table: "drivers",
-                type: "varchar(1000)",
-                maxLength: 1000,
-                nullable: true)
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            // Also add TrustScore if missing (may already exist from Phase 5)
-            migrationBuilder.Sql(
-                "ALTER TABLE `drivers` ADD COLUMN IF NOT EXISTS `TrustScore` int NOT NULL DEFAULT 70;");
-
-            // Unique index on IdCardNumber
-            migrationBuilder.CreateIndex(
-                name: "IX_drivers_IdCardNumber",
-                schema: "driver",
-                table: "drivers",
-                column: "IdCardNumber",
-                unique: true);
-
-            // Index on VerificationStatus for admin queue queries
-            migrationBuilder.CreateIndex(
-                name: "IX_drivers_VerificationStatus",
-                schema: "driver",
-                table: "drivers",
-                column: "VerificationStatus");
-
-            // ── Vehicle: new fields ─────────────────────────────────────
-            migrationBuilder.AddColumn<decimal>(
-                name: "LengthM",
-                schema: "driver",
-                table: "vehicles",
-                type: "decimal(8,3)",
-                nullable: false,
-                defaultValue: 4.2m);
-
-            migrationBuilder.AddColumn<decimal>(
-                name: "WidthM",
-                schema: "driver",
-                table: "vehicles",
-                type: "decimal(8,3)",
-                nullable: false,
-                defaultValue: 1.8m);
-
-            migrationBuilder.AddColumn<decimal>(
-                name: "HeightM",
-                schema: "driver",
-                table: "vehicles",
-                type: "decimal(8,3)",
-                nullable: false,
-                defaultValue: 1.8m);
-
-            migrationBuilder.AddColumn<string>(
-                name: "RegistrationNumber",
-                schema: "driver",
-                table: "vehicles",
-                type: "varchar(50)",
-                maxLength: 50,
-                nullable: false,
-                defaultValue: "")
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.AddColumn<DateOnly>(
-                name: "RegistrationExpiryDate",
-                schema: "driver",
-                table: "vehicles",
-                type: "date",
-                nullable: false,
-                defaultValue: new DateOnly(2099, 12, 31));
-
-            migrationBuilder.CreateIndex(
-                name: "IX_vehicles_RegistrationNumber",
-                schema: "driver",
-                table: "vehicles",
-                column: "RegistrationNumber",
-                unique: true);
+            // ── Vehicle: indexes ────────────────────────────────────────
+            migrationBuilder.Sql("CREATE UNIQUE INDEX IF NOT EXISTS `IX_vehicles_RegistrationNumber` ON `vehicles` (`RegistrationNumber`);");
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
