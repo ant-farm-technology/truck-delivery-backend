@@ -9,84 +9,65 @@ namespace TruckDelivery.Notification.Infrastructure.Persistence.EFCore.Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AlterDatabase()
-                .Annotation("MySql:CharSet", "utf8mb4");
+            migrationBuilder.AlterDatabase().Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
-                name: "Notifications",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    RecipientId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    Type = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Channel = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Title = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Body = table.Column<string>(type: "varchar(2000)", maxLength: 2000, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Status = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    FailureReason = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    SentAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Notifications", x => x.Id);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
+            // ── Notifications ─────────────────────────────────────────────────────────
+            migrationBuilder.Sql("""
+                CREATE TABLE IF NOT EXISTS `Notifications` (
+                    `Id`            char(36) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+                    `RecipientId`   char(36) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+                    `Type`          varchar(50)   CHARACTER SET utf8mb4 NOT NULL,
+                    `Channel`       varchar(20)   CHARACTER SET utf8mb4 NOT NULL,
+                    `Title`         varchar(200)  CHARACTER SET utf8mb4 NOT NULL,
+                    `Body`          varchar(2000) CHARACTER SET utf8mb4 NOT NULL,
+                    `Status`        varchar(20)   CHARACTER SET utf8mb4 NOT NULL,
+                    `FailureReason` varchar(500)  CHARACTER SET utf8mb4 NULL,
+                    `CreatedAt`     datetime(6) NOT NULL,
+                    `SentAt`        datetime(6) NULL,
+                    CONSTRAINT `PK_Notifications` PRIMARY KEY (`Id`)
+                ) CHARACTER SET=utf8mb4;
+                """);
 
-            migrationBuilder.CreateTable(
-                name: "OutboxMessages",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    EventType = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Topic = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    PartitionKey = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Payload = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    OccurredAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    ProcessedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    RetryCount = table.Column<int>(type: "int", nullable: false),
-                    LastError = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4")
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_OutboxMessages", x => x.Id);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
+            migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS `IX_Notifications_CreatedAt`   ON `Notifications` (`CreatedAt`);");
+            migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS `IX_Notifications_RecipientId` ON `Notifications` (`RecipientId`);");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_Notifications_CreatedAt",
-                table: "Notifications",
-                column: "CreatedAt");
+            // ── OutboxMessages ────────────────────────────────────────────────────────
+            migrationBuilder.Sql("""
+                CREATE TABLE IF NOT EXISTS `OutboxMessages` (
+                    `Id`           char(36) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+                    `EventType`    varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+                    `Topic`        varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+                    `PartitionKey` varchar(100) CHARACTER SET utf8mb4 NOT NULL,
+                    `Payload`      longtext CHARACTER SET utf8mb4 NOT NULL,
+                    `OccurredAt`   datetime(6) NOT NULL,
+                    `ProcessedAt`  datetime(6) NULL,
+                    `RetryCount`   int NOT NULL DEFAULT 0,
+                    `LastError`    varchar(1000) CHARACTER SET utf8mb4 NULL,
+                    CONSTRAINT `PK_OutboxMessages` PRIMARY KEY (`Id`)
+                ) CHARACTER SET=utf8mb4;
+                """);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_Notifications_RecipientId",
-                table: "Notifications",
-                column: "RecipientId");
+            migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS `IX_OutboxMessages_ProcessedAt`            ON `OutboxMessages` (`ProcessedAt`);");
+            migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS `IX_OutboxMessages_ProcessedAt_RetryCount` ON `OutboxMessages` (`ProcessedAt`, `RetryCount`);");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_OutboxMessages_ProcessedAt",
-                table: "OutboxMessages",
-                column: "ProcessedAt");
+            // ── device_tokens ─────────────────────────────────────────────────────────
+            migrationBuilder.Sql("""
+                CREATE TABLE IF NOT EXISTS `device_tokens` (
+                    `Id`           char(36) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+                    `UserId`       char(36) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+                    `Token`        varchar(500) CHARACTER SET utf8mb4 NOT NULL,
+                    `Platform`     varchar(20)  CHARACTER SET utf8mb4 NOT NULL,
+                    `RegisteredAt` datetime(6) NOT NULL,
+                    CONSTRAINT `PK_device_tokens` PRIMARY KEY (`Id`)
+                ) CHARACTER SET=utf8mb4;
+                """);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_OutboxMessages_ProcessedAt_RetryCount",
-                table: "OutboxMessages",
-                columns: new[] { "ProcessedAt", "RetryCount" });
+            migrationBuilder.Sql("CREATE UNIQUE INDEX IF NOT EXISTS `IX_device_tokens_UserId_Platform` ON `device_tokens` (`UserId`, `Platform`);");
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(name: "device_tokens");
             migrationBuilder.DropTable(name: "Notifications");
             migrationBuilder.DropTable(name: "OutboxMessages");
         }
