@@ -9,70 +9,37 @@ namespace TruckDelivery.Driver.Infrastructure.Migrations
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.CreateTable(
-                name: "BreakdownReports",
-                schema: "driver",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    DriverId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    VehicleId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
-                    Latitude = table.Column<double>(type: "double", nullable: false),
-                    Longitude = table.Column<double>(type: "double", nullable: false),
-                    PhotoUrlsJson = table.Column<string>(type: "varchar(4000)", maxLength: 4000, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    FraudRiskLevel = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    ReviewNote = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    ReportedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_BreakdownReports", x => x.Id);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
+            // CREATE TABLE IF NOT EXISTS so the migration is safe to replay.
+            migrationBuilder.Sql("""
+                CREATE TABLE IF NOT EXISTS `BreakdownReports` (
+                    `Id`            char(36) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+                    `DriverId`      char(36) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+                    `VehicleId`     char(36) CHARACTER SET ascii COLLATE ascii_general_ci NULL,
+                    `Latitude`      double NOT NULL,
+                    `Longitude`     double NOT NULL,
+                    `PhotoUrlsJson` varchar(4000) CHARACTER SET utf8mb4 NOT NULL,
+                    `FraudRiskLevel` varchar(20) CHARACTER SET utf8mb4 NOT NULL,
+                    `ReviewNote`    varchar(500) CHARACTER SET utf8mb4 NULL,
+                    `ReportedAt`    datetime(6) NOT NULL,
+                    CONSTRAINT `PK_BreakdownReports` PRIMARY KEY (`Id`)
+                ) CHARACTER SET=utf8mb4;
+                """);
 
-            migrationBuilder.CreateTable(
-                name: "DriverSwapRecords",
-                schema: "driver",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    OriginalDriverId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    ReplacementDriverId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    ShipmentId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    OccurredAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_DriverSwapRecords", x => x.Id);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
+            migrationBuilder.Sql("""
+                CREATE TABLE IF NOT EXISTS `DriverSwapRecords` (
+                    `Id`                  char(36) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+                    `OriginalDriverId`    char(36) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+                    `ReplacementDriverId` char(36) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+                    `ShipmentId`          char(36) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+                    `OccurredAt`          datetime(6) NOT NULL,
+                    CONSTRAINT `PK_DriverSwapRecords` PRIMARY KEY (`Id`)
+                ) CHARACTER SET=utf8mb4;
+                """);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_BreakdownReports_DriverId",
-                table: "BreakdownReports",
-                schema: "driver",
-                column: "DriverId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_BreakdownReports_ReportedAt",
-                table: "BreakdownReports",
-                schema: "driver",
-                column: "ReportedAt");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_DriverSwapRecords_OriginalDriverId_ReplacementDriverId",
-                table: "DriverSwapRecords",
-                schema: "driver",
-                columns: new[] { "OriginalDriverId", "ReplacementDriverId" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_DriverSwapRecords_OccurredAt",
-                table: "DriverSwapRecords",
-                schema: "driver",
-                column: "OccurredAt");
+            migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS `IX_BreakdownReports_DriverId` ON `BreakdownReports` (`DriverId`);");
+            migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS `IX_BreakdownReports_ReportedAt` ON `BreakdownReports` (`ReportedAt`);");
+            migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS `IX_DriverSwapRecords_OriginalDriverId_ReplacementDriverId` ON `DriverSwapRecords` (`OriginalDriverId`, `ReplacementDriverId`);");
+            migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS `IX_DriverSwapRecords_OccurredAt` ON `DriverSwapRecords` (`OccurredAt`);");
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
