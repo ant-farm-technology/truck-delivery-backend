@@ -46,7 +46,11 @@ public sealed class CreateOrderCommandHandler(
             pickupResult.Value,
             deliveryResult.Value,
             items,
-            request.Notes);
+            request.Notes,
+            request.PickupAddress.Latitude,
+            request.PickupAddress.Longitude,
+            request.DeliveryAddress.Latitude,
+            request.DeliveryAddress.Longitude);
 
         if (orderResult.IsFailure)
             return Result.Failure<CreateOrderResult>(orderResult.Error);
@@ -67,7 +71,11 @@ public sealed class CreateOrderCommandHandler(
             order.DeliveryAddress.Province,
             order.TotalWeightKg,
             order.TotalVolumeCbm,
-            itemInfos);
+            itemInfos,
+            order.PickupLatitude,
+            order.PickupLongitude,
+            order.DeliveryLatitude,
+            order.DeliveryLongitude);
 
         await outboxRepository.AddAsync(OutboxMessage.Create(
             eventType: nameof(OrderCreatedEvent),

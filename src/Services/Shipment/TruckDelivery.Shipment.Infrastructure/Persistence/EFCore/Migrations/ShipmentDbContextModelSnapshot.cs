@@ -103,6 +103,14 @@ namespace TruckDelivery.Shipment.Infrastructure.Persistence.EFCore.Migrations
                         .HasColumnType("varchar(100)")
                         .HasColumnName("delivery_city");
 
+                    b.Property<double?>("DeliveryLatitude")
+                        .HasColumnType("double")
+                        .HasColumnName("delivery_lat");
+
+                    b.Property<double?>("DeliveryLongitude")
+                        .HasColumnType("double")
+                        .HasColumnName("delivery_lng");
+
                     b.Property<string>("DeliveryProvince")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -114,9 +122,19 @@ namespace TruckDelivery.Shipment.Infrastructure.Persistence.EFCore.Migrations
                         .HasColumnType("varchar(500)")
                         .HasColumnName("failure_reason");
 
+                    b.Property<bool>("IsBreakdownReassignment")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_breakdown_reassignment");
+
                     b.Property<Guid>("OrderId")
                         .HasColumnType("char(36)")
                         .HasColumnName("order_id");
+
+                    b.Property<Guid?>("OriginalBreakdownDriverId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("original_breakdown_driver_id");
 
                     b.Property<string>("PackagesJson")
                         .HasColumnType("longtext")
@@ -127,6 +145,14 @@ namespace TruckDelivery.Shipment.Infrastructure.Persistence.EFCore.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)")
                         .HasColumnName("pickup_city");
+
+                    b.Property<double?>("PickupLatitude")
+                        .HasColumnType("double")
+                        .HasColumnName("pickup_lat");
+
+                    b.Property<double?>("PickupLongitude")
+                        .HasColumnType("double")
+                        .HasColumnName("pickup_lng");
 
                     b.Property<string>("PickupProvince")
                         .IsRequired()

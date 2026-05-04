@@ -7,4 +7,5 @@ public sealed record CreatePaymentCommand(
     Guid OrderId,
     Guid CustomerId,
     decimal Amount,
-    string Currency = "VND") : IRequest<Result<Guid>>;
+    string Currency = "VND",
+    Guid? DriverId = null) : IRequest<Result<Guid>>;

@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -22,6 +23,29 @@ Log.Logger = new LoggerConfiguration()
 builder.Host.UseSerilog();
 
 builder.Services.AddControllers();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Shipment API", Version = "v1" });
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Enter JWT token"
+    });
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 builder.Services.AddMediatR(cfg =>
 {
@@ -70,7 +94,16 @@ var app = builder.Build();
 
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<GlobalExceptionMiddleware>();
-app.UseSerilogRequestLogging();
+app.UseSwagger();
+app.UseSerilogRequestLogging(o =>
+{
+    o.EnrichDiagnosticContext = (diag, ctx) =>
+    {
+        diag.Set("CorrelationId", ctx.Request.Headers["X-Correlation-Id"].ToString());
+        diag.Set("UserId", ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "-");
+        diag.Set("UserAgent", ctx.Request.Headers.UserAgent.ToString());
+    };
+});
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
@@ -79,3 +112,4 @@ app.MapHealthChecks("/ready");
 app.MapPrometheusScrapingEndpoint("/metrics");
 
 await app.RunAsync();
+public partial class Program { }

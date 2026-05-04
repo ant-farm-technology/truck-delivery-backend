@@ -13,4 +13,8 @@ public sealed record CreateShipmentCommand(
     string DeliveryProvince,
     decimal TotalWeightKg,
     decimal TotalVolumeCbm,
-    IReadOnlyList<ShipmentPackageInfo>? Packages = null) : IRequest<Result<Guid>>;
+    IReadOnlyList<ShipmentPackageInfo>? Packages = null,
+    double? PickupLatitude = null,
+    double? PickupLongitude = null,
+    double? DeliveryLatitude = null,
+    double? DeliveryLongitude = null) : IRequest<Result<Guid>>;

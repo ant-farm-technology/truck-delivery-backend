@@ -35,6 +35,7 @@ class DriverInfo(BaseModel):
     location_index: int = Field(ge=0, description="Index in distance_matrix for current location")
     max_weight_kg: float = Field(gt=0)
     max_volume_cbm: float = Field(gt=0)
+    license_grade: str | None = Field(default=None, description="Driver license grade, e.g. B2, C, FC, FD")
 
 
 class OrderInfo(BaseModel):
@@ -66,3 +67,6 @@ class OptimizeRequest(BaseModel):
     depot_index: int = Field(default=0, ge=0, description="Depot location index")
     solver_timeout_seconds: int | None = Field(default=None, ge=1, le=30)
     enable_lifo: bool = Field(default=False, description="Enforce LIFO (Last-In-First-Out) loading order — requires time_matrix for OR-Tools constraints; greedy fallback is always LIFO-aware when enabled")
+    # License grade eligibility filter — drivers whose license_grade is not in this list are excluded
+    # Mapping: B2 → Motorbike/Van; C → Truck3T/5T/10T; FC/FD → Truck15T; B1/E → ineligible
+    required_license_grades: list[str] | None = Field(default=None, description="Allowed license grades. If set, drivers without a matching grade are excluded before optimization.")

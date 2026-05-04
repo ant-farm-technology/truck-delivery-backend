@@ -108,7 +108,11 @@ public sealed class OrderCreatedConsumer(
             @event.DeliveryProvince,
             @event.TotalWeightKg,
             @event.TotalVolumeCbm,
-            @event.Items);
+            @event.Items,
+            @event.PickupLatitude,
+            @event.PickupLongitude,
+            @event.DeliveryLatitude,
+            @event.DeliveryLongitude);
 
         var commandResult = await mediator.Send(command, ct);
         if (commandResult.IsFailure)

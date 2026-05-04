@@ -7,4 +7,5 @@ public sealed record DriverAssignmentRequestedEvent(
     Guid OrderId,
     decimal TotalWeightKg,
     decimal TotalVolumeCbm,
-    double DistanceMeters) : IntegrationEvent;
+    double DistanceMeters,
+    IReadOnlyList<string>? RequiredLicenseGrades = null) : IntegrationEvent;

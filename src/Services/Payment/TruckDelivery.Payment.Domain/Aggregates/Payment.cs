@@ -1,5 +1,6 @@
 using TruckDelivery.Payment.Domain.Events;
 using TruckDelivery.Payment.Domain.Exceptions;
+using TruckDelivery.Payment.Domain.ValueObjects;
 using TruckDelivery.Shared.Common.Domain;
 
 namespace TruckDelivery.Payment.Domain.Aggregates;
@@ -8,11 +9,13 @@ public sealed class Payment : AggregateRoot<Guid>
 {
     private Payment() { }
 
-    private Payment(Guid id, Guid orderId, Guid customerId, decimal amount, string currency) : base(id)
+    private Payment(Guid id, Guid orderId, Guid customerId, Guid? driverId, decimal amount, PaymentMethod method, string currency) : base(id)
     {
         OrderId = orderId;
         CustomerId = customerId;
+        DriverId = driverId;
         Amount = amount;
+        Method = method;
         Currency = currency;
         Status = PaymentStatus.Created;
         CreatedAt = DateTime.UtcNow;
@@ -21,17 +24,20 @@ public sealed class Payment : AggregateRoot<Guid>
 
     public Guid OrderId { get; private set; }
     public Guid CustomerId { get; private set; }
+    public Guid? DriverId { get; private set; }
     public decimal Amount { get; private set; }
     public string Currency { get; private set; } = "VND";
+    public PaymentMethod Method { get; private set; }
     public PaymentStatus Status { get; private set; }
     public string? FailureReason { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
 
-    public static Payment Create(Guid orderId, Guid customerId, decimal amount, string currency = "VND")
+    public static Payment Create(Guid orderId, Guid customerId, decimal amount,
+        PaymentMethod method = PaymentMethod.Cod, string currency = "VND", Guid? driverId = null)
     {
         if (amount <= 0) throw new PaymentDomainException("Payment amount must be positive.");
-        var payment = new Payment(Guid.NewGuid(), orderId, customerId, amount, currency);
+        var payment = new Payment(Guid.NewGuid(), orderId, customerId, driverId, amount, method, currency);
         payment.RaiseDomainEvent(new PaymentCreatedDomainEvent(payment.Id, orderId, customerId, amount));
         return payment;
     }

@@ -19,7 +19,7 @@ public sealed class CreatePaymentCommandHandler(
         if (existing is not null)
             return Result.Failure<Guid>(Error.Conflict("Payment", $"Payment for order {request.OrderId} already exists."));
 
-        var payment = Domain.Aggregates.Payment.Create(request.OrderId, request.CustomerId, request.Amount, request.Currency);
+        var payment = Domain.Aggregates.Payment.Create(request.OrderId, request.CustomerId, request.Amount, driverId: request.DriverId);
         payment.MarkPending();
         // Simulate immediate completion for COD flow — real impl would call payment gateway
         payment.Authorize();

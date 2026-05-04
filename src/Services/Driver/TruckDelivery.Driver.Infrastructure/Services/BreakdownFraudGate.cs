@@ -55,7 +55,7 @@ public sealed class BreakdownFraudGate(
             if (!cached.HasValue)
                 return FraudRiskLevel.Low; // no cache = cannot assess, assume low risk
 
-            var gps = JsonSerializer.Deserialize<CachedGps>(cached!);
+            var gps = JsonSerializer.Deserialize<CachedGps>((string)cached!);
             if (gps is null)
                 return FraudRiskLevel.Low;
 

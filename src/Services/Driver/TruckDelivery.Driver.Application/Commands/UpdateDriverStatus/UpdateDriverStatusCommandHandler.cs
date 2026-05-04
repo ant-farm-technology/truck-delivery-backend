@@ -16,6 +16,10 @@ public sealed class UpdateDriverStatusCommandHandler(
 {
     public async Task<Result> Handle(UpdateDriverStatusCommand request, CancellationToken ct)
     {
+        // Driver role can only update their own status
+        if (request.RequestingUserRole == "Driver" && request.RequestingUserId != request.DriverId)
+            return Result.Failure(Error.Forbidden("Driver.Authorization", "Drivers can only update their own status."));
+
         var driver = await driverRepository.GetByIdAsync(request.DriverId, ct);
         if (driver is null)
             return Result.Failure(Error.NotFound("Driver", request.DriverId));

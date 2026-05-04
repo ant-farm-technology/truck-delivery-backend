@@ -2,6 +2,7 @@ using Confluent.Kafka;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using TruckDelivery.Notification.Application.Commands.RegisterDevice;
 using TruckDelivery.Notification.Application.Consumers;
 using TruckDelivery.Notification.Application.Interfaces;
 using TruckDelivery.Notification.Domain.Repositories;
@@ -21,7 +22,7 @@ public static class ServiceCollectionExtensions
         IConfiguration configuration)
     {
         AddEfCore(services, configuration);
-        AddNotificationSenders(services);
+        AddNotificationSenders(services, configuration);
         AddKafkaConsumers(services, configuration);
         return services;
     }
@@ -37,14 +38,30 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<IOutboxRepository, OutboxRepository<NotificationDbContext>>();
+        services.AddScoped<IDeviceTokenStore, DeviceTokenStore>();
+        services.AddHostedService<TruckDelivery.Shared.Infrastructure.Persistence.DatabaseInitializerService<NotificationDbContext>>();
         services.AddHostedService<OutboxProcessor<NotificationDbContext>>();
     }
 
-    private static void AddNotificationSenders(IServiceCollection services)
+    private static void AddNotificationSenders(IServiceCollection services, IConfiguration configuration)
     {
-        services.AddScoped<IPushNotificationSender, StubPushSender>();
-        services.AddScoped<ISmsNotificationSender, StubSmsSender>();
-        services.AddScoped<IEmailNotificationSender, StubEmailSender>();
+        // Use real FCM sender when credentials are configured; fall back to stub otherwise
+        if (!string.IsNullOrWhiteSpace(configuration["Firebase:CredentialsJson"]))
+            services.AddScoped<IPushNotificationSender, FcmPushSender>();
+        else
+            services.AddScoped<IPushNotificationSender, StubPushSender>();
+
+        // Use real Twilio sender when credentials are configured; fall back to stub otherwise
+        if (!string.IsNullOrWhiteSpace(configuration["Twilio:AccountSid"]))
+            services.AddScoped<ISmsNotificationSender, TwilioSmsSender>();
+        else
+            services.AddScoped<ISmsNotificationSender, StubSmsSender>();
+
+        // Use real SMTP sender when host is configured; fall back to stub otherwise
+        if (!string.IsNullOrWhiteSpace(configuration["Smtp:Host"]))
+            services.AddScoped<IEmailNotificationSender, SmtpEmailSender>();
+        else
+            services.AddScoped<IEmailNotificationSender, StubEmailSender>();
     }
 
     private static void AddKafkaConsumers(IServiceCollection services, IConfiguration configuration)
@@ -66,12 +83,13 @@ public static class ServiceCollectionExtensions
             new ProducerBuilder<string, string>(new ProducerConfig
             {
                 BootstrapServers = bootstrapServers,
-                Acks = Acks.Leader,
+                Acks = Acks.All,
                 EnableIdempotence = true
             }).Build());
 
         services.AddHostedService<DriverAssignedConsumer>();
         services.AddHostedService<ShipmentStatusUpdatedConsumer>();
         services.AddHostedService<PaymentCompletedConsumer>();
+        services.AddHostedService<DriverManualReviewConsumer>();
     }
 }

@@ -8,5 +8,6 @@ public enum OrderStatus
     PickedUp = 4,
     InTransit = 5,
     Delivered = 6,
-    Cancelled = 7
+    Cancelled = 7,
+    Completed = 8
 }

@@ -16,6 +16,9 @@ public sealed class DriverRepository(DriverDbContext dbContext) : IDriverReposit
     public async Task<bool> ExistsByIdAsync(Guid id, CancellationToken ct = default) =>
         await dbContext.Drivers.AnyAsync(d => d.Id == id, ct);
 
+    public async Task<bool> ExistsByIdCardNumberAsync(string idCardNumber, CancellationToken ct = default) =>
+        await dbContext.Drivers.AnyAsync(d => d.IdCardNumber == idCardNumber, ct);
+
     public async Task<IReadOnlyList<Domain.Aggregates.Driver>> GetAvailableDriversAsync(CancellationToken ct = default)
     {
         var drivers = await dbContext.Drivers

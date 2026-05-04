@@ -1,0 +1,54 @@
+name: Load Tests (k6)
+
+on:
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: 'Which scenario to run'
+        required: true
+        default: '01-order-creation-load'
+        type: choice
+        options:
+          - 01-order-creation-load
+          - 02-tracking-spike
+          - 03-kafka-throughput
+      gateway_url:
+        description: 'Gateway URL (staging/prod)'
+        required: true
+        default: 'http://localhost:8080'
+
+jobs:
+  load-test:
+    name: k6 Load Test — ${{ github.event.inputs.scenario }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring \
+            --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 \
+            --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6 -y
+
+      - name: Run k6 scenario
+        run: |
+          mkdir -p tests/LoadTests/results
+          k6 run \
+            --env GATEWAY_URL=${{ github.event.inputs.gateway_url }} \
+            tests/LoadTests/k6/${{ github.event.inputs.scenario }}.js
+        continue-on-error: true  # Upload results even on threshold failure
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-test-results-${{ github.event.inputs.scenario }}
+          path: tests/LoadTests/results/

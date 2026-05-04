@@ -1,0 +1,106 @@
+name: Docker Build & Push
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*.*.*']
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/truck-delivery
+
+jobs:
+  build-dotnet-services:
+    name: Build .NET Services
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - name: gateway
+            path: src/Gateway/TruckDelivery.Gateway
+          - name: identity
+            path: src/Services/Identity/TruckDelivery.Identity.Api
+          - name: order
+            path: src/Services/Order/TruckDelivery.Order.Api
+          - name: driver
+            path: src/Services/Driver/TruckDelivery.Driver.Api
+          - name: shipment
+            path: src/Services/Shipment/TruckDelivery.Shipment.Api
+          - name: tracking
+            path: src/Services/Tracking/TruckDelivery.Tracking.Api
+          - name: notification
+            path: src/Services/Notification/TruckDelivery.Notification.Api
+          - name: payment
+            path: src/Services/Payment/TruckDelivery.Payment.Api
+          - name: analytics
+            path: src/Services/Analytics/TruckDelivery.Analytics.Api
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push ${{ matrix.service.name }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.service.path }}/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.service.name }}:latest
+
+  build-rust-service:
+    name: Build Rust Route Service
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push route service
+        uses: docker/build-push-action@v5
+        with:
+          context: src/Services/Route/truck-delivery-route
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-route:latest
+
+  build-python-services:
+    name: Build Python Services
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - name: optimizer
+            path: src/Services/Optimizer/truck-delivery-optimizer
+          - name: ocr
+            path: src/Services/OCR/truck-delivery-ocr
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push ${{ matrix.service.name }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.service.path }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.service.name }}:latest

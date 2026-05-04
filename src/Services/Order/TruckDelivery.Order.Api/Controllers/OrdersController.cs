@@ -5,6 +5,7 @@ using TruckDelivery.Order.Application.Commands.CancelOrder;
 using TruckDelivery.Order.Application.Commands.CreateOrder;
 using TruckDelivery.Order.Application.DTOs;
 using TruckDelivery.Order.Application.Queries.GetOrderById;
+using TruckDelivery.Order.Application.Queries.GetPricingEstimate;
 using TruckDelivery.Order.Application.Queries.ListOrdersByCustomer;
 
 namespace TruckDelivery.Order.Api.Controllers;
@@ -39,9 +40,13 @@ public sealed class OrdersController(IMediator mediator) : ControllerBase
         [FromQuery] Guid customerId,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
+        [FromQuery] string? status = null,
+        [FromQuery] DateTime? dateFrom = null,
+        [FromQuery] DateTime? dateTo = null,
         CancellationToken ct = default)
     {
-        var result = await mediator.Send(new ListOrdersByCustomerQuery(customerId, page, pageSize), ct);
+        var result = await mediator.Send(
+            new ListOrdersByCustomerQuery(customerId, page, pageSize, status, dateFrom, dateTo), ct);
         if (result.IsFailure)
             return BadRequest(new { result.Error.Code, result.Error.Description });
 
@@ -60,6 +65,27 @@ public sealed class OrdersController(IMediator mediator) : ControllerBase
             return BadRequest(new { result.Error.Code, result.Error.Description });
 
         return NoContent();
+    }
+
+    [HttpGet("pricing/estimate")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(PricingEstimateDto), 200)]
+    [ProducesResponseType(400)]
+    public async Task<IActionResult> GetPricingEstimate(
+        [FromQuery] string vehicleType,
+        [FromQuery] double pickupLat,
+        [FromQuery] double pickupLng,
+        [FromQuery] double deliveryLat,
+        [FromQuery] double deliveryLng,
+        [FromQuery] decimal weightKg = 0,
+        CancellationToken ct = default)
+    {
+        var query = new GetPricingEstimateQuery(vehicleType, pickupLat, pickupLng, deliveryLat, deliveryLng, weightKg);
+        var result = await mediator.Send(query, ct);
+        if (result.IsFailure)
+            return BadRequest(new { result.Error.Code, result.Error.Description });
+
+        return Ok(result.Value);
     }
 
     private Guid GetRequesterId()

@@ -10,4 +10,8 @@ public sealed record DriverBreakdownReportedDomainEvent(
     double Longitude,
     IReadOnlyList<string> PhotoUrls,
     int TrustScore,
-    FraudRiskLevel FraudRiskLevel) : IDomainEvent;
+    FraudRiskLevel FraudRiskLevel) : IDomainEvent
+{
+    public Guid EventId { get; } = Guid.NewGuid();
+    public DateTime OccurredAt { get; } = DateTime.UtcNow;
+}

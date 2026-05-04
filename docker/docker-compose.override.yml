@@ -19,7 +19,7 @@ services:
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
       AUTH_TYPE: disabled
     ports:
-      - "8090:8080"
+      - "8094:8080"
     networks:
       - truck-messaging
 

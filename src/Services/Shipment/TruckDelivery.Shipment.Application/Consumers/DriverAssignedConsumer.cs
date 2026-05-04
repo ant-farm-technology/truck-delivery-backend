@@ -144,7 +144,7 @@ public sealed class DriverAssignedConsumer(
                     (double)@event.VehicleHeightM.Value, (double)@event.VehicleMaxWeightKg,
                     measuredPackages);
 
-                var binResult = await binCheckService.CheckAsync(binRequest, ct);
+                var binResult = await BinCheckWithRetryAsync(binRequest, ct);
                 if (binResult?.RequiresDispatcherConfirmation == true)
                 {
                     needsDispatcherConfirmation = true;
@@ -205,6 +205,24 @@ public sealed class DriverAssignedConsumer(
         await shipmentRepository.UpdateAsync(shipment, ct);
         await unitOfWork.SaveChangesAsync(ct);
         await idempotencyStore.MarkProcessedAsync(@event.MessageId, ct);
+    }
+
+    private async Task<BinCheckServiceResult?> BinCheckWithRetryAsync(BinCheckServiceRequest request, CancellationToken ct)
+    {
+        const int maxAttempts = 3;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                return await binCheckService.CheckAsync(request, ct);
+            }
+            catch (HttpRequestException ex) when (attempt < maxAttempts)
+            {
+                logger.LogWarning(ex, "Bin-check attempt {Attempt}/{Max} failed, retrying in {Delay}s", attempt, maxAttempts, attempt * 2);
+                await Task.Delay(TimeSpan.FromSeconds(attempt * 2), ct);
+            }
+        }
+        return await binCheckService.CheckAsync(request, ct);
     }
 
     private async Task RouteToDlqAsync(ConsumeResult<string, string> result, Exception ex, CancellationToken ct)

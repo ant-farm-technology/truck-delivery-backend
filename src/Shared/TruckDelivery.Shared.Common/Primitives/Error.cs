@@ -12,4 +12,6 @@ public sealed record Error(string Code, string Description)
     public static Error Validation(string property, string reason) => new($"Validation.{property}", reason);
 
     public static Error Unauthorized(string reason) => new("Auth.Unauthorized", reason);
+
+    public static Error Forbidden(string resource, string reason) => new($"{resource}.Forbidden", reason);
 }

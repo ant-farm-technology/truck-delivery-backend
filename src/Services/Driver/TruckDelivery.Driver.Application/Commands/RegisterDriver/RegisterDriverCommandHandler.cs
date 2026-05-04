@@ -25,7 +25,12 @@ public sealed class RegisterDriverCommandHandler(
             request.FirstName,
             request.LastName,
             request.PhoneNumber,
-            request.LicenseNumber);
+            request.LicenseNumber,
+            request.LicenseGrade,
+            request.LicenseExpiryDate,
+            request.DateOfBirth,
+            request.Address,
+            request.IdCardNumber);
 
         if (driverResult.IsFailure)
             return Result.Failure(driverResult.Error);

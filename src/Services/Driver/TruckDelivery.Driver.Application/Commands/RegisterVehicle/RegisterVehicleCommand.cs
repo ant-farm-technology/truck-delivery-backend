@@ -11,4 +11,9 @@ public sealed record RegisterVehicleCommand(
     VehicleType Type,
     decimal MaxWeightKg,
     decimal MaxVolumeCbm,
-    int YearOfManufacture) : IRequest<Result<Guid>>;
+    decimal LengthM,
+    decimal WidthM,
+    decimal HeightM,
+    int YearOfManufacture,
+    string RegistrationNumber,
+    DateOnly RegistrationExpiryDate) : IRequest<Result<Guid>>;

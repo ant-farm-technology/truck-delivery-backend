@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TruckDelivery.Tracking.Application.Commands.BatchUpdateLocation;
 using TruckDelivery.Tracking.Application.Commands.UpdateLocation;
 using TruckDelivery.Tracking.Application.DTOs;
 using TruckDelivery.Tracking.Domain.Repositories;
@@ -34,6 +35,26 @@ public sealed class TrackingController(IMediator mediator, ITrackingPointReposit
         return result.IsFailure ? BadRequest(result.Error.Description) : NoContent();
     }
 
+    // Called by Driver app to flush offline-cached GPS points after reconnect (max 100 per call)
+    [HttpPost("batch")]
+    [Authorize(Roles = "Driver")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(400)]
+    public async Task<IActionResult> BatchUpdateLocation(
+        [FromBody] BatchUpdateLocationRequest request,
+        CancellationToken ct)
+    {
+        var driverId = Guid.Parse(User.FindFirst("sub")?.Value
+            ?? throw new InvalidOperationException("Missing driver ID in token"));
+
+        var points = request.Points.Select(p => new LocationPointDto(
+            p.Latitude, p.Longitude, p.SpeedKmh, p.HeadingDeg, p.RecordedAt)).ToList();
+
+        var result = await mediator.Send(new BatchUpdateLocationCommand(driverId, points), ct);
+
+        return result.IsFailure ? BadRequest(result.Error.Description) : NoContent();
+    }
+
     // Returns recent GPS trail for a shipment
     [HttpGet("shipments/{shipmentId:guid}/points")]
     [Authorize]
@@ -52,3 +73,12 @@ public sealed record UpdateLocationRequest(
     double Longitude,
     double? SpeedKmh = null,
     double? HeadingDeg = null);
+
+public sealed record BatchLocationPoint(
+    double Latitude,
+    double Longitude,
+    DateTime RecordedAt,
+    double? SpeedKmh = null,
+    double? HeadingDeg = null);
+
+public sealed record BatchUpdateLocationRequest(IReadOnlyList<BatchLocationPoint> Points);

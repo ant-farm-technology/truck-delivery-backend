@@ -1,7 +1,18 @@
 # Frontend Integration Overview
 
 > Truck Delivery Backend — Integration Guide for Frontend Teams
-> Cập nhật: 2026-04-29
+> Cập nhật: 2026-04-30
+
+## Tài liệu chi tiết theo từng app
+
+| App | Tài liệu chi tiết |
+|---|---|
+| Driver App (Mobile) | [docs/mobile-integration/01-driver-app.md](mobile-integration/01-driver-app.md) |
+| Customer App (Mobile) | [docs/mobile-integration/02-customer-app.md](mobile-integration/02-customer-app.md) |
+
+> Tài liệu này là **overview chung**. Xem các file trên để có hướng dẫn đầy đủ từng màn hình, API call, SignalR, và error handling.
+
+---
 
 ---
 

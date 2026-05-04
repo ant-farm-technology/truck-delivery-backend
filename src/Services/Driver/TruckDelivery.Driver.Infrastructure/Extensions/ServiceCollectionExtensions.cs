@@ -2,6 +2,8 @@ using Confluent.Kafka;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Minio;
+using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using StackExchange.Redis;
 using TruckDelivery.Driver.Application.Consumers;
 using TruckDelivery.Driver.Application.Interfaces;
@@ -11,8 +13,6 @@ using TruckDelivery.Driver.Infrastructure.Persistence;
 using TruckDelivery.Driver.Infrastructure.Repositories;
 using TruckDelivery.Driver.Infrastructure.Services;
 using TruckDelivery.Shared.Common.Persistence;
-using TruckDelivery.Shared.Infrastructure.Messaging;
-using TruckDelivery.Shared.Infrastructure.Messaging.Kafka;
 using TruckDelivery.Shared.Infrastructure.Messaging.Outbox;
 using TruckDelivery.Shared.Infrastructure.Persistence.Outbox;
 
@@ -28,7 +28,8 @@ public static class ServiceCollectionExtensions
             ?? throw new InvalidOperationException("ConnectionStrings:DriverDb not configured");
 
         services.AddDbContext<DriverDbContext>(opts =>
-            opts.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+            opts.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString),
+                mysqlOpts => mysqlOpts.SchemaBehavior(MySqlSchemaBehavior.Ignore)));
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IDriverRepository, DriverRepository>();
@@ -36,11 +37,25 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IBreakdownReportRepository, BreakdownReportRepository>();
         services.AddScoped<IDriverSwapRecordRepository, DriverSwapRecordRepository>();
         services.AddScoped<IOutboxRepository, OutboxRepository<DriverDbContext>>();
+        services.AddHostedService<TruckDelivery.Shared.Infrastructure.Persistence.DatabaseInitializerService<DriverDbContext>>();
 
         var redisConnection = configuration.GetConnectionString("Redis")
             ?? throw new InvalidOperationException("ConnectionStrings:Redis not configured");
         services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConnection));
         services.AddScoped<IBreakdownFraudGate, BreakdownFraudGate>();
+
+        var minioEndpoint = configuration["MinIO:Endpoint"] ?? "localhost:9000";
+        var minioAccessKey = configuration["MinIO:AccessKey"] ?? throw new InvalidOperationException("MinIO:AccessKey not configured");
+        var minioSecretKey = configuration["MinIO:SecretKey"] ?? throw new InvalidOperationException("MinIO:SecretKey not configured");
+        var minioUseSsl = bool.Parse(configuration["MinIO:UseSsl"] ?? "false");
+
+        services.AddSingleton<IMinioClient>(_ =>
+            new MinioClient()
+                .WithEndpoint(minioEndpoint)
+                .WithCredentials(minioAccessKey, minioSecretKey)
+                .WithSSL(minioUseSsl)
+                .Build());
+        services.AddScoped<IStorageService, MinIOStorageService>();
 
         var bootstrapServers = configuration["Kafka:BootstrapServers"]
             ?? throw new InvalidOperationException("Kafka:BootstrapServers not configured");
@@ -50,11 +65,9 @@ public static class ServiceCollectionExtensions
             new ProducerBuilder<string, string>(new ProducerConfig
             {
                 BootstrapServers = bootstrapServers,
-                Acks = Acks.Leader,
+                Acks = Acks.All,
                 EnableIdempotence = true
             }).Build());
-
-        services.AddScoped<IEventBus, KafkaEventBus>();
 
         // Each BackgroundService consumer creates its own IConsumer via ConsumerConfig
         services.AddSingleton(new ConsumerConfig
@@ -67,6 +80,7 @@ public static class ServiceCollectionExtensions
 
         services.AddHostedService<UserRegisteredConsumer>();
         services.AddHostedService<BreakdownReassignmentConsumer>();
+        services.AddHostedService<DriverOcrVerificationCompletedConsumer>();
         services.AddHostedService<FraudPatternAnalyzerJob>();
         services.AddHostedService<OutboxProcessor<DriverDbContext>>();
 

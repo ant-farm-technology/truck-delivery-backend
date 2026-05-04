@@ -3,6 +3,7 @@ using TruckDelivery.Notification.Application.Interfaces;
 
 namespace TruckDelivery.Notification.Infrastructure.Notifications;
 
+// TODO: Replace with real Twilio implementation when SMS credentials are available.
 public sealed class StubSmsSender(ILogger<StubSmsSender> logger) : ISmsNotificationSender
 {
     public Task SendAsync(string phone, string body, CancellationToken ct = default)

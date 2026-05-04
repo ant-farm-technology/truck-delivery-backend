@@ -17,6 +17,10 @@ public sealed class Order : AggregateRoot<Guid>
     public Guid CustomerId { get; private set; }
     public Address PickupAddress { get; private set; } = default!;
     public Address DeliveryAddress { get; private set; } = default!;
+    public double? PickupLatitude { get; private set; }
+    public double? PickupLongitude { get; private set; }
+    public double? DeliveryLatitude { get; private set; }
+    public double? DeliveryLongitude { get; private set; }
     public OrderStatus Status { get; private set; }
     public string? Notes { get; private set; }
     public decimal TotalWeightKg { get; private set; }
@@ -24,6 +28,7 @@ public sealed class Order : AggregateRoot<Guid>
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
     public string? CancellationReason { get; private set; }
+    public Guid? ShipmentId { get; private set; }
 
     public IReadOnlyList<OrderItem> Items => _items.AsReadOnly();
 
@@ -32,7 +37,11 @@ public sealed class Order : AggregateRoot<Guid>
         Address pickupAddress,
         Address deliveryAddress,
         IReadOnlyList<(string ProductName, int Quantity, decimal WeightKg, decimal VolumeCbm, decimal? LengthM, decimal? WidthM, decimal? HeightM, bool CanTilt, string? Notes)> items,
-        string? notes = null)
+        string? notes = null,
+        double? pickupLatitude = null,
+        double? pickupLongitude = null,
+        double? deliveryLatitude = null,
+        double? deliveryLongitude = null)
     {
         if (items.Count == 0)
             return Result.Failure<Order>(Error.Validation("Order.Items", "Order must have at least one item."));
@@ -42,6 +51,10 @@ public sealed class Order : AggregateRoot<Guid>
             CustomerId = customerId,
             PickupAddress = pickupAddress,
             DeliveryAddress = deliveryAddress,
+            PickupLatitude = pickupLatitude,
+            PickupLongitude = pickupLongitude,
+            DeliveryLatitude = deliveryLatitude,
+            DeliveryLongitude = deliveryLongitude,
             Status = OrderStatus.Pending,
             Notes = notes,
             CreatedAt = DateTime.UtcNow,
@@ -86,5 +99,11 @@ public sealed class Order : AggregateRoot<Guid>
 
         RaiseDomainEvent(new OrderStatusChangedDomainEvent(Id, oldStatus, newStatus));
         return Result.Success();
+    }
+
+    public void SetShipmentId(Guid shipmentId)
+    {
+        ShipmentId = shipmentId;
+        UpdatedAt = DateTime.UtcNow;
     }
 }

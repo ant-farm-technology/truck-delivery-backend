@@ -3,7 +3,7 @@ from functools import partial
 
 import structlog
 from fastapi import APIRouter, HTTPException, Request
-from opentelemetry import trace
+
 
 from optimizer.models.request import OptimizeRequest
 from optimizer.models.response import OptimizeResponse
@@ -26,6 +26,27 @@ async def optimize(request: OptimizeRequest, http_request: Request) -> OptimizeR
 
     tracer = get_tracer()
     with tracer.start_as_current_span("optimize") as span:
+        # Filter ineligible drivers by license grade before running VRP
+        if request.required_license_grades:
+            allowed = {g.upper() for g in request.required_license_grades}
+            eligible = [
+                d for d in request.drivers
+                if d.license_grade is not None and d.license_grade.upper() in allowed
+            ]
+            if not eligible:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"No eligible drivers for required license grades: {request.required_license_grades}",
+                )
+            if len(eligible) < len(request.drivers):
+                log.info(
+                    "license_grade_filter_applied",
+                    original=len(request.drivers),
+                    eligible=len(eligible),
+                    required_grades=request.required_license_grades,
+                )
+            request = request.model_copy(update={"drivers": eligible})
+
         span.set_attribute("optimizer.num_drivers", len(request.drivers))
         span.set_attribute("optimizer.num_orders", len(request.orders))
         span.set_attribute("optimizer.correlation_id", correlation_id)

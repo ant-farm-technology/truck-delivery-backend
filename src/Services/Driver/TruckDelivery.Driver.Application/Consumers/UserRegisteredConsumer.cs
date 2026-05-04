@@ -2,12 +2,10 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using Confluent.Kafka;
-using MediatR;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry;
 using OpenTelemetry.Context.Propagation;
-using TruckDelivery.Driver.Application.Commands.RegisterDriver;
 using TruckDelivery.Shared.Contracts.Events;
 using TruckDelivery.Shared.Infrastructure.Messaging.Kafka.Idempotency;
 
@@ -17,7 +15,6 @@ public sealed class UserRegisteredConsumer(
     ConsumerConfig consumerConfig,
     IProducer<string, string> producer,
     IIdempotencyStore idempotencyStore,
-    IMediator mediator,
     ILogger<UserRegisteredConsumer> logger)
     : BackgroundService
 {
@@ -97,18 +94,11 @@ public sealed class UserRegisteredConsumer(
             return;
         }
 
-        var command = new RegisterDriverCommand(
-            @event.UserId,
-            @event.Email,
-            @event.FirstName,
-            @event.LastName,
-            PhoneNumber: string.Empty,
-            LicenseNumber: string.Empty);
-
-        await mediator.Send(command, ct);
+        // Driver profile is created by the driver themselves via SelfRegisterDriverCommand.
+        // This consumer just acks the event so the offset advances.
         await idempotencyStore.MarkProcessedAsync(@event.MessageId, ct);
 
-        logger.LogInformation("Registered driver profile for UserId={UserId}", @event.UserId);
+        logger.LogInformation("Driver-role user registered UserId={UserId} — awaiting self-registration", @event.UserId);
     }
 
     private async Task RouteToDlqAsync(ConsumeResult<string, string> result, Exception ex, CancellationToken ct)

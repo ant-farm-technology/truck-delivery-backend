@@ -17,12 +17,18 @@ public sealed class VehicleConfiguration : IEntityTypeConfiguration<Vehicle>
         builder.Property(v => v.Type).HasConversion<int>().IsRequired();
         builder.Property(v => v.MaxWeightKg).HasColumnType("decimal(10,3)").IsRequired();
         builder.Property(v => v.MaxVolumeCbm).HasColumnType("decimal(10,3)").IsRequired();
+        builder.Property(v => v.LengthM).HasColumnType("decimal(8,3)").IsRequired();
+        builder.Property(v => v.WidthM).HasColumnType("decimal(8,3)").IsRequired();
+        builder.Property(v => v.HeightM).HasColumnType("decimal(8,3)").IsRequired();
         builder.Property(v => v.YearOfManufacture).IsRequired();
+        builder.Property(v => v.RegistrationNumber).HasMaxLength(50).IsRequired();
+        builder.Property(v => v.RegistrationExpiryDate).IsRequired();
         builder.Property(v => v.Status).HasConversion<int>().IsRequired();
         builder.Property(v => v.CreatedAt).IsRequired();
         builder.Property(v => v.UpdatedAt).IsRequired();
 
         builder.HasIndex(v => v.LicensePlate).IsUnique();
+        builder.HasIndex(v => v.RegistrationNumber).IsUnique();
         builder.HasIndex(v => v.Status);
         builder.HasIndex(v => v.AssignedDriverId);
     }

@@ -18,6 +18,7 @@ public sealed class ShipmentStartedConsumer(
     IProducer<string, string> producer,
     IIdempotencyStore idempotencyStore,
     IMediator mediator,
+    ITrackingNotifier trackingNotifier,
     ILogger<ShipmentStartedConsumer> logger)
     : BackgroundService
 {
@@ -98,6 +99,10 @@ public sealed class ShipmentStartedConsumer(
             await RouteToDlqAsync(result, new InvalidOperationException(commandResult.Error.Description), ct);
             return;
         }
+
+        // Push SignalR notification to driver so app knows a shipment was assigned
+        await trackingNotifier.NotifyDriverAssignedAsync(
+            @event.DriverId, @event.ShipmentId, @event.OrderId, @event.VehicleId, ct);
 
         await idempotencyStore.MarkProcessedAsync(@event.MessageId, ct);
         logger.LogInformation("Tracking started for ShipmentId={ShipmentId}", @event.ShipmentId);

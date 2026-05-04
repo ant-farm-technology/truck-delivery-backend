@@ -12,6 +12,9 @@ public sealed class TrackingPointRepository(IMongoDatabase database) : ITracking
     public async Task AddAsync(TrackingPoint point, CancellationToken ct = default)
         => await _collection.InsertOneAsync(point, cancellationToken: ct);
 
+    public async Task AddManyAsync(IReadOnlyList<TrackingPoint> points, CancellationToken ct = default)
+        => await _collection.InsertManyAsync(points, cancellationToken: ct);
+
     public async Task<IReadOnlyList<TrackingPoint>> GetByShipmentIdAsync(
         Guid shipmentId, int limit = 100, CancellationToken ct = default)
     {

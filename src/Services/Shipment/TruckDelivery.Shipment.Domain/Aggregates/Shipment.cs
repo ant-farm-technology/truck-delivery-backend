@@ -18,6 +18,10 @@ public sealed class Shipment : AggregateRoot<Guid>
     public string PickupProvince { get; private set; } = null!;
     public string DeliveryCity { get; private set; } = null!;
     public string DeliveryProvince { get; private set; } = null!;
+    public double? PickupLatitude { get; private set; }
+    public double? PickupLongitude { get; private set; }
+    public double? DeliveryLatitude { get; private set; }
+    public double? DeliveryLongitude { get; private set; }
     public decimal TotalWeightKg { get; private set; }
     public decimal TotalVolumeCbm { get; private set; }
     public Guid? AssignedDriverId { get; private set; }
@@ -41,7 +45,11 @@ public sealed class Shipment : AggregateRoot<Guid>
         string deliveryCity,
         string deliveryProvince,
         decimal totalWeightKg,
-        decimal totalVolumeCbm)
+        decimal totalVolumeCbm,
+        double? pickupLatitude = null,
+        double? pickupLongitude = null,
+        double? deliveryLatitude = null,
+        double? deliveryLongitude = null)
     {
         var shipment = new Shipment(Guid.NewGuid())
         {
@@ -52,6 +60,10 @@ public sealed class Shipment : AggregateRoot<Guid>
             PickupProvince = pickupProvince,
             DeliveryCity = deliveryCity,
             DeliveryProvince = deliveryProvince,
+            PickupLatitude = pickupLatitude,
+            PickupLongitude = pickupLongitude,
+            DeliveryLatitude = deliveryLatitude,
+            DeliveryLongitude = deliveryLongitude,
             TotalWeightKg = totalWeightKg,
             TotalVolumeCbm = totalVolumeCbm,
             CreatedAt = DateTime.UtcNow,
@@ -120,10 +132,11 @@ public sealed class Shipment : AggregateRoot<Guid>
 
     public Result Fail(string reason)
     {
+        var previousStatus = Status;
         FailureReason = reason;
         UpdatedAt = DateTime.UtcNow;
         Status = ShipmentStatus.Failed;
-        RaiseDomainEvent(new ShipmentStatusChangedDomainEvent(Id, OrderId, Status, ShipmentStatus.Failed));
+        RaiseDomainEvent(new ShipmentStatusChangedDomainEvent(Id, OrderId, previousStatus, ShipmentStatus.Failed));
         return Result.Success();
     }
 

@@ -11,7 +11,11 @@ public sealed record OrderCreatedEvent(
     string DeliveryProvince,
     decimal TotalWeightKg,
     decimal TotalVolumeCbm,
-    IReadOnlyList<OrderItemInfo> Items) : IntegrationEvent;
+    IReadOnlyList<OrderItemInfo> Items,
+    double? PickupLatitude = null,
+    double? PickupLongitude = null,
+    double? DeliveryLatitude = null,
+    double? DeliveryLongitude = null) : IntegrationEvent;
 
 public sealed record OrderItemInfo(
     Guid ItemId,

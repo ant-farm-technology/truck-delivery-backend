@@ -20,7 +20,7 @@ public sealed class GetOrderByIdQueryHandler(IDbConnectionFactory dbConnectionFa
                 o.DeliveryStreet, o.DeliveryCity, o.DeliveryProvince,
                 o.TotalWeightKg, o.TotalVolumeCbm,
                 o.Notes, o.CancellationReason,
-                o.CreatedAt, o.UpdatedAt
+                o.CreatedAt, o.UpdatedAt, o.ShipmentId
             FROM `order`.orders o
             WHERE o.Id = @OrderId
             """;
@@ -53,7 +53,8 @@ public sealed class GetOrderByIdQueryHandler(IDbConnectionFactory dbConnectionFa
             orderRow.CancellationReason,
             orderRow.CreatedAt,
             orderRow.UpdatedAt,
-            items.ToList());
+            items.ToList(),
+            orderRow.ShipmentId);
 
         return Result.Success(dto);
     }

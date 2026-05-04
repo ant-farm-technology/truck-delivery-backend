@@ -16,7 +16,12 @@ public sealed class Vehicle : AggregateRoot<Guid>
     public VehicleType Type { get; private set; }
     public decimal MaxWeightKg { get; private set; }
     public decimal MaxVolumeCbm { get; private set; }
+    public decimal LengthM { get; private set; }
+    public decimal WidthM { get; private set; }
+    public decimal HeightM { get; private set; }
     public int YearOfManufacture { get; private set; }
+    public string RegistrationNumber { get; private set; } = default!;
+    public DateOnly RegistrationExpiryDate { get; private set; }
     public VehicleStatus Status { get; private set; }
     public Guid? AssignedDriverId { get; private set; }
     public DateTime CreatedAt { get; private set; }
@@ -29,7 +34,12 @@ public sealed class Vehicle : AggregateRoot<Guid>
         VehicleType type,
         decimal maxWeightKg,
         decimal maxVolumeCbm,
-        int yearOfManufacture)
+        decimal lengthM,
+        decimal widthM,
+        decimal heightM,
+        int yearOfManufacture,
+        string registrationNumber,
+        DateOnly registrationExpiryDate)
     {
         if (string.IsNullOrWhiteSpace(licensePlate))
             return Result.Failure<Vehicle>(Error.Validation("Vehicle.LicensePlate", "License plate is required."));
@@ -37,6 +47,12 @@ public sealed class Vehicle : AggregateRoot<Guid>
             return Result.Failure<Vehicle>(Error.Validation("Vehicle.MaxWeightKg", "Max weight must be positive."));
         if (maxVolumeCbm <= 0)
             return Result.Failure<Vehicle>(Error.Validation("Vehicle.MaxVolumeCbm", "Max volume must be positive."));
+        if (lengthM <= 0 || widthM <= 0 || heightM <= 0)
+            return Result.Failure<Vehicle>(Error.Validation("Vehicle.Dimensions", "Cargo dimensions must be positive."));
+        if (string.IsNullOrWhiteSpace(registrationNumber))
+            return Result.Failure<Vehicle>(Error.Validation("Vehicle.RegistrationNumber", "Registration number is required."));
+        if (registrationExpiryDate <= DateOnly.FromDateTime(DateTime.UtcNow))
+            return Result.Failure<Vehicle>(Error.Validation("Vehicle.RegistrationExpiryDate", "Vehicle registration has expired."));
 
         var vehicle = new Vehicle(Guid.NewGuid())
         {
@@ -46,7 +62,12 @@ public sealed class Vehicle : AggregateRoot<Guid>
             Type = type,
             MaxWeightKg = maxWeightKg,
             MaxVolumeCbm = maxVolumeCbm,
+            LengthM = lengthM,
+            WidthM = widthM,
+            HeightM = heightM,
             YearOfManufacture = yearOfManufacture,
+            RegistrationNumber = registrationNumber,
+            RegistrationExpiryDate = registrationExpiryDate,
             Status = VehicleStatus.Available,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow

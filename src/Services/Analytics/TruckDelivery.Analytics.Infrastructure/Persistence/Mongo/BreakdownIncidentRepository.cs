@@ -45,27 +45,16 @@ public sealed class BreakdownIncidentRepository(IMongoDatabase database) : IBrea
 
     public async Task<double?> AverageRecoveryTimeMinutesAsync(DateTime from, CancellationToken ct = default)
     {
-        var pipeline = new[]
-        {
-            new BsonDocumentPipelineStageDefinition<BreakdownIncident, AverageResult>(
-                new MongoDB.Bson.BsonDocument("$match", new MongoDB.Bson.BsonDocument
-                {
-                    { "ReportedAt", new MongoDB.Bson.BsonDocument("$gte", from) },
-                    { "IsSuccessfullyReassigned", true },
-                    { "RecoveryTimeMinutes", new MongoDB.Bson.BsonDocument("$ne", MongoDB.Bson.BsonNull.Value) }
-                })),
-            new BsonDocumentPipelineStageDefinition<BreakdownIncident, AverageResult>(
-                new MongoDB.Bson.BsonDocument("$group", new MongoDB.Bson.BsonDocument
-                {
-                    { "_id", MongoDB.Bson.BsonNull.Value },
-                    { "avg", new MongoDB.Bson.BsonDocument("$avg", "$RecoveryTimeMinutes") }
-                }))
-        };
+        var filter = Builders<BreakdownIncident>.Filter.And(
+            Builders<BreakdownIncident>.Filter.Gte(i => i.ReportedAt, from),
+            Builders<BreakdownIncident>.Filter.Eq(i => i.IsSuccessfullyReassigned, true));
 
-        var result = await _collection.Aggregate(PipelineDefinition<BreakdownIncident, AverageResult>.Create(pipeline))
-            .FirstOrDefaultAsync(ct);
+        var incidents = await _collection.Find(filter).ToListAsync(ct);
+        var times = incidents.Where(i => i.RecoveryTimeMinutes.HasValue)
+                             .Select(i => (double)i.RecoveryTimeMinutes!.Value)
+                             .ToList();
 
-        return result?.Avg;
+        return times.Count == 0 ? null : times.Average();
     }
 
     public async Task<IReadOnlyList<(string RiskLevel, long Count)>> CountByRiskLevelAsync(DateTime from, CancellationToken ct = default)
@@ -78,9 +67,4 @@ public sealed class BreakdownIncidentRepository(IMongoDatabase database) : IBrea
             .ToList();
     }
 
-    private sealed class AverageResult
-    {
-        [MongoDB.Bson.Serialization.Attributes.BsonElement("avg")]
-        public double? Avg { get; set; }
-    }
 }

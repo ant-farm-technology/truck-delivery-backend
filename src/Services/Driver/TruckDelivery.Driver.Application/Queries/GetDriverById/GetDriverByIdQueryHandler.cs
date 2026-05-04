@@ -15,7 +15,8 @@ public sealed class GetDriverByIdQueryHandler(IDbConnectionFactory dbConnectionF
 
         const string sql = """
             SELECT Id, Email, FirstName, LastName, PhoneNumber, LicenseNumber,
-                   Status, CurrentVehicleId, IsActive, CreatedAt
+                   Status, VerificationStatus, LicenseGrade, TrustScore,
+                   CurrentVehicleId, IsActive, CreatedAt
             FROM driver.drivers
             WHERE Id = @DriverId
             """;
