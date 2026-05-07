@@ -1,3 +1,4 @@
+﻿using Xunit;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -10,8 +11,8 @@ using WireMock.ResponseBuilders;
 namespace TruckDelivery.E2E.Tests.Flows;
 
 /// <summary>
-/// End-to-end test: Breakdown Saga — driver reports breakdown → shipment moves to
-/// Reassigning → Breakdown Saga Orchestrator picks a replacement driver → reassignment completes.
+/// End-to-end test: Breakdown Saga â€” driver reports breakdown â†’ shipment moves to
+/// Reassigning â†’ Breakdown Saga Orchestrator picks a replacement driver â†’ reassignment completes.
 /// </summary>
 [Collection("E2E")]
 public sealed class BreakdownReassignmentFlowTests(E2ETestFixture fixture)
@@ -78,14 +79,14 @@ public sealed class BreakdownReassignmentFlowTests(E2ETestFixture fixture)
         var replacementDriverToken = JwtHelper.DriverToken(replacementDriverId);
         var customerToken = JwtHelper.CustomerToken(customerId);
 
-        // ── 1. Create 2 drivers: original + replacement ───────────────────────
+        // â”€â”€ 1. Create 2 drivers: original + replacement â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         var (origId, origVehicleId) = await CreateVerifiedDriverAsync(
             originalDriverId, "51A-BREAK-01", adminToken, originalDriverToken);
 
         var (replId, replVehicleId) = await CreateVerifiedDriverAsync(
             replacementDriverId, "51A-BREAK-02", adminToken, replacementDriverToken);
 
-        // ── 2. Create order ──────────────────────────────────────────────────
+        // â”€â”€ 2. Create order â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         SetBearer(fixture.OrderClient, customerToken);
         var createOrderResp = await fixture.OrderClient.PostAsJsonAsync("/api/v1/orders", new
         {
@@ -121,7 +122,7 @@ public sealed class BreakdownReassignmentFlowTests(E2ETestFixture fixture)
             ? od.GetProperty("orderId").GetGuid()
             : orderJson.GetProperty("orderId").GetGuid();
 
-        // ── 3. Stub Optimizer: first assigns original driver ─────────────────
+        // â”€â”€ 3. Stub Optimizer: first assigns original driver â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         fixture.WireMock
             .Given(Request.Create().WithPath("/route").UsingGet())
             .RespondWith(Response.Create()
@@ -153,7 +154,7 @@ public sealed class BreakdownReassignmentFlowTests(E2ETestFixture fixture)
                 .WithHeader("Content-Type", "application/json")
                 .WithBody("""{"all_fit":true,"requires_tilt":false,"requires_dispatcher_confirmation":false,"accessibility_warnings":[]}"""));
 
-        // ── 4. Wait for original driver to be assigned ────────────────────────
+        // â”€â”€ 4. Wait for original driver to be assigned â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         SetBearer(fixture.OrderClient, customerToken);
         await WaitForAsync.UntilAsync(
             async () => await fixture.OrderClient.GetFromJsonAsync<JsonElement>(
@@ -173,12 +174,12 @@ public sealed class BreakdownReassignmentFlowTests(E2ETestFixture fixture)
         var aData = orderData2.TryGetProperty("data", out var d2) ? d2 : orderData2;
         var shipmentId = aData.GetProperty("shipmentId").GetGuid();
 
-        // ── 5. Driver starts delivery (InProgress → driver pushes GPS to Redis)
+        // â”€â”€ 5. Driver starts delivery (InProgress â†’ driver pushes GPS to Redis)
         SetBearer(fixture.ShipmentClient, originalDriverToken);
         await fixture.ShipmentClient.PutAsJsonAsync(
             $"/api/v1/shipments/{shipmentId}/status", new { Status = "PickedUp" });
 
-        // ── 6. Stub Optimizer: for reassignment, assign replacement driver ────
+        // â”€â”€ 6. Stub Optimizer: for reassignment, assign replacement driver â”€â”€â”€â”€
         fixture.WireMock
             .Given(Request.Create().WithPath("/optimize").UsingPost())
             .AtPriority(5) // higher priority overrides the original stub
@@ -196,7 +197,7 @@ public sealed class BreakdownReassignmentFlowTests(E2ETestFixture fixture)
                     strategy_used = "vrp-reassignment"
                 })));
 
-        // ── 7. Original driver reports breakdown ─────────────────────────────
+        // â”€â”€ 7. Original driver reports breakdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         SetBearer(fixture.DriverClient, originalDriverToken);
         var breakdownResp = await fixture.DriverClient.PostAsJsonAsync(
             $"/api/v1/drivers/{origId}/report-breakdown", new
@@ -209,7 +210,7 @@ public sealed class BreakdownReassignmentFlowTests(E2ETestFixture fixture)
         breakdownResp.IsSuccessStatusCode.Should().BeTrue(
             $"Breakdown report failed: {await breakdownResp.Content.ReadAsStringAsync()}");
 
-        // ── 8. Wait for shipment to transition through Reassigning → eventually re-assigned ──
+        // â”€â”€ 8. Wait for shipment to transition through Reassigning â†’ eventually re-assigned â”€â”€
         SetBearer(fixture.ShipmentClient, adminToken);
         await WaitForAsync.UntilAsync(
             async () => await fixture.ShipmentClient.GetFromJsonAsync<JsonElement>(
@@ -227,6 +228,6 @@ public sealed class BreakdownReassignmentFlowTests(E2ETestFixture fixture)
 
         // Verify the breakdown was recorded
         breakdownResp.StatusCode.Should().NotBe(HttpStatusCode.UnprocessableEntity,
-            "Anti-fraud gate rejected the breakdown — check TrustScore or photo requirement");
+            "Anti-fraud gate rejected the breakdown â€” check TrustScore or photo requirement");
     }
 }

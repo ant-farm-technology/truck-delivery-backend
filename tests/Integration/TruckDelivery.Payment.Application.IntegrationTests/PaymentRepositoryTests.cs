@@ -1,3 +1,4 @@
+﻿using Xunit;
 using FluentAssertions;
 using TruckDelivery.Payment.Application.IntegrationTests.Fixtures;
 using TruckDelivery.Payment.Domain.Aggregates;
@@ -12,7 +13,7 @@ public sealed class PaymentRepositoryTests(PaymentTestFixture fixture)
     {
         var orderId = Guid.NewGuid();
         var customerId = Guid.NewGuid();
-        var payment = Domain.Aggregates.Payment.Create(orderId, customerId, 150_000m, "VND");
+        var payment = Domain.Aggregates.Payment.Create(orderId, customerId, 150_000m);
 
         await fixture.PaymentRepository.AddAsync(payment);
         await fixture.UnitOfWork.SaveChangesAsync();
@@ -31,7 +32,7 @@ public sealed class PaymentRepositoryTests(PaymentTestFixture fixture)
     public async Task Repository_Should_FindPayment_ByOrderId()
     {
         var orderId = Guid.NewGuid();
-        var payment = Domain.Aggregates.Payment.Create(orderId, Guid.NewGuid(), 50_000m, "VND");
+        var payment = Domain.Aggregates.Payment.Create(orderId, Guid.NewGuid(), 50_000m);
         await fixture.PaymentRepository.AddAsync(payment);
         await fixture.UnitOfWork.SaveChangesAsync();
 

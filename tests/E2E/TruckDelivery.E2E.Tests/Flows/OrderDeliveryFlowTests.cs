@@ -1,3 +1,4 @@
+﻿using Xunit;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -10,7 +11,7 @@ using WireMock.ResponseBuilders;
 namespace TruckDelivery.E2E.Tests.Flows;
 
 /// <summary>
-/// End-to-end test: Create Order → Driver Assigned → Deliver → COD Payment Completed.
+/// End-to-end test: Create Order â†’ Driver Assigned â†’ Deliver â†’ COD Payment Completed.
 /// Uses real Kafka events between in-process services and real MySQL/MongoDB databases.
 /// Optimizer and Route service are stubbed via WireMock.
 /// </summary>
@@ -22,9 +23,9 @@ public sealed class OrderDeliveryFlowTests(E2ETestFixture fixture)
         PropertyNameCaseInsensitive = true
     };
 
-    // ────────────────────────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Helpers
-    // ────────────────────────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private static void SetBearer(HttpClient client, string token) =>
         client.DefaultRequestHeaders.Authorization =
@@ -32,9 +33,9 @@ public sealed class OrderDeliveryFlowTests(E2ETestFixture fixture)
 
     /// <summary>
     /// Sets up WireMock stubs so the Shipment Dispatch Saga can:
-    /// 1. GET /route → distance/duration
-    /// 2. POST /optimize → assigns the given driver+vehicle to the given order
-    /// 3. POST /bin-check → all packages fit, no dispatcher confirmation needed
+    /// 1. GET /route â†’ distance/duration
+    /// 2. POST /optimize â†’ assigns the given driver+vehicle to the given order
+    /// 3. POST /bin-check â†’ all packages fit, no dispatcher confirmation needed
     /// </summary>
     private void StubExternalServices(Guid driverId, Guid vehicleId, Guid orderId)
     {
@@ -85,14 +86,14 @@ public sealed class OrderDeliveryFlowTests(E2ETestFixture fixture)
                     """));
     }
 
-    // ────────────────────────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Tests
-    // ────────────────────────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public async Task FullCodFlow_Should_CompleteOrder_And_AutoCompletePayment()
     {
-        // ── Setup IDs and tokens ──────────────────────────────────────────────
+        // â”€â”€ Setup IDs and tokens â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         var adminId = Guid.NewGuid();
         var driverUserId = Guid.NewGuid();
         var customerId = Guid.NewGuid();
@@ -101,18 +102,18 @@ public sealed class OrderDeliveryFlowTests(E2ETestFixture fixture)
         var driverToken = JwtHelper.DriverToken(driverUserId);
         var customerToken = JwtHelper.CustomerToken(customerId);
 
-        // ── 1. Admin registers driver via admin endpoint ──────────────────────
+        // â”€â”€ 1. Admin registers driver via admin endpoint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         SetBearer(fixture.DriverClient, adminToken);
         var registerDriverResp = await fixture.DriverClient.PostAsJsonAsync("/api/v1/drivers", new
         {
             UserId = driverUserId,
-            FullName = "Tài xế E2E",
+            FullName = "TÃ i xáº¿ E2E",
             LicenseGrade = "C",
             LicenseExpiryDate = "2030-01-01"
         });
         registerDriverResp.StatusCode.Should().BeOneOf(HttpStatusCode.Created, HttpStatusCode.OK);
 
-        // ── 2. Admin creates vehicle ──────────────────────────────────────────
+        // â”€â”€ 2. Admin creates vehicle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         var createVehicleResp = await fixture.DriverClient.PostAsJsonAsync("/api/v1/vehicles", new
         {
             LicensePlate = "51A-E2E-01",
@@ -134,24 +135,24 @@ public sealed class OrderDeliveryFlowTests(E2ETestFixture fixture)
             ? vData.GetProperty("vehicleId").GetGuid()
             : vehicleContent.GetProperty("vehicleId").GetGuid();
 
-        // ── 3. Admin assigns vehicle to driver ────────────────────────────────
+        // â”€â”€ 3. Admin assigns vehicle to driver â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         var assignResp = await fixture.DriverClient.PostAsJsonAsync(
             $"/api/v1/drivers/{driverUserId}/assign-vehicle",
             new { VehicleId = vehicleId });
         assignResp.StatusCode.Should().BeOneOf(HttpStatusCode.OK, HttpStatusCode.NoContent);
 
-        // ── 4. Admin verifies driver (skip OCR in E2E) ───────────────────────
+        // â”€â”€ 4. Admin verifies driver (skip OCR in E2E) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         var verifyResp = await fixture.DriverClient.PostAsJsonAsync(
             $"/api/v1/drivers/{driverUserId}/verify", new { });
         verifyResp.StatusCode.Should().BeOneOf(HttpStatusCode.OK, HttpStatusCode.NoContent);
 
-        // ── 5. Driver sets status to Available ────────────────────────────────
+        // â”€â”€ 5. Driver sets status to Available â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         SetBearer(fixture.DriverClient, driverToken);
         var availableResp = await fixture.DriverClient.PutAsJsonAsync(
             $"/api/v1/drivers/{driverUserId}/status", new { Status = "Available" });
         availableResp.StatusCode.Should().BeOneOf(HttpStatusCode.OK, HttpStatusCode.NoContent);
 
-        // ── 6. Customer creates order ──────────────────────────────────────────
+        // â”€â”€ 6. Customer creates order â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         SetBearer(fixture.OrderClient, customerToken);
         var createOrderResp = await fixture.OrderClient.PostAsJsonAsync("/api/v1/orders", new
         {
@@ -179,7 +180,7 @@ public sealed class OrderDeliveryFlowTests(E2ETestFixture fixture)
             {
                 new
                 {
-                    ProductName = "Tủ lạnh Samsung",
+                    ProductName = "Tá»§ láº¡nh Samsung",
                     Quantity = 1,
                     WeightKg = 45.0,
                     VolumeCbm = 0.756,
@@ -197,10 +198,10 @@ public sealed class OrderDeliveryFlowTests(E2ETestFixture fixture)
             ? oData.GetProperty("orderId").GetGuid()
             : orderContent.GetProperty("orderId").GetGuid();
 
-        // ── 7. Configure WireMock stubs with actual driver+vehicle+order IDs ──
+        // â”€â”€ 7. Configure WireMock stubs with actual driver+vehicle+order IDs â”€â”€
         StubExternalServices(driverUserId, vehicleId, orderId);
 
-        // ── 8. Wait for Saga to assign driver (Kafka events propagate) ─────────
+        // â”€â”€ 8. Wait for Saga to assign driver (Kafka events propagate) â”€â”€â”€â”€â”€â”€â”€â”€â”€
         var assignedOrder = await WaitForAsync.UntilAsync(
             async () =>
             {
@@ -218,28 +219,28 @@ public sealed class OrderDeliveryFlowTests(E2ETestFixture fixture)
             timeout: TimeSpan.FromSeconds(60),
             description: $"Order {orderId} Status=AssignedToDriver");
 
-        // ── 9. Get shipmentId from order ───────────────────────────────────────
+        // â”€â”€ 9. Get shipmentId from order â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         var orderData = assignedOrder.TryGetProperty("data", out var od) ? od : assignedOrder;
         var shipmentId = orderData.GetProperty("shipmentId").GetGuid();
         shipmentId.Should().NotBe(Guid.Empty);
 
-        // ── 10. Driver picks up the package ────────────────────────────────────
+        // â”€â”€ 10. Driver picks up the package â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         SetBearer(fixture.ShipmentClient, driverToken);
         var pickupResp = await fixture.ShipmentClient.PutAsJsonAsync(
             $"/api/v1/shipments/{shipmentId}/status", new { Status = "PickedUp" });
         pickupResp.IsSuccessStatusCode.Should().BeTrue();
 
-        // ── 11. Driver marks in transit ────────────────────────────────────────
+        // â”€â”€ 11. Driver marks in transit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         var transitResp = await fixture.ShipmentClient.PutAsJsonAsync(
             $"/api/v1/shipments/{shipmentId}/status", new { Status = "InTransit" });
         transitResp.IsSuccessStatusCode.Should().BeTrue();
 
-        // ── 12. Driver delivers ────────────────────────────────────────────────
+        // â”€â”€ 12. Driver delivers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         var deliverResp = await fixture.ShipmentClient.PutAsJsonAsync(
             $"/api/v1/shipments/{shipmentId}/status", new { Status = "Delivered" });
         deliverResp.IsSuccessStatusCode.Should().BeTrue();
 
-        // ── 13. Wait for COD payment to auto-complete ──────────────────────────
+        // â”€â”€ 13. Wait for COD payment to auto-complete â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         SetBearer(fixture.PaymentClient, customerToken);
         var payment = await WaitForAsync.UntilAsync(
             async () => await fixture.PaymentClient.GetFromJsonAsync<JsonElement>(

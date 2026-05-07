@@ -1,3 +1,4 @@
+﻿using Xunit;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
@@ -25,7 +26,7 @@ namespace TruckDelivery.E2E.Tests.Fixtures;
 /// </summary>
 public sealed class E2ETestFixture : IAsyncLifetime
 {
-    // ── Containers ──────────────────────────────────────────────────────────
+    // â”€â”€ Containers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     private readonly MySqlContainer _mysql = new MySqlBuilder()
         .WithImage("mysql:8.0")
         .WithDatabase("shared")
@@ -45,17 +46,17 @@ public sealed class E2ETestFixture : IAsyncLifetime
         .WithImage("redis:7-alpine")
         .Build();
 
-    // ── WireMock (Optimizer + Route service stubs) ───────────────────────────
+    // â”€â”€ WireMock (Optimizer + Route service stubs) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     public WireMockServer WireMock { get; private set; } = null!;
 
-    // ── WebApplicationFactories ──────────────────────────────────────────────
+    // â”€â”€ WebApplicationFactories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     private WebApplicationFactory<IdentityMarker> _identityFactory = null!;
     private WebApplicationFactory<OrderMarker> _orderFactory = null!;
     private WebApplicationFactory<DriverMarker> _driverFactory = null!;
     private WebApplicationFactory<ShipmentMarker> _shipmentFactory = null!;
     private WebApplicationFactory<PaymentMarker> _paymentFactory = null!;
 
-    // ── HTTP Clients ─────────────────────────────────────────────────────────
+    // â”€â”€ HTTP Clients â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     public HttpClient IdentityClient { get; private set; } = null!;
     public HttpClient OrderClient { get; private set; } = null!;
     public HttpClient DriverClient { get; private set; } = null!;

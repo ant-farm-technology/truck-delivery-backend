@@ -6,22 +6,12 @@ using TruckDelivery.Payment.Application.Interfaces;
 
 namespace TruckDelivery.Payment.Infrastructure.Gateways;
 
-public sealed class VnPayGateway : IPaymentGateway
+public sealed class VnPayGateway(IConfiguration configuration, ILogger<VnPayGateway> logger) : IPaymentGateway
 {
-    private readonly string _tmnCode;
-    private readonly string _hashSecret;
-    private readonly string _paymentUrl;
-    private readonly string _returnUrl;
-    private readonly ILogger<VnPayGateway> _logger;
-
-    public VnPayGateway(IConfiguration configuration, ILogger<VnPayGateway> logger)
-    {
-        _tmnCode = configuration["VnPay:TmnCode"] ?? throw new InvalidOperationException("VnPay:TmnCode not configured");
-        _hashSecret = configuration["VnPay:HashSecret"] ?? throw new InvalidOperationException("VnPay:HashSecret not configured");
-        _paymentUrl = configuration["VnPay:PaymentUrl"] ?? "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
-        _returnUrl = configuration["VnPay:ReturnUrl"] ?? throw new InvalidOperationException("VnPay:ReturnUrl not configured");
-        _logger = logger;
-    }
+    private readonly string _tmnCode = configuration["VnPay:TmnCode"] ?? throw new InvalidOperationException("VnPay:TmnCode not configured");
+    private readonly string _hashSecret = configuration["VnPay:HashSecret"] ?? throw new InvalidOperationException("VnPay:HashSecret not configured");
+    private readonly string _paymentUrl = configuration["VnPay:PaymentUrl"] ?? "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
+    private readonly string _returnUrl = configuration["VnPay:ReturnUrl"] ?? throw new InvalidOperationException("VnPay:ReturnUrl not configured");
 
     public Task<string?> CreatePaymentUrlAsync(Guid paymentId, decimal amount, string currency,
         string orderInfo, string clientIpAddress, CancellationToken ct = default)
@@ -55,7 +45,10 @@ public sealed class VnPayGateway : IPaymentGateway
         var signature = HmacSha512(_hashSecret, signData);
 
         var url = $"{_paymentUrl}?{queryString}&vnp_SecureHash={signature}";
-        _logger.LogInformation("VNPay URL created for paymentId={PaymentId}", paymentId);
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation("VNPay URL created for paymentId={PaymentId}", paymentId);
+        }
         return Task.FromResult<string?>(url);
     }
 
@@ -73,9 +66,9 @@ public sealed class VnPayGateway : IPaymentGateway
         var signData = string.Join("&", data);
         var expectedHash = HmacSha512(_hashSecret, signData);
 
-        if (!string.Equals(expectedHash, receivedHash, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(expectedHash, receivedHash))
         {
-            _logger.LogWarning("VNPay signature mismatch");
+            logger.LogWarning("VNPay signature mismatch");
             return Task.FromResult<(bool, string?, string?)>((false, null, "Signature verification failed"));
         }
 

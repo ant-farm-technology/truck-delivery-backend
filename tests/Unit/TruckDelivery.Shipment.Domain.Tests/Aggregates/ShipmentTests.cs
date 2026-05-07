@@ -1,6 +1,8 @@
+﻿using Xunit;
 using FluentAssertions;
 using TruckDelivery.Shipment.Domain.Aggregates;
 using TruckDelivery.Shipment.Domain.ValueObjects;
+using ShipmentAggregate = TruckDelivery.Shipment.Domain.Aggregates.Shipment;
 
 namespace TruckDelivery.Shipment.Domain.Tests.Aggregates;
 
@@ -11,7 +13,7 @@ public sealed class ShipmentTests
     private static readonly Guid DriverId = Guid.NewGuid();
     private static readonly Guid VehicleId = Guid.NewGuid();
 
-    // ── Create ────────────────────────────────────────────────────────────────
+    // â”€â”€ Create â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void Create_Should_SetStatusCreated()
@@ -34,7 +36,7 @@ public sealed class ShipmentTests
     [Fact]
     public void Create_Should_StoreCoordinates_WhenProvided()
     {
-        var shipment = Shipment.Create(
+        var shipment = ShipmentAggregate.Create(
             OrderId, CustomerId, "HCM", "HCM", "HN", "HN", 100m, 1m,
             pickupLatitude: 10.762, pickupLongitude: 106.660,
             deliveryLatitude: 21.028, deliveryLongitude: 105.804);
@@ -43,7 +45,7 @@ public sealed class ShipmentTests
         shipment.DeliveryLongitude.Should().Be(105.804);
     }
 
-    // ── TransitionTo ──────────────────────────────────────────────────────────
+    // â”€â”€ TransitionTo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void TransitionTo_Should_Succeed_ForValidPath()
@@ -93,7 +95,7 @@ public sealed class ShipmentTests
         result.IsSuccess.Should().BeTrue();
     }
 
-    // ── AssignDriver ──────────────────────────────────────────────────────────
+    // â”€â”€ AssignDriver â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void AssignDriver_Should_Succeed_WhenDriverAssigning()
@@ -119,7 +121,7 @@ public sealed class ShipmentTests
         result.Error.Code.Should().Be("Shipment.Assign");
     }
 
-    // ── FlagForDispatcherReview ───────────────────────────────────────────────
+    // â”€â”€ FlagForDispatcherReview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void FlagForDispatcherReview_Should_SetReviewRequired()
@@ -134,7 +136,7 @@ public sealed class ShipmentTests
         shipment.BinCheckWarnings.Should().Be("Bin check failed");
     }
 
-    // ── ConfirmByDispatcher ───────────────────────────────────────────────────
+    // â”€â”€ ConfirmByDispatcher â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void ConfirmByDispatcher_Should_TransitionToInProgress()
@@ -158,7 +160,7 @@ public sealed class ShipmentTests
         result.IsSuccess.Should().BeFalse();
     }
 
-    // ── Fail ──────────────────────────────────────────────────────────────────
+    // â”€â”€ Fail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void Fail_Should_SetStatusFailed_FromAnyStatus()
@@ -186,7 +188,7 @@ public sealed class ShipmentTests
         shipment.DomainEvents[0].GetType().Name.Should().Be("ShipmentStatusChangedDomainEvent");
     }
 
-    // ── MarkReassigning ───────────────────────────────────────────────────────
+    // â”€â”€ MarkReassigning â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void MarkReassigning_Should_CaptureOriginalDriver_WhenInProgress()
@@ -214,7 +216,7 @@ public sealed class ShipmentTests
         result.Error.Code.Should().Be("Shipment.Reassign");
     }
 
-    // ── SetRoute ──────────────────────────────────────────────────────────────
+    // â”€â”€ SetRoute â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void SetRoute_Should_UpdateRouteInfo()
@@ -229,12 +231,12 @@ public sealed class ShipmentTests
         shipment.Route!.DistanceMeters.Should().Be(50_000);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-    private static Shipment CreateShipment() =>
-        Shipment.Create(OrderId, CustomerId, "HCM", "HCM", "HN", "HN", 100m, 1m);
+    private static ShipmentAggregate CreateShipment() =>
+        ShipmentAggregate.Create(OrderId, CustomerId, "HCM", "HCM", "HN", "HN", 100m, 1m);
 
-    private static Shipment CreateShipmentAtStatus(ShipmentStatus target)
+    private static ShipmentAggregate CreateShipmentAtStatus(ShipmentStatus target)
     {
         var shipment = CreateShipment();
 
@@ -267,7 +269,7 @@ public sealed class ShipmentTests
         return shipment;
     }
 
-    private static Shipment CreateInProgressShipment()
+    private static ShipmentAggregate CreateInProgressShipment()
     {
         var shipment = CreateShipment();
         shipment.TransitionTo(ShipmentStatus.RoutePlanning);

@@ -1,3 +1,4 @@
+﻿using Xunit;
 using FluentAssertions;
 using TruckDelivery.Order.Domain.Aggregates;
 using TruckDelivery.Order.Domain.ValueObjects;
@@ -17,7 +18,7 @@ public sealed class OrderTests
         ("Thung hang", 1, 50m, 0.5m, 1.0m, 0.8m, 0.6m, false, null)
     ];
 
-    // ── Create ────────────────────────────────────────────────────────────────
+    // â”€â”€ Create â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void Create_Should_Succeed_WithValidInputs()
@@ -81,7 +82,7 @@ public sealed class OrderTests
         order.DeliveryLongitude.Should().Be(105.804817);
     }
 
-    // ── Cancel ────────────────────────────────────────────────────────────────
+    // â”€â”€ Cancel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void Cancel_Should_Succeed_WhenPending()
@@ -122,7 +123,7 @@ public sealed class OrderTests
         order.DomainEvents.Should().Contain(e => e.GetType().Name == "OrderStatusChangedDomainEvent");
     }
 
-    // ── UpdateStatus ──────────────────────────────────────────────────────────
+    // â”€â”€ UpdateStatus â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void UpdateStatus_Should_Succeed_WhenStatusDiffers()
@@ -157,7 +158,7 @@ public sealed class OrderTests
         order.DomainEvents.Should().ContainSingle(e => e.GetType().Name == "OrderStatusChangedDomainEvent");
     }
 
-    // ── SetShipmentId ─────────────────────────────────────────────────────────
+    // â”€â”€ SetShipmentId â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void SetShipmentId_Should_SetField()
@@ -170,7 +171,7 @@ public sealed class OrderTests
         order.ShipmentId.Should().Be(shipmentId);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private static global::TruckDelivery.Order.Domain.Aggregates.Order CreatePendingOrder() =>
         global::TruckDelivery.Order.Domain.Aggregates.Order.Create(

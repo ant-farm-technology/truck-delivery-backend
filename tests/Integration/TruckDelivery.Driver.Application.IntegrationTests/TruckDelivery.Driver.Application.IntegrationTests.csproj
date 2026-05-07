@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -30,13 +30,13 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.4" />
 
     <!-- Redis client (same as shared infrastructure) -->
-    <PackageReference Include="StackExchange.Redis" Version="2.8.31" />
+    <PackageReference Include="StackExchange.Redis" Version="2.12.14" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\src\Services\Driver\TruckDelivery.Driver.Infrastructure\TruckDelivery.Driver.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\..\..\src\Services\Driver\TruckDelivery.Driver.Application\TruckDelivery.Driver.Application.csproj" />
-    <ProjectReference Include="..\..\..\..\src\Shared\TruckDelivery.Shared.Infrastructure\TruckDelivery.Shared.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\src\Services\Driver\TruckDelivery.Driver.Infrastructure\TruckDelivery.Driver.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\src\Services\Driver\TruckDelivery.Driver.Application\TruckDelivery.Driver.Application.csproj" />
+    <ProjectReference Include="..\..\..\src\Shared\TruckDelivery.Shared.Infrastructure\TruckDelivery.Shared.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

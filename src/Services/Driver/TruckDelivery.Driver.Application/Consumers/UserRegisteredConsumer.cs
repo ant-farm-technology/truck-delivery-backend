@@ -15,8 +15,7 @@ public sealed class UserRegisteredConsumer(
     ConsumerConfig consumerConfig,
     IProducer<string, string> producer,
     IIdempotencyStore idempotencyStore,
-    ILogger<UserRegisteredConsumer> logger)
-    : BackgroundService
+    ILogger<UserRegisteredConsumer> logger) : BackgroundService
 {
     private static readonly ActivitySource ActivitySource = new("TruckDelivery.Kafka.Consumer");
     private static readonly TextMapPropagator Propagator = Propagators.DefaultTextMapPropagator;
@@ -28,7 +27,10 @@ public sealed class UserRegisteredConsumer(
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _consumer.Subscribe(Topic);
-        logger.LogInformation("Kafka consumer subscribed to {Topic}", Topic);
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation("Kafka consumer subscribed to {Topic}", Topic);
+        }
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -74,8 +76,7 @@ public sealed class UserRegisteredConsumer(
 
         Baggage.Current = parentContext.Baggage;
 
-        using var activity = ActivitySource.StartActivity(
-            $"consume {Topic}", ActivityKind.Consumer, parentContext.ActivityContext);
+        using var activity = ActivitySource.StartActivity($"consume {Topic}", ActivityKind.Consumer, parentContext.ActivityContext);
 
         var @event = JsonSerializer.Deserialize<UserRegisteredEvent>(result.Message.Value);
         if (@event is null)
@@ -85,12 +86,17 @@ public sealed class UserRegisteredConsumer(
             return;
         }
 
-        if (!string.Equals(@event.Role, "Driver", StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(@event.Role, "Driver"))
+        {
             return;
+        }
 
         if (await idempotencyStore.HasProcessedAsync(@event.MessageId, ct))
         {
-            logger.LogInformation("Skipping duplicate MessageId={MessageId}", @event.MessageId);
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation("Skipping duplicate MessageId={MessageId}", @event.MessageId);
+            }
             return;
         }
 
@@ -98,7 +104,10 @@ public sealed class UserRegisteredConsumer(
         // This consumer just acks the event so the offset advances.
         await idempotencyStore.MarkProcessedAsync(@event.MessageId, ct);
 
-        logger.LogInformation("Driver-role user registered UserId={UserId} — awaiting self-registration", @event.UserId);
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation("Driver-role user registered UserId={UserId} — awaiting self-registration", @event.UserId);
+        }
     }
 
     private async Task RouteToDlqAsync(ConsumeResult<string, string> result, Exception ex, CancellationToken ct)
@@ -107,7 +116,9 @@ public sealed class UserRegisteredConsumer(
         {
             var dlqHeaders = new Headers();
             foreach (var h in result.Message.Headers)
+            {
                 dlqHeaders.Add(h.Key, h.GetValueBytes());
+            }
             dlqHeaders.Add("x-dlq-reason", Encoding.UTF8.GetBytes(ex.Message));
             dlqHeaders.Add("x-dlq-source-topic", Encoding.UTF8.GetBytes(Topic));
             dlqHeaders.Add("x-dlq-timestamp", Encoding.UTF8.GetBytes(DateTime.UtcNow.ToString("O")));
@@ -123,7 +134,10 @@ public sealed class UserRegisteredConsumer(
         }
         catch (Exception dlqEx)
         {
-            logger.LogCritical(dlqEx, "Failed to route message to DLQ — message will be lost! Key={Key}", result.Message.Key);
+            if (logger.IsEnabled(LogLevel.Critical))
+            {
+                logger.LogCritical(dlqEx, "Failed to route message to DLQ — message will be lost! Key={Key}", result.Message.Key);
+            }
         }
     }
 }

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -23,7 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\src\Services\Order\TruckDelivery.Order.Domain\TruckDelivery.Order.Domain.csproj" />
+    <ProjectReference Include="..\..\..\src\Services\Order\TruckDelivery.Order.Domain\TruckDelivery.Order.Domain.csproj" />
   </ItemGroup>
 
 </Project>

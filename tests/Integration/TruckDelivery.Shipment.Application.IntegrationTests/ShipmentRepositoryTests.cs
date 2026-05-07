@@ -1,6 +1,8 @@
+﻿using Xunit;
 using FluentAssertions;
 using TruckDelivery.Shipment.Application.IntegrationTests.Fixtures;
 using TruckDelivery.Shipment.Domain.Aggregates;
+using ShipmentAggregate = TruckDelivery.Shipment.Domain.Aggregates.Shipment;
 
 namespace TruckDelivery.Shipment.Application.IntegrationTests;
 
@@ -13,7 +15,7 @@ public sealed class ShipmentRepositoryTests(ShipmentTestFixture fixture)
     [Fact]
     public async Task Repository_Should_PersistShipment_AndRetrieveById()
     {
-        var shipment = Shipment.Create(OrderId, CustomerId, "123 A", "HCM", "456 B", "HN", 100m, 1.5m);
+        var shipment = ShipmentAggregate.Create(OrderId, CustomerId, "123 A", "HCM", "456 B", "HN", 100m, 1.5m);
         await fixture.ShipmentRepository.AddAsync(shipment);
         await fixture.UnitOfWork.SaveChangesAsync();
 
@@ -29,7 +31,7 @@ public sealed class ShipmentRepositoryTests(ShipmentTestFixture fixture)
     public async Task Repository_Should_FindShipment_ByOrderId()
     {
         var orderId = Guid.NewGuid();
-        var shipment = Shipment.Create(orderId, CustomerId, "A", "HCM", "B", "HN", 50m, 0.5m);
+        var shipment = ShipmentAggregate.Create(orderId, CustomerId, "A", "HCM", "B", "HN", 50m, 0.5m);
         await fixture.ShipmentRepository.AddAsync(shipment);
         await fixture.UnitOfWork.SaveChangesAsync();
 
@@ -42,7 +44,7 @@ public sealed class ShipmentRepositoryTests(ShipmentTestFixture fixture)
     [Fact]
     public async Task Repository_Should_UpdateStatus_WhenShipmentTransitions()
     {
-        var shipment = Shipment.Create(Guid.NewGuid(), CustomerId, "A", "HCM", "B", "HN", 80m, 1.0m);
+        var shipment = ShipmentAggregate.Create(Guid.NewGuid(), CustomerId, "A", "HCM", "B", "HN", 80m, 1.0m);
         await fixture.ShipmentRepository.AddAsync(shipment);
         await fixture.UnitOfWork.SaveChangesAsync();
 
@@ -65,7 +67,7 @@ public sealed class ShipmentRepositoryTests(ShipmentTestFixture fixture)
     [Fact]
     public async Task Repository_Should_PersistOutboxEntry_WhenShipmentCreated()
     {
-        var shipment = Shipment.Create(Guid.NewGuid(), CustomerId, "X", "HCM", "Y", "HN", 60m, 0.8m);
+        var shipment = ShipmentAggregate.Create(Guid.NewGuid(), CustomerId, "X", "HCM", "Y", "HN", 60m, 0.8m);
         await fixture.ShipmentRepository.AddAsync(shipment);
         await fixture.UnitOfWork.SaveChangesAsync();
 

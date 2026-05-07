@@ -61,7 +61,7 @@ namespace TruckDelivery.Identity.Infrastructure.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("varchar(256)");
 
-                    b.Property<string?>("PhoneNumber")
+                    b.Property<string>("PhoneNumber")
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
 

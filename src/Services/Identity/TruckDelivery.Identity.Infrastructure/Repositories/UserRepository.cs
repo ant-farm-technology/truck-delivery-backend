@@ -14,12 +14,12 @@ public sealed class UserRepository(IdentityDbContext dbContext) : IUserRepositor
 
     public Task<User?> GetByEmailAsync(string email, CancellationToken ct = default)
     {
-        return dbContext.Users.FirstOrDefaultAsync(u => u.Email.Equals(email, StringComparison.InvariantCultureIgnoreCase), ct);
+        return dbContext.Users.FirstOrDefaultAsync(u => u.Email.Equals(email), ct);
     }
 
     public Task<bool> ExistsByEmailAsync(string email, CancellationToken ct = default)
     {
-        return dbContext.Users.AnyAsync(u => u.Email.Equals(email, StringComparison.InvariantCultureIgnoreCase), ct);
+        return dbContext.Users.AnyAsync(u => u.Email.Equals(email), ct);
     }
 
     public async Task AddAsync(User user, CancellationToken ct = default)

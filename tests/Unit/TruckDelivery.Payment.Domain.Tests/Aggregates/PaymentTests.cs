@@ -1,6 +1,8 @@
+﻿using Xunit;
 using FluentAssertions;
 using TruckDelivery.Payment.Domain.Aggregates;
 using TruckDelivery.Payment.Domain.Exceptions;
+using PaymentAggregate = TruckDelivery.Payment.Domain.Aggregates.Payment;
 
 namespace TruckDelivery.Payment.Domain.Tests.Aggregates;
 
@@ -9,12 +11,12 @@ public sealed class PaymentTests
     private static readonly Guid OrderId = Guid.NewGuid();
     private static readonly Guid CustomerId = Guid.NewGuid();
 
-    // ── Create ────────────────────────────────────────────────────────────────
+    // â”€â”€ Create â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void Create_Should_SetStatusCreated()
     {
-        var payment = Payment.Create(OrderId, CustomerId, 150_000m);
+        var payment = PaymentAggregate.Create(OrderId, CustomerId, 150_000m);
 
         payment.Status.Should().Be(PaymentStatus.Created);
         payment.Amount.Should().Be(150_000m);
@@ -25,7 +27,7 @@ public sealed class PaymentTests
     [Fact]
     public void Create_Should_Throw_WhenAmountZero()
     {
-        var act = () => Payment.Create(OrderId, CustomerId, 0m);
+        var act = () => PaymentAggregate.Create(OrderId, CustomerId, 0m);
 
         act.Should().Throw<PaymentDomainException>()
            .WithMessage("*positive*");
@@ -34,7 +36,7 @@ public sealed class PaymentTests
     [Fact]
     public void Create_Should_Throw_WhenAmountNegative()
     {
-        var act = () => Payment.Create(OrderId, CustomerId, -1m);
+        var act = () => PaymentAggregate.Create(OrderId, CustomerId, -1m);
 
         act.Should().Throw<PaymentDomainException>();
     }
@@ -42,7 +44,7 @@ public sealed class PaymentTests
     [Fact]
     public void Create_Should_UseDefaultCurrency_VND()
     {
-        var payment = Payment.Create(OrderId, CustomerId, 100_000m);
+        var payment = PaymentAggregate.Create(OrderId, CustomerId, 100_000m);
 
         payment.Currency.Should().Be("VND");
     }
@@ -50,17 +52,17 @@ public sealed class PaymentTests
     [Fact]
     public void Create_Should_RaisePaymentCreatedEvent()
     {
-        var payment = Payment.Create(OrderId, CustomerId, 100_000m);
+        var payment = PaymentAggregate.Create(OrderId, CustomerId, 100_000m);
 
         payment.DomainEvents.Should().ContainSingle(e => e.GetType().Name == "PaymentCreatedDomainEvent");
     }
 
-    // ── State machine: MarkPending ────────────────────────────────────────────
+    // â”€â”€ State machine: MarkPending â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void MarkPending_Should_Succeed_WhenCreated()
     {
-        var payment = Payment.Create(OrderId, CustomerId, 100_000m);
+        var payment = PaymentAggregate.Create(OrderId, CustomerId, 100_000m);
 
         payment.MarkPending();
 
@@ -70,7 +72,7 @@ public sealed class PaymentTests
     [Fact]
     public void MarkPending_Should_Throw_WhenNotCreated()
     {
-        var payment = Payment.Create(OrderId, CustomerId, 100_000m);
+        var payment = PaymentAggregate.Create(OrderId, CustomerId, 100_000m);
         payment.MarkPending(); // now Pending
 
         var act = () => payment.MarkPending();
@@ -78,7 +80,7 @@ public sealed class PaymentTests
         act.Should().Throw<PaymentDomainException>();
     }
 
-    // ── Authorize ─────────────────────────────────────────────────────────────
+    // â”€â”€ Authorize â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void Authorize_Should_Succeed_WhenPending()
@@ -93,14 +95,14 @@ public sealed class PaymentTests
     [Fact]
     public void Authorize_Should_Throw_WhenNotPending()
     {
-        var payment = Payment.Create(OrderId, CustomerId, 100_000m);
+        var payment = PaymentAggregate.Create(OrderId, CustomerId, 100_000m);
 
         var act = () => payment.Authorize();
 
         act.Should().Throw<PaymentDomainException>();
     }
 
-    // ── Complete ──────────────────────────────────────────────────────────────
+    // â”€â”€ Complete â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void Complete_Should_Succeed_WhenAuthorized()
@@ -115,7 +117,7 @@ public sealed class PaymentTests
     [Fact]
     public void Complete_Should_Throw_WhenCreated()
     {
-        var payment = Payment.Create(OrderId, CustomerId, 100_000m);
+        var payment = PaymentAggregate.Create(OrderId, CustomerId, 100_000m);
 
         var act = () => payment.Complete();
 
@@ -133,7 +135,7 @@ public sealed class PaymentTests
         payment.DomainEvents.Should().ContainSingle(e => e.GetType().Name == "PaymentCompletedDomainEvent");
     }
 
-    // ── Fail ──────────────────────────────────────────────────────────────────
+    // â”€â”€ Fail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void Fail_Should_SetFailedStatus()
@@ -157,7 +159,7 @@ public sealed class PaymentTests
         payment.DomainEvents.Should().ContainSingle(e => e.GetType().Name == "PaymentFailedDomainEvent");
     }
 
-    // ── Refund ────────────────────────────────────────────────────────────────
+    // â”€â”€ Refund â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void Refund_Should_Succeed_WhenCompleted()
@@ -180,23 +182,23 @@ public sealed class PaymentTests
            .WithMessage("*completed*");
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-    private static Payment CreatePendingPayment()
+    private static PaymentAggregate CreatePendingPayment()
     {
-        var p = Payment.Create(OrderId, CustomerId, 100_000m);
+        var p = PaymentAggregate.Create(OrderId, CustomerId, 100_000m);
         p.MarkPending();
         return p;
     }
 
-    private static Payment CreateAuthorizedPayment()
+    private static PaymentAggregate CreateAuthorizedPayment()
     {
         var p = CreatePendingPayment();
         p.Authorize();
         return p;
     }
 
-    private static Payment CreateCompletedPayment()
+    private static PaymentAggregate CreateCompletedPayment()
     {
         var p = CreateAuthorizedPayment();
         p.Complete();

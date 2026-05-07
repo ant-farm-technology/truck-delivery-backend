@@ -1,6 +1,7 @@
 using FluentAssertions;
 using TruckDelivery.Tracking.Domain.Aggregates;
 using TruckDelivery.Tracking.Domain.Events;
+using Xunit;
 
 namespace TruckDelivery.Tracking.Domain.Tests.Aggregates;
 

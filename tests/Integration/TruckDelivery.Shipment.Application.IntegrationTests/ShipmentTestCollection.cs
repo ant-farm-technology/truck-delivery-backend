@@ -1,3 +1,4 @@
+﻿using Xunit;
 using TruckDelivery.Shipment.Application.IntegrationTests.Fixtures;
 
 namespace TruckDelivery.Shipment.Application.IntegrationTests;

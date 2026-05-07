@@ -28,13 +28,13 @@ public sealed class UploadsController(IStorageService storageService) : Controll
     {
         var driverId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-        if (type.Equals("driver-document", StringComparison.OrdinalIgnoreCase))
+        if (type.Equals("driver-document"))
         {
             var urls = await storageService.GenerateDriverDocumentUrlsAsync(driverId, DriverDocumentFields, ct);
             return Ok(new { urls });
         }
 
-        if (type.Equals("breakdown-photo", StringComparison.OrdinalIgnoreCase))
+        if (type.Equals("breakdown-photo"))
         {
             if (count is < 1 or > 10)
                 return BadRequest(new { error = "count must be between 1 and 10" });

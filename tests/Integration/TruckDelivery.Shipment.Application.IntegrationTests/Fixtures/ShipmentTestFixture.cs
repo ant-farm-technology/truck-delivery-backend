@@ -1,3 +1,4 @@
+﻿using Xunit;
 using Microsoft.EntityFrameworkCore;
 using MongoDB.Driver;
 using Testcontainers.MongoDb;
@@ -32,7 +33,7 @@ public sealed class ShipmentTestFixture : IAsyncLifetime
     {
         await Task.WhenAll(_mysql.StartAsync(), _mongo.StartAsync());
 
-        var serverVersion = ServerVersion.AutoDetect(_mysql.GetConnectionString());
+        var serverVersion = Microsoft.EntityFrameworkCore.ServerVersion.AutoDetect(_mysql.GetConnectionString());
         var options = new DbContextOptionsBuilder<ShipmentDbContext>()
             .UseMySql(_mysql.GetConnectionString(), serverVersion)
             .Options;
