@@ -31,7 +31,7 @@ public static class WaitForAsync
             }
             catch
             {
-                // Swallow transient errors â€” service may not be ready yet
+                // Swallow transient errors — service may not be ready yet
             }
 
             await Task.Delay(pollInterval.Value);

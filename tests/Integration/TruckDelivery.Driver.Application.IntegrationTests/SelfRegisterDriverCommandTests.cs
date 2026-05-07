@@ -107,7 +107,7 @@ public sealed class SelfRegisterDriverCommandTests(DriverTestFixture fixture)
         var first = await handler.Handle(BuildCommand(idCardNumber: sharedIdCard), CancellationToken.None);
         first.IsSuccess.Should().BeTrue();
 
-        // Second registration with same ID card â†’ conflict
+        // Second registration with same ID card → conflict
         var second = await handler.Handle(BuildCommand(idCardNumber: sharedIdCard), CancellationToken.None);
         second.IsFailure.Should().BeTrue();
         second.Error.Code.Should().Be("Driver.IdCard");

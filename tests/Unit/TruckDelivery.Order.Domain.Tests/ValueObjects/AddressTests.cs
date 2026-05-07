@@ -25,7 +25,7 @@ public sealed class AddressTests
         var result = Address.Create(street, city, province, "", "VN");
 
         result.IsSuccess.Should().BeFalse();
-        result.Error.Code.Should().Be("Address.Street");
+        result.Error.Code.Should().Be("Validation.Address.Street");
     }
 
     [Theory]
@@ -36,7 +36,7 @@ public sealed class AddressTests
         var result = Address.Create(street, city, province, "", "VN");
 
         result.IsSuccess.Should().BeFalse();
-        result.Error.Code.Should().Be("Address.City");
+        result.Error.Code.Should().Be("Validation.Address.City");
     }
 
     [Fact]

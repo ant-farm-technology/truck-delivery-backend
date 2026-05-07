@@ -22,7 +22,7 @@ public sealed class EventSchemaTests
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
-    // â”€â”€ Envelope contract â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Envelope contract ─────────────────────────────────────────────────────
 
     [Theory]
     [MemberData(nameof(AllIntegrationEvents))]
@@ -33,7 +33,7 @@ public sealed class EventSchemaTests
         @event.SchemaVersion.Should().Be(1);
     }
 
-    // â”€â”€ OrderCreatedEvent â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── OrderCreatedEvent ─────────────────────────────────────────────────────
 
     [Fact]
     public void OrderCreatedEvent_Should_RoundTrip_WithAllFields()
@@ -100,7 +100,7 @@ public sealed class EventSchemaTests
         deserialized.TotalWeightKg.Should().Be(50m);
     }
 
-    // â”€â”€ DriverAssignmentRequestedEvent â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── DriverAssignmentRequestedEvent ────────────────────────────────────────
 
     [Fact]
     public void DriverAssignmentRequestedEvent_Should_RoundTrip()
@@ -122,7 +122,7 @@ public sealed class EventSchemaTests
         deserialized.RequiredLicenseGrades.Should().BeEquivalentTo(["C", "D"]);
     }
 
-    // â”€â”€ ShipmentCompletedEvent â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── ShipmentCompletedEvent ────────────────────────────────────────────────
 
     [Fact]
     public void ShipmentCompletedEvent_Should_RoundTrip()
@@ -142,7 +142,7 @@ public sealed class EventSchemaTests
         deserialized.MessageId.Should().Be(original.MessageId);
     }
 
-    // â”€â”€ ShipmentStartedEvent â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── ShipmentStartedEvent ──────────────────────────────────────────────────
 
     [Fact]
     public void ShipmentStartedEvent_Should_RoundTrip()
@@ -161,7 +161,7 @@ public sealed class EventSchemaTests
         deserialized.VehicleId.Should().Be(original.VehicleId);
     }
 
-    // â”€â”€ PaymentCompletedEvent â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── PaymentCompletedEvent ─────────────────────────────────────────────────
 
     [Fact]
     public void PaymentCompletedEvent_Should_RoundTrip()
@@ -190,7 +190,7 @@ public sealed class EventSchemaTests
         @event.Currency.Should().Be("VND");
     }
 
-    // â”€â”€ DriverAssignedEvent (consumer side: Shipment) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── DriverAssignedEvent (consumer side: Shipment) ─────────────────────────
 
     [Fact]
     public void DriverAssignedEvent_Should_RoundTrip()
@@ -210,7 +210,7 @@ public sealed class EventSchemaTests
         deserialized.VehicleMaxWeightKg.Should().Be(5000m);
     }
 
-    // â”€â”€ VehicleBreakdownEvent (Phase 5) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── VehicleBreakdownEvent (Phase 5) ───────────────────────────────────────
 
     [Fact]
     public void VehicleBreakdownEvent_Should_RoundTrip_WithAllFields()
@@ -271,7 +271,7 @@ public sealed class EventSchemaTests
         deserialized!.TrustScore.Should().Be(70);
     }
 
-    // â”€â”€ SuspiciousDriverPairDetectedEvent (Phase 6) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── SuspiciousDriverPairDetectedEvent (Phase 6) ───────────────────────────
 
     [Fact]
     public void SuspiciousDriverPairDetectedEvent_Should_RoundTrip()
@@ -308,7 +308,7 @@ public sealed class EventSchemaTests
         @event.OriginalDriverId.Should().NotBe(@event.ReplacementDriverId);
     }
 
-    // â”€â”€ DriverDocumentsSubmittedEvent (Phase 2 â€” OCR trigger) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── DriverDocumentsSubmittedEvent (Phase 2 — OCR trigger) ────────────────
 
     [Fact]
     public void DriverDocumentsSubmittedEvent_Should_RoundTrip_WithAllPhotoUrls()
@@ -353,7 +353,7 @@ public sealed class EventSchemaTests
         photos.Should().AllSatisfy(url => url.Should().NotBeNullOrEmpty());
     }
 
-    // â”€â”€ BreakdownReassignmentCompletedEvent (Phase 6) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── BreakdownReassignmentCompletedEvent (Phase 6) ─────────────────────────
 
     [Fact]
     public void BreakdownReassignmentCompletedEvent_Should_RoundTrip()
@@ -395,7 +395,7 @@ public sealed class EventSchemaTests
         @event.OriginalDriverId.Should().NotBe(@event.ReplacementDriverId);
     }
 
-    // â”€â”€ MemberData â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── MemberData ────────────────────────────────────────────────────────────
 
     public static TheoryData<IntegrationEvent> AllIntegrationEvents() => new()
     {
