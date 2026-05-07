@@ -75,8 +75,20 @@ public sealed class SelfRegisterDriverCommandHandler(
             request.VehicleRegFrontUrl,
             request.VehicleRegBackUrl);
 
+        // Link vehicle ↔ driver so dispatch saga can resolve vehicle dimensions
+        vehicle.AssignDriver(driver.Id);
+        driver.AssignVehicle(vehicle.Id);
+
         await driverRepository.AddAsync(driver, ct);
         await vehicleRepository.AddAsync(vehicle, ct);
+
+        var vehicleAssignedEvent = new VehicleAssignedToDriverEvent(
+            vehicle.Id, driver.Id, vehicle.Type.ToString(), vehicle.MaxWeightKg);
+        await outboxRepository.AddAsync(OutboxMessage.Create(
+            eventType: nameof(VehicleAssignedToDriverEvent),
+            topic: "driver.vehicle.assigned",
+            partitionKey: driver.Id.ToString(),
+            payload: JsonSerializer.Serialize(vehicleAssignedEvent)), ct);
 
         var @event = new DriverDocumentsSubmittedEvent(
             driver.Id,

@@ -16,7 +16,7 @@ public static class JwtHelper
     public const string TestIssuer = "TruckDelivery";
     public const string TestAudience = "TruckDelivery";
 
-    public static string GenerateToken(Guid userId, string email, string role, string? firstName = null, string? lastName = null)
+    public static string GenerateToken(Guid userId, string email, string role, string? firstName = null, string? lastName = null, string? phoneNumber = null)
     {
         var claims = new List<Claim>
         {
@@ -27,6 +27,7 @@ public static class JwtHelper
 
         if (firstName is not null) claims.Add(new(ClaimTypes.GivenName, firstName));
         if (lastName is not null) claims.Add(new(ClaimTypes.Surname, lastName));
+        if (phoneNumber is not null) claims.Add(new("phone_number", phoneNumber));
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(TestSecretKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -47,6 +48,6 @@ public static class JwtHelper
     public static string CustomerToken(Guid userId, string email = "customer@test.com")
         => GenerateToken(userId, email, "Customer", "Customer", "Test");
 
-    public static string DriverToken(Guid userId, string email = "driver@test.com")
-        => GenerateToken(userId, email, "Driver", "Driver", "Test");
+    public static string DriverToken(Guid userId, string email = "driver@test.com", string? phoneNumber = null)
+        => GenerateToken(userId, email, "Driver", "Driver", "Test", phoneNumber);
 }

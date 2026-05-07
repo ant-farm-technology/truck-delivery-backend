@@ -1,11 +1,15 @@
 name: E2E Tests
 
 on:
+  # Only run E2E on push to main/master — too heavy for every branch push
   push:
-    branches: [develop, main, master]
-  pull_request:
-    branches: [develop, main, master]
+    branches: [main, master]
   workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 jobs:
   e2e:
@@ -16,10 +20,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup .NET 10
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Restore dependencies
         run: dotnet restore tests/E2E/TruckDelivery.E2E.Tests/TruckDelivery.E2E.Tests.csproj
@@ -34,7 +38,7 @@ jobs:
             --configuration Release \
             --logger "trx;LogFileName=e2e-results.trx" \
             --results-directory ./test-results/e2e \
-            --timeout 900000
+            --blame-hang-timeout 5m
         # Testcontainers pulls Docker images and starts services — allow 15 min total
         env:
           DOTNET_ENVIRONMENT: Test

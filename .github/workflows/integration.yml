@@ -1,4 +1,4 @@
-name: Integration Tests
+name: Integration & Contract Tests
 
 on:
   push:
@@ -12,87 +12,9 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 jobs:
-  integration-tests:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-
-    # Testcontainers manages its own Docker containers — no docker-compose needed here
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup .NET ${{ env.DOTNET_VERSION }}
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Restore dependencies
-        run: dotnet restore TruckDelivery.slnx
-
-      - name: Build (Release, no restore)
-        run: dotnet build TruckDelivery.slnx --no-restore -c Release
-
-      - name: Run integration tests — Order
-        run: |
-          dotnet test tests/Integration/TruckDelivery.Order.Application.IntegrationTests/ \
-            --no-build -c Release \
-            --logger "trx;LogFileName=order-integration-results.trx" \
-            --collect:"XPlat Code Coverage" \
-            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
-        timeout-minutes: 10
-
-      - name: Run integration tests — Shipment
-        run: |
-          dotnet test tests/Integration/TruckDelivery.Shipment.Application.IntegrationTests/ \
-            --no-build -c Release \
-            --logger "trx;LogFileName=shipment-integration-results.trx" \
-            --collect:"XPlat Code Coverage" \
-            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
-        timeout-minutes: 10
-
-      - name: Run integration tests — Driver
-        run: |
-          dotnet test tests/Integration/TruckDelivery.Driver.Application.IntegrationTests/ \
-            --no-build -c Release \
-            --logger "trx;LogFileName=driver-integration-results.trx" \
-            --collect:"XPlat Code Coverage" \
-            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
-        timeout-minutes: 10
-
-      - name: Run integration tests — Payment
-        run: |
-          dotnet test tests/Integration/TruckDelivery.Payment.Application.IntegrationTests/ \
-            --no-build -c Release \
-            --logger "trx;LogFileName=payment-integration-results.trx" \
-            --collect:"XPlat Code Coverage" \
-            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
-        timeout-minutes: 10
-
-      - name: Run contract tests
-        run: |
-          dotnet test tests/Contract/TruckDelivery.Contracts.Tests/ \
-            --no-build -c Release \
-            --logger "trx;LogFileName=contract-results.trx"
-        timeout-minutes: 5
-
-      - name: Publish test results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: integration-test-results
-          path: '**/*.trx'
-
-      - name: Publish coverage
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: integration-coverage
-          path: '**/coverage.cobertura.xml'
-
   contract-tests:
-    name: Contract Tests (schema validation)
+    name: Contract Tests
     runs-on: ubuntu-latest
-    needs: []
 
     steps:
       - name: Checkout
@@ -103,13 +25,85 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Restore & build contracts only
+      - name: Restore & build
         run: |
           dotnet restore tests/Contract/TruckDelivery.Contracts.Tests/TruckDelivery.Contracts.Tests.csproj
-          dotnet build tests/Contract/TruckDelivery.Contracts.Tests/TruckDelivery.Contracts.Tests.csproj -c Release
+          dotnet build tests/Contract/TruckDelivery.Contracts.Tests/TruckDelivery.Contracts.Tests.csproj --no-restore -c Release
 
       - name: Run contract tests
         run: |
-          dotnet test tests/Contract/TruckDelivery.Contracts.Tests/ \
-            -c Release \
+          dotnet test tests/Contract/TruckDelivery.Contracts.Tests/TruckDelivery.Contracts.Tests.csproj \
+            --no-build -c Release \
             --logger "trx;LogFileName=contract-results.trx"
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: contract-test-results
+          path: '**/contract-results.trx'
+
+  integration-tests:
+    name: Integration Tests — ${{ matrix.project }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false        # all projects report independently
+      matrix:
+        include:
+          - project: Order
+            path: tests/Integration/TruckDelivery.Order.Application.IntegrationTests/TruckDelivery.Order.Application.IntegrationTests.csproj
+            trx: order-integration-results.trx
+          - project: Shipment
+            path: tests/Integration/TruckDelivery.Shipment.Application.IntegrationTests/TruckDelivery.Shipment.Application.IntegrationTests.csproj
+            trx: shipment-integration-results.trx
+          - project: Driver
+            path: tests/Integration/TruckDelivery.Driver.Application.IntegrationTests/TruckDelivery.Driver.Application.IntegrationTests.csproj
+            trx: driver-integration-results.trx
+          - project: Payment
+            path: tests/Integration/TruckDelivery.Payment.Application.IntegrationTests/TruckDelivery.Payment.Application.IntegrationTests.csproj
+            trx: payment-integration-results.trx
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      # Testcontainers uses Docker — pre-pull heavy images to reduce test time
+      - name: Pre-pull Docker images
+        run: |
+          docker pull mysql:8.0 &
+          docker pull mongo:7.0 &
+          docker pull redis:7-alpine &
+          wait
+
+      - name: Restore & build ${{ matrix.project }} integration tests
+        run: |
+          dotnet restore ${{ matrix.path }}
+          dotnet build ${{ matrix.path }} --no-restore -c Release
+
+      - name: Run integration tests — ${{ matrix.project }}
+        run: |
+          dotnet test ${{ matrix.path }} \
+            --no-build -c Release \
+            --logger "trx;LogFileName=${{ matrix.trx }}" \
+            --collect:"XPlat Code Coverage" \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results-${{ matrix.project }}
+          path: '**/${{ matrix.trx }}'
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-coverage-${{ matrix.project }}
+          path: '**/coverage.cobertura.xml'
