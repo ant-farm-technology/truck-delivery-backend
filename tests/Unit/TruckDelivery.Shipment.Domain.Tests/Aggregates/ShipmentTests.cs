@@ -13,7 +13,7 @@ public sealed class ShipmentTests
     private static readonly Guid DriverId = Guid.NewGuid();
     private static readonly Guid VehicleId = Guid.NewGuid();
 
-    // â”€â”€ Create â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Create ────────────────────────────────────────────────────────────────
 
     [Fact]
     public void Create_Should_SetStatusCreated()
@@ -45,7 +45,7 @@ public sealed class ShipmentTests
         shipment.DeliveryLongitude.Should().Be(105.804);
     }
 
-    // â”€â”€ TransitionTo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── TransitionTo ──────────────────────────────────────────────────────────
 
     [Fact]
     public void TransitionTo_Should_Succeed_ForValidPath()
@@ -66,7 +66,7 @@ public sealed class ShipmentTests
         var result = shipment.TransitionTo(ShipmentStatus.Completed);
 
         result.IsSuccess.Should().BeFalse();
-        result.Error.Code.Should().Be("Shipment.Status");
+        result.Error.Code.Should().Be("Shipment.Status.Conflict");
     }
 
     [Fact]
@@ -95,7 +95,7 @@ public sealed class ShipmentTests
         result.IsSuccess.Should().BeTrue();
     }
 
-    // â”€â”€ AssignDriver â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── AssignDriver ──────────────────────────────────────────────────────────
 
     [Fact]
     public void AssignDriver_Should_Succeed_WhenDriverAssigning()
@@ -118,10 +118,10 @@ public sealed class ShipmentTests
         var result = shipment.AssignDriver(DriverId, VehicleId);
 
         result.IsSuccess.Should().BeFalse();
-        result.Error.Code.Should().Be("Shipment.Assign");
+        result.Error.Code.Should().Be("Shipment.Assign.Conflict");
     }
 
-    // â”€â”€ FlagForDispatcherReview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── FlagForDispatcherReview ───────────────────────────────────────────────
 
     [Fact]
     public void FlagForDispatcherReview_Should_SetReviewRequired()
@@ -136,7 +136,7 @@ public sealed class ShipmentTests
         shipment.BinCheckWarnings.Should().Be("Bin check failed");
     }
 
-    // â”€â”€ ConfirmByDispatcher â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── ConfirmByDispatcher ───────────────────────────────────────────────────
 
     [Fact]
     public void ConfirmByDispatcher_Should_TransitionToInProgress()
@@ -160,7 +160,7 @@ public sealed class ShipmentTests
         result.IsSuccess.Should().BeFalse();
     }
 
-    // â”€â”€ Fail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Fail ──────────────────────────────────────────────────────────────────
 
     [Fact]
     public void Fail_Should_SetStatusFailed_FromAnyStatus()
@@ -188,7 +188,7 @@ public sealed class ShipmentTests
         shipment.DomainEvents[0].GetType().Name.Should().Be("ShipmentStatusChangedDomainEvent");
     }
 
-    // â”€â”€ MarkReassigning â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── MarkReassigning ───────────────────────────────────────────────────────
 
     [Fact]
     public void MarkReassigning_Should_CaptureOriginalDriver_WhenInProgress()
@@ -213,10 +213,10 @@ public sealed class ShipmentTests
         var result = shipment.MarkReassigning("breakdown");
 
         result.IsSuccess.Should().BeFalse();
-        result.Error.Code.Should().Be("Shipment.Reassign");
+        result.Error.Code.Should().Be("Shipment.Reassign.Conflict");
     }
 
-    // â”€â”€ SetRoute â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── SetRoute ──────────────────────────────────────────────────────────────
 
     [Fact]
     public void SetRoute_Should_UpdateRouteInfo()
@@ -231,7 +231,7 @@ public sealed class ShipmentTests
         shipment.Route!.DistanceMeters.Should().Be(50_000);
     }
 
-    // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static ShipmentAggregate CreateShipment() =>
         ShipmentAggregate.Create(OrderId, CustomerId, "HCM", "HCM", "HN", "HN", 100m, 1m);

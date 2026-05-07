@@ -18,7 +18,7 @@ public sealed class OrderTests
         ("Thung hang", 1, 50m, 0.5m, 1.0m, 0.8m, 0.6m, false, null)
     ];
 
-    // â”€â”€ Create â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Create ────────────────────────────────────────────────────────────────
 
     [Fact]
     public void Create_Should_Succeed_WithValidInputs()
@@ -39,7 +39,7 @@ public sealed class OrderTests
             CustomerId, ValidPickup, ValidDelivery, []);
 
         result.IsSuccess.Should().BeFalse();
-        result.Error.Code.Should().Be("Order.Items");
+        result.Error.Code.Should().Be("Validation.Order.Items");
     }
 
     [Fact]
@@ -82,7 +82,7 @@ public sealed class OrderTests
         order.DeliveryLongitude.Should().Be(105.804817);
     }
 
-    // â”€â”€ Cancel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Cancel ────────────────────────────────────────────────────────────────
 
     [Fact]
     public void Cancel_Should_Succeed_WhenPending()
@@ -107,7 +107,7 @@ public sealed class OrderTests
         var result = order.Cancel("too late");
 
         result.IsSuccess.Should().BeFalse();
-        result.Error.Code.Should().Be("Order");
+        result.Error.Code.Should().Be("Order.Conflict");
     }
 
     [Fact]
@@ -123,7 +123,7 @@ public sealed class OrderTests
         order.DomainEvents.Should().Contain(e => e.GetType().Name == "OrderStatusChangedDomainEvent");
     }
 
-    // â”€â”€ UpdateStatus â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── UpdateStatus ──────────────────────────────────────────────────────────
 
     [Fact]
     public void UpdateStatus_Should_Succeed_WhenStatusDiffers()
@@ -144,7 +144,7 @@ public sealed class OrderTests
         var result = order.UpdateStatus(OrderStatus.Pending);
 
         result.IsSuccess.Should().BeFalse();
-        result.Error.Code.Should().Be("Order");
+        result.Error.Code.Should().Be("Order.Conflict");
     }
 
     [Fact]
@@ -158,7 +158,7 @@ public sealed class OrderTests
         order.DomainEvents.Should().ContainSingle(e => e.GetType().Name == "OrderStatusChangedDomainEvent");
     }
 
-    // â”€â”€ SetShipmentId â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── SetShipmentId ─────────────────────────────────────────────────────────
 
     [Fact]
     public void SetShipmentId_Should_SetField()
@@ -171,7 +171,7 @@ public sealed class OrderTests
         order.ShipmentId.Should().Be(shipmentId);
     }
 
-    // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static global::TruckDelivery.Order.Domain.Aggregates.Order CreatePendingOrder() =>
         global::TruckDelivery.Order.Domain.Aggregates.Order.Create(

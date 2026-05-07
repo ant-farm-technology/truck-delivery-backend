@@ -26,7 +26,7 @@ namespace TruckDelivery.E2E.Tests.Fixtures;
 /// </summary>
 public sealed class E2ETestFixture : IAsyncLifetime
 {
-    // â”€â”€ Containers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Containers ──────────────────────────────────────────────────────────
     private readonly MySqlContainer _mysql = new MySqlBuilder()
         .WithImage("mysql:8.0")
         .WithDatabase("shared")
@@ -46,17 +46,17 @@ public sealed class E2ETestFixture : IAsyncLifetime
         .WithImage("redis:7-alpine")
         .Build();
 
-    // â”€â”€ WireMock (Optimizer + Route service stubs) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── WireMock (Optimizer + Route service stubs) ───────────────────────────
     public WireMockServer WireMock { get; private set; } = null!;
 
-    // â”€â”€ WebApplicationFactories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── WebApplicationFactories ──────────────────────────────────────────────
     private WebApplicationFactory<IdentityMarker> _identityFactory = null!;
     private WebApplicationFactory<OrderMarker> _orderFactory = null!;
     private WebApplicationFactory<DriverMarker> _driverFactory = null!;
     private WebApplicationFactory<ShipmentMarker> _shipmentFactory = null!;
     private WebApplicationFactory<PaymentMarker> _paymentFactory = null!;
 
-    // â”€â”€ HTTP Clients â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── HTTP Clients ─────────────────────────────────────────────────────────
     public HttpClient IdentityClient { get; private set; } = null!;
     public HttpClient OrderClient { get; private set; } = null!;
     public HttpClient DriverClient { get; private set; } = null!;

@@ -11,7 +11,7 @@ public sealed class PaymentTests
     private static readonly Guid OrderId = Guid.NewGuid();
     private static readonly Guid CustomerId = Guid.NewGuid();
 
-    // â”€â”€ Create â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Create ────────────────────────────────────────────────────────────────
 
     [Fact]
     public void Create_Should_SetStatusCreated()
@@ -57,7 +57,7 @@ public sealed class PaymentTests
         payment.DomainEvents.Should().ContainSingle(e => e.GetType().Name == "PaymentCreatedDomainEvent");
     }
 
-    // â”€â”€ State machine: MarkPending â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── State machine: MarkPending ────────────────────────────────────────────
 
     [Fact]
     public void MarkPending_Should_Succeed_WhenCreated()
@@ -80,7 +80,7 @@ public sealed class PaymentTests
         act.Should().Throw<PaymentDomainException>();
     }
 
-    // â”€â”€ Authorize â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Authorize ─────────────────────────────────────────────────────────────
 
     [Fact]
     public void Authorize_Should_Succeed_WhenPending()
@@ -102,7 +102,7 @@ public sealed class PaymentTests
         act.Should().Throw<PaymentDomainException>();
     }
 
-    // â”€â”€ Complete â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Complete ──────────────────────────────────────────────────────────────
 
     [Fact]
     public void Complete_Should_Succeed_WhenAuthorized()
@@ -135,7 +135,7 @@ public sealed class PaymentTests
         payment.DomainEvents.Should().ContainSingle(e => e.GetType().Name == "PaymentCompletedDomainEvent");
     }
 
-    // â”€â”€ Fail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Fail ──────────────────────────────────────────────────────────────────
 
     [Fact]
     public void Fail_Should_SetFailedStatus()
@@ -159,7 +159,7 @@ public sealed class PaymentTests
         payment.DomainEvents.Should().ContainSingle(e => e.GetType().Name == "PaymentFailedDomainEvent");
     }
 
-    // â”€â”€ Refund â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Refund ────────────────────────────────────────────────────────────────
 
     [Fact]
     public void Refund_Should_Succeed_WhenCompleted()
@@ -182,7 +182,7 @@ public sealed class PaymentTests
            .WithMessage("*completed*");
     }
 
-    // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static PaymentAggregate CreatePendingPayment()
     {

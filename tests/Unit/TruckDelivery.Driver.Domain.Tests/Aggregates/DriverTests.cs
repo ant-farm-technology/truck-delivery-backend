@@ -13,7 +13,7 @@ public sealed class DriverTests
     private static readonly DateOnly ExpiredDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1));
     private static readonly DateOnly TodayExpiry = DateOnly.FromDateTime(DateTime.UtcNow);
 
-    // â”€â”€ Create â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Create ────────────────────────────────────────────────────────────────
 
     [Fact]
     public void Create_Should_Succeed_WithValidInputs()
@@ -35,7 +35,7 @@ public sealed class DriverTests
         var result = CreateDriverWithGrade(grade);
 
         result.IsSuccess.Should().BeFalse();
-        result.Error.Code.Should().Be("Driver.LicenseGrade");
+        result.Error.Code.Should().Be("Validation.Driver.LicenseGrade");
     }
 
     [Fact]
@@ -44,7 +44,7 @@ public sealed class DriverTests
         var result = CreateDriverWithExpiry(ExpiredDate);
 
         result.IsSuccess.Should().BeFalse();
-        result.Error.Code.Should().Be("Driver.LicenseExpiryDate");
+        result.Error.Code.Should().Be("Validation.Driver.LicenseExpiryDate");
     }
 
     [Fact]
@@ -80,7 +80,7 @@ public sealed class DriverTests
         driver.DomainEvents.Should().ContainSingle(e => e.GetType().Name == "DriverRegisteredDomainEvent");
     }
 
-    // â”€â”€ SubmitDocuments â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── SubmitDocuments ───────────────────────────────────────────────────────
 
     [Fact]
     public void SubmitDocuments_Should_Succeed_WhenDraft()
@@ -101,10 +101,10 @@ public sealed class DriverTests
         var result = driver.SubmitDocuments("p.jpg", "cf.jpg", "cb.jpg", "lf.jpg", "lb.jpg", "rf.jpg", "rb.jpg");
 
         result.IsSuccess.Should().BeFalse();
-        result.Error.Code.Should().Be("Driver.Verification");
+        result.Error.Code.Should().Be("Driver.Verification.Conflict");
     }
 
-    // â”€â”€ ApplyOcrResult â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── ApplyOcrResult ────────────────────────────────────────────────────────
 
     [Fact]
     public void ApplyOcrResult_Should_SetOcrVerified_WhenHighConfidence()
@@ -128,7 +128,7 @@ public sealed class DriverTests
         driver.VerificationNotes.Should().Be("Blurry image");
     }
 
-    // â”€â”€ AdminVerify / AdminReject â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── AdminVerify / AdminReject ─────────────────────────────────────────────
 
     [Fact]
     public void AdminVerify_Should_Succeed_WhenManualReview()
@@ -150,7 +150,7 @@ public sealed class DriverTests
         var result = driver.AdminVerify();
 
         result.IsSuccess.Should().BeFalse();
-        result.Error.Code.Should().Be("Driver.Verification");
+        result.Error.Code.Should().Be("Driver.Verification.Conflict");
     }
 
     [Fact]
@@ -175,7 +175,7 @@ public sealed class DriverTests
         result.IsSuccess.Should().BeFalse();
     }
 
-    // â”€â”€ UpdateStatus â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── UpdateStatus ──────────────────────────────────────────────────────────
 
     [Fact]
     public void UpdateStatus_Should_Fail_WhenNotVerified()
@@ -185,7 +185,7 @@ public sealed class DriverTests
         var result = driver.UpdateStatus(DriverStatus.Available);
 
         result.IsSuccess.Should().BeFalse();
-        result.Error.Code.Should().Be("Driver.Verification");
+        result.Error.Code.Should().Be("Validation.Driver.Verification");
     }
 
     [Fact]
@@ -221,7 +221,7 @@ public sealed class DriverTests
         driver.DomainEvents.Should().ContainSingle(e => e.GetType().Name == "DriverStatusChangedDomainEvent");
     }
 
-    // â”€â”€ TrustScore â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── TrustScore ────────────────────────────────────────────────────────────
 
     [Fact]
     public void UpdateTrustScore_Should_ClampAtZero()
@@ -276,7 +276,7 @@ public sealed class DriverTests
         result.IsSuccess.Should().BeFalse();
     }
 
-    // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static Result<DriverAggregate> CreateValidDriver(
         LicenseGrade grade = LicenseGrade.C,
