@@ -1,3 +1,4 @@
+﻿using Xunit;
 using FluentAssertions;
 using TruckDelivery.Payment.Application.Commands.CreatePayment;
 using TruckDelivery.Payment.Application.IntegrationTests.Fixtures;

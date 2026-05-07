@@ -1,3 +1,4 @@
+﻿using Xunit;
 using FluentAssertions;
 using TruckDelivery.Shipment.Application.IntegrationTests.Fixtures;
 using TruckDelivery.Shipment.Infrastructure.Persistence.Mongo;
@@ -82,7 +83,7 @@ public sealed class SagaRepositoryTests(ShipmentTestFixture fixture)
         await fixture.SagaRepository.UpsertAsync(state);
 
         state.RetryCount = 2;
-        state.Status = ShipmentSagaStatus.DriverAssigning;
+        state.Status = ShipmentSagaStatus.DriverRequested;
         await fixture.SagaRepository.UpsertAsync(state);
 
         var retrieved = await fixture.SagaRepository.GetByShipmentIdAsync(shipmentId);

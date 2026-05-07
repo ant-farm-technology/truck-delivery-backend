@@ -1,5 +1,6 @@
 using FluentAssertions;
 using TruckDelivery.Analytics.Domain.Documents;
+using Xunit;
 
 namespace TruckDelivery.Analytics.Domain.Tests.Documents;
 

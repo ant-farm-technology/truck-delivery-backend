@@ -1,3 +1,4 @@
+﻿using Xunit;
 using FluentAssertions;
 using TruckDelivery.Payment.Application.Commands.CreateEscrow;
 using TruckDelivery.Payment.Application.Commands.ResolveEscrow;
@@ -48,7 +49,7 @@ public sealed class EscrowPaymentTests(PaymentTestFixture fixture)
 
         first.IsSuccess.Should().BeTrue();
         second.IsSuccess.Should().BeTrue();
-        // Both return the same escrow id — idempotent
+        // Both return the same escrow id â€” idempotent
         first.Value.Should().Be(second.Value);
 
         var count = fixture.Db.EscrowPayments.Count(e => e.ShipmentId == shipmentId);

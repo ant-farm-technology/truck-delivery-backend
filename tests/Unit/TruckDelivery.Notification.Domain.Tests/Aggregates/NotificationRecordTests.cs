@@ -1,5 +1,6 @@
 using FluentAssertions;
 using TruckDelivery.Notification.Domain.Aggregates;
+using Xunit;
 
 namespace TruckDelivery.Notification.Domain.Tests.Aggregates;
 

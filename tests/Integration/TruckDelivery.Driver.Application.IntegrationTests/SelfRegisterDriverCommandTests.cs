@@ -1,3 +1,4 @@
+﻿using Xunit;
 using FluentAssertions;
 using TruckDelivery.Driver.Application.Commands.SelfRegisterDriver;
 using TruckDelivery.Driver.Application.IntegrationTests.Fixtures;
@@ -106,7 +107,7 @@ public sealed class SelfRegisterDriverCommandTests(DriverTestFixture fixture)
         var first = await handler.Handle(BuildCommand(idCardNumber: sharedIdCard), CancellationToken.None);
         first.IsSuccess.Should().BeTrue();
 
-        // Second registration with same ID card → conflict
+        // Second registration with same ID card â†’ conflict
         var second = await handler.Handle(BuildCommand(idCardNumber: sharedIdCard), CancellationToken.None);
         second.IsFailure.Should().BeTrue();
         second.Error.Code.Should().Be("Driver.IdCard");

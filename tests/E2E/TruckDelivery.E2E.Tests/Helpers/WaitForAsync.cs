@@ -1,3 +1,4 @@
+﻿using Xunit;
 namespace TruckDelivery.E2E.Tests.Helpers;
 
 public static class WaitForAsync
@@ -30,7 +31,7 @@ public static class WaitForAsync
             }
             catch
             {
-                // Swallow transient errors — service may not be ready yet
+                // Swallow transient errors â€” service may not be ready yet
             }
 
             await Task.Delay(pollInterval.Value);

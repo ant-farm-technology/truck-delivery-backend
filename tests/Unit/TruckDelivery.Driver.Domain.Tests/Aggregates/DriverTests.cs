@@ -1,7 +1,9 @@
+﻿using Xunit;
 using FluentAssertions;
 using TruckDelivery.Driver.Domain.Aggregates;
 using TruckDelivery.Driver.Domain.ValueObjects;
 using TruckDelivery.Shared.Common.Primitives;
+using DriverAggregate = TruckDelivery.Driver.Domain.Aggregates.Driver;
 
 namespace TruckDelivery.Driver.Domain.Tests.Aggregates;
 
@@ -11,7 +13,7 @@ public sealed class DriverTests
     private static readonly DateOnly ExpiredDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1));
     private static readonly DateOnly TodayExpiry = DateOnly.FromDateTime(DateTime.UtcNow);
 
-    // ── Create ────────────────────────────────────────────────────────────────
+    // â”€â”€ Create â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void Create_Should_Succeed_WithValidInputs()
@@ -78,7 +80,7 @@ public sealed class DriverTests
         driver.DomainEvents.Should().ContainSingle(e => e.GetType().Name == "DriverRegisteredDomainEvent");
     }
 
-    // ── SubmitDocuments ───────────────────────────────────────────────────────
+    // â”€â”€ SubmitDocuments â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void SubmitDocuments_Should_Succeed_WhenDraft()
@@ -102,7 +104,7 @@ public sealed class DriverTests
         result.Error.Code.Should().Be("Driver.Verification");
     }
 
-    // ── ApplyOcrResult ────────────────────────────────────────────────────────
+    // â”€â”€ ApplyOcrResult â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void ApplyOcrResult_Should_SetOcrVerified_WhenHighConfidence()
@@ -126,7 +128,7 @@ public sealed class DriverTests
         driver.VerificationNotes.Should().Be("Blurry image");
     }
 
-    // ── AdminVerify / AdminReject ─────────────────────────────────────────────
+    // â”€â”€ AdminVerify / AdminReject â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void AdminVerify_Should_Succeed_WhenManualReview()
@@ -173,7 +175,7 @@ public sealed class DriverTests
         result.IsSuccess.Should().BeFalse();
     }
 
-    // ── UpdateStatus ──────────────────────────────────────────────────────────
+    // â”€â”€ UpdateStatus â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void UpdateStatus_Should_Fail_WhenNotVerified()
@@ -219,7 +221,7 @@ public sealed class DriverTests
         driver.DomainEvents.Should().ContainSingle(e => e.GetType().Name == "DriverStatusChangedDomainEvent");
     }
 
-    // ── TrustScore ────────────────────────────────────────────────────────────
+    // â”€â”€ TrustScore â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void UpdateTrustScore_Should_ClampAtZero()
@@ -274,12 +276,12 @@ public sealed class DriverTests
         result.IsSuccess.Should().BeFalse();
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-    private static Result<Driver> CreateValidDriver(
+    private static Result<DriverAggregate> CreateValidDriver(
         LicenseGrade grade = LicenseGrade.C,
         DateOnly? expiry = null) =>
-        Driver.Create(
+        DriverAggregate.Create(
             Guid.NewGuid(),
             "driver@example.com",
             "Nguyen",
@@ -292,23 +294,23 @@ public sealed class DriverTests
             "123 Le Loi, Q.1, HCM",
             "079123456789");
 
-    private static Result<Driver> CreateDriverWithGrade(LicenseGrade grade) =>
+    private static Result<DriverAggregate> CreateDriverWithGrade(LicenseGrade grade) =>
         CreateValidDriver(grade: grade);
 
-    private static Result<Driver> CreateDriverWithExpiry(DateOnly expiry) =>
-        Driver.Create(
+    private static Result<DriverAggregate> CreateDriverWithExpiry(DateOnly expiry) =>
+        DriverAggregate.Create(
             Guid.NewGuid(), "driver@example.com", "A", "B",
             "0901234567", "abc123", LicenseGrade.C, expiry,
             new DateOnly(1990, 1, 1), "Address", "079123456789");
 
-    private static Driver CreatePendingVerificationDriver()
+    private static DriverAggregate CreatePendingVerificationDriver()
     {
         var driver = CreateValidDriver().Value;
         driver.SubmitDocuments("p.jpg", "cf.jpg", "cb.jpg", "lf.jpg", "lb.jpg", "rf.jpg", "rb.jpg");
         return driver;
     }
 
-    private static Driver CreateVerifiedDriver()
+    private static DriverAggregate CreateVerifiedDriver()
     {
         var driver = CreatePendingVerificationDriver();
         driver.ApplyOcrResult(0.9f, DriverVerificationStatus.OcrVerified);

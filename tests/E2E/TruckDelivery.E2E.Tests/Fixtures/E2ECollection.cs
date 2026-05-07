@@ -1,3 +1,4 @@
+﻿using Xunit;
 namespace TruckDelivery.E2E.Tests.Fixtures;
 
 [CollectionDefinition("E2E")]

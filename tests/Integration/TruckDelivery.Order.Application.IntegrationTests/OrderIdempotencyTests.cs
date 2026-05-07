@@ -1,3 +1,4 @@
+﻿using Xunit;
 using FluentAssertions;
 using TruckDelivery.Order.Application.IntegrationTests.Fixtures;
 

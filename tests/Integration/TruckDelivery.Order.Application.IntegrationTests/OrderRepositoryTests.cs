@@ -1,3 +1,4 @@
+﻿using Xunit;
 using FluentAssertions;
 using TruckDelivery.Order.Application.IntegrationTests.Fixtures;
 using TruckDelivery.Order.Domain.ValueObjects;
@@ -29,8 +30,8 @@ public sealed class OrderRepositoryTests(OrderTestFixture fixture)
         retrieved.Should().NotBeNull();
         retrieved!.Id.Should().Be(order.Id);
         retrieved.CustomerId.Should().Be(CustomerId);
-        retrieved.Status.Should().Be(Domain.Aggregates.OrderStatus.Pending);
-        retrieved.TotalWeightKg.Should().Be(100m); // 2 × 50
+        retrieved.Status.Should().Be(TruckDelivery.Order.Domain.ValueObjects.OrderStatus.Pending);
+        retrieved.TotalWeightKg.Should().Be(100m); // 2 Ã— 50
     }
 
     [Fact]
@@ -65,12 +66,12 @@ public sealed class OrderRepositoryTests(OrderTestFixture fixture)
         await fixture.OrderRepository.AddAsync(order);
         await fixture.UnitOfWork.SaveChangesAsync();
 
-        order.UpdateStatus(Domain.Aggregates.OrderStatus.Confirmed);
+        order.UpdateStatus(TruckDelivery.Order.Domain.ValueObjects.OrderStatus.Confirmed);
         fixture.OrderRepository.Update(order);
         await fixture.UnitOfWork.SaveChangesAsync();
 
         var updated = await fixture.OrderRepository.GetByIdAsync(order.Id);
-        updated!.Status.Should().Be(Domain.Aggregates.OrderStatus.Confirmed);
+        updated!.Status.Should().Be(TruckDelivery.Order.Domain.ValueObjects.OrderStatus.Confirmed);
     }
 
     [Fact]
