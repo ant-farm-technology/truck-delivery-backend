@@ -135,6 +135,30 @@ X-Correlation-Id: <uuid-v4>       (app tự sinh mỗi request hoặc per-sessio
 Content-Type: application/json
 ```
 
+### 3.5 Lấy thông tin tài khoản hiện tại
+
+```http
+GET /api/v1/auth/me
+Authorization: Bearer <token>     (bất kỳ role nào: Customer, Driver, Admin)
+```
+
+```json
+{
+  "id": "550e8400-...",
+  "email": "customer@example.com",
+  "firstName": "Văn A",
+  "lastName": "Nguyễn",
+  "role": "Customer",
+  "phoneNumber": "0901234567",
+  "dateOfBirth": "1990-01-15",
+  "isActive": true,
+  "createdAt": "2026-04-30T08:00:00Z",
+  "lastLoginAt": "2026-05-09T05:00:00Z"
+}
+```
+
+> Dùng endpoint này để hiển thị thông tin profile trên màn hình "Tài khoản". Không lưu `userId` trong storage — lấy tự động từ JWT claims bên server.
+
 ---
 
 ## 4. Tạo đơn hàng

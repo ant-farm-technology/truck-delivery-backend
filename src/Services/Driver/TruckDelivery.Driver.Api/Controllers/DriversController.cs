@@ -10,6 +10,7 @@ using TruckDelivery.Driver.Application.Commands.ReportBreakdown;
 using TruckDelivery.Driver.Application.Commands.SelfRegisterDriver;
 using TruckDelivery.Driver.Application.Commands.UpdateDriverStatus;
 using TruckDelivery.Driver.Application.Queries.GetDriverById;
+using TruckDelivery.Driver.Application.Queries.GetMyDriverProfile;
 using TruckDelivery.Driver.Application.Queries.ListAvailableDrivers;
 using TruckDelivery.Driver.Application.Queries.ListDrivers;
 using TruckDelivery.Driver.Application.Queries.ListPendingVerification;
@@ -68,6 +69,22 @@ public sealed class DriversController(IMediator mediator) : ControllerBase
         }
 
         return CreatedAtAction(nameof(GetDriverById), new { id = result.Value.DriverId }, result.Value);
+    }
+
+    /// <summary>Returns the authenticated driver's own profile.</summary>
+    [HttpGet("me")]
+    [Authorize(Roles = "Driver")]
+    [ProducesResponseType(typeof(DriverDto), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> GetMe(CancellationToken ct)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var result = await mediator.Send(new GetMyDriverProfileQuery(userId), ct);
+        if (result.IsFailure)
+            return NotFound(new { result.Error.Code, result.Error.Description });
+
+        return Ok(result.Value);
     }
 
     [HttpGet("{id:guid}")]

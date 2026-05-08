@@ -1,10 +1,12 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using TruckDelivery.Identity.Application.Commands.Login;
 using TruckDelivery.Identity.Application.Commands.RefreshToken;
 using TruckDelivery.Identity.Application.Commands.RegisterUser;
 using TruckDelivery.Identity.Application.Commands.RevokeRefreshToken;
+using TruckDelivery.Identity.Application.Queries.GetMe;
 using TruckDelivery.Identity.Domain.ValueObjects;
 
 namespace TruckDelivery.Identity.Api.Controllers;
@@ -100,6 +102,25 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
 
         await mediator.Send(new RevokeRefreshTokenCommand(userId), ct);
         return NoContent();
+    }
+
+    /// <summary>Returns the currently authenticated user's profile (Customer, Driver, or Admin).</summary>
+    [HttpGet("me")]
+    [Authorize]
+    [ProducesResponseType(typeof(UserProfileDto), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> GetMe(CancellationToken ct)
+    {
+        var sub = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(sub, out var userId))
+            return Unauthorized();
+
+        var result = await mediator.Send(new GetMeQuery(userId), ct);
+        if (result.IsFailure)
+            return NotFound(new { result.Error.Code, result.Error.Description });
+
+        return Ok(result.Value);
     }
 }
 

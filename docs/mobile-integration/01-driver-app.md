@@ -137,6 +137,33 @@ X-Correlation-Id: <uuid-v4>       (app tự sinh, giữ trong session)
 Content-Type: application/json
 ```
 
+### 3.5 Lấy thông tin tài khoản hiện tại
+
+```http
+GET /api/v1/drivers/me
+Authorization: Bearer <token>     (role=Driver)
+```
+
+```json
+{
+  "id": "7b2f4c8e-...",
+  "email": "driver@example.com",
+  "firstName": "Văn B",
+  "lastName": "Trần",
+  "phoneNumber": "0901234567",
+  "licenseNumber": "123456789012",
+  "status": "Offline",
+  "verificationStatus": "OcrVerified",
+  "licenseGrade": "C",
+  "trustScore": 70,
+  "currentVehicleId": "a1b2c3d4-...",
+  "isActive": true,
+  "createdAt": "2026-04-30T08:00:00Z"
+}
+```
+
+> **Lưu ý:** `id` trong response chính là `driverId` — lưu lại để dùng cho các API sau (`report-breakdown`, `status update`, v.v.). Endpoint này không cần biết `driverId` trước — chỉ cần JWT token.
+
 ---
 
 ## 4. Onboarding — Bước 2: Đăng ký thông tin tài xế + xe (all-in-one)
@@ -400,6 +427,8 @@ Authorization: Bearer <token>
 ## 6. Dashboard — Màn hình chính
 
 ### 6.1 Xem thông tin tài xế
+
+> **Khuyến nghị:** Dùng `GET /api/v1/drivers/me` (§3.5) thay vì `GET /api/v1/drivers/{driverId}` để không cần lưu `driverId` trong app storage.
 
 ```http
 GET /api/v1/drivers/{driverId}
