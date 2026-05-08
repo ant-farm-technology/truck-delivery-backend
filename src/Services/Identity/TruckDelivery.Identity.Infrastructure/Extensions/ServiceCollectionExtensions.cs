@@ -10,7 +10,6 @@ using TruckDelivery.Identity.Infrastructure.Persistence;
 using TruckDelivery.Identity.Infrastructure.Repositories;
 using TruckDelivery.Shared.Common.Persistence;
 using TruckDelivery.Shared.Infrastructure.Messaging.Outbox;
-using TruckDelivery.Shared.Infrastructure.Persistence;
 using TruckDelivery.Shared.Infrastructure.Persistence.MySql;
 using TruckDelivery.Shared.Infrastructure.Persistence.Outbox;
 
@@ -28,7 +27,7 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IUserRepository, UserRepository>();
-        services.AddScoped<IDbConnectionFactory>(_ => new MySqlConnectionFactory(connectionString));
+        services.AddScoped<TruckDelivery.Shared.Infrastructure.Persistence.IDbConnectionFactory>(_ => new MySqlConnectionFactory(connectionString));
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IOutboxRepository, OutboxRepository<IdentityDbContext>>();
 
