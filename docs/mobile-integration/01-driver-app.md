@@ -1,71 +1,68 @@
 # Driver App — Mobile Integration Guide
 
 > Truck Delivery Backend · Tài liệu tích hợp cho ứng dụng mobile tài xế
-> Cập nhật: 2026-05-02 (Sprint 4, final review)
+> Cập nhật: 2026-05-10 (đồng bộ sau BE-FIX-1…5)
 
 ---
 
-## 1. Tổng quan kiến trúc
+## 1. Kiến trúc tổng quan
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │                     Driver App (Mobile)                      │
-│                                                              │
 │  [Onboarding] [Dashboard] [Delivery] [Breakdown] [Profile]   │
 └────────────────────────┬─────────────────────────────────────┘
-                         │ HTTPS + JWT Bearer
-                         │ X-Correlation-Id header
+                         │ HTTPS + JWT Bearer + X-Correlation-Id
                          ▼
              ┌───────────────────────┐
-             │  API Gateway — YARP   │
-             │        :8080          │
+             │  API Gateway — YARP   │  :8080
              └───────────┬───────────┘
-                         │ path prefix routing
-        ┌────────────────┼────────────────────┐
-        ▼                ▼                    ▼
-  Identity :8081   Driver :8083        Tracking :8087
-  Order    :8082   Shipment :8086      (SignalR /hubs/tracking)
-  Payment  :8089   OCR :8090 (internal)
+        ┌────────────────┼──────────────────────┐
+        ▼                ▼                      ▼
+  Identity :8081   Driver :8083          Tracking :8087
+  Auth/Me          /drivers/*            /tracking/*
+                   /vehicles/*           SignalR /hubs/tracking
+                   /uploads/*
 
-[Push Notifications]  ← Notification Service :8088 → FCM
-[Real-time updates]   ← SignalR WebSocket (/hubs/tracking)
+  Shipment :8086              Notification :8088
+  /shipments/*                /notifications/register-device
 ```
 
-**Internal services (không expose qua Gateway):**
-- Route `:8084` (Rust) — routing
-- Optimizer `:8085` (Python) — assignment logic
+**Services nội bộ (không expose qua Gateway):**
+- Route `:8084` (Rust), Optimizer `:8085` (Python), OCR `:8090`
 
 ---
 
-## 2. Luồng màn hình tổng quan
+## 2. Luồng tổng quan
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  ONBOARDING (3 bước — chỉ làm 1 lần)                        │
-│                                                             │
-│  Bước 1: Đăng ký tài khoản (Identity)                       │
-│  Bước 2: Điền thông tin tài xế (Driver Service)             │
-│  Bước 3: Upload & OCR giấy tờ → Xác minh (OCR Service)      │
-└─────────────────────────────────────────────────────────────┘
-                            ↓ (sau khi OcrVerified)
-┌─────────────────────────────────────────────────────────────┐
-│  MAIN FLOW (hằng ngày)                                      │
-│                                                             │
-│  Dashboard → Set Available → Nhận assignment (push/WS)      │
-│           → Active Delivery → GPS push loop                 │
-│           → Update status (PickedUp → Delivered)            │
-│           → Set Available (tiếp chuyến mới)                 │
-└─────────────────────────────────────────────────────────────┘
+ONBOARDING (1 lần)
+  Bước 1 → POST /api/v1/auth/register/driver       (Identity)
+  Bước 2 → GET  /api/v1/uploads/presigned-url       (Driver)
+  Bước 2 → PUT <presigned-url>                      (MinIO direct)
+  Bước 3 → POST /api/v1/drivers/register            (Driver — all-in-one)
+          ↓ Backend publish → OCR async verify
+  Poll hoặc push notification → verificationStatus thay đổi
+
+MAIN FLOW (hằng ngày)
+  GET  /api/v1/drivers/me                           lấy profile + driverId
+  PUT  /api/v1/drivers/{id}/status  Available       bắt đầu nhận đơn
+  ← SignalR DriverAssigned event
+  GET  /api/v1/shipments/{id}                       lấy chi tiết đơn
+  POST /api/v1/tracking/location  (mỗi 1–5s)       push GPS
+  PUT  /api/v1/shipments/{id}/status  InProgress    đã lấy hàng + đang giao
+  PUT  /api/v1/shipments/{id}/status  Completed     giao xong
+  PUT  /api/v1/drivers/{id}/status  Offline/Available
 ```
 
 ---
 
 ## 3. Authentication
 
-### 3.1 Đăng ký tài khoản (Bước 1 Onboarding)
+### 3.1 Đăng ký tài khoản driver (Bước 1 Onboarding)
 
 ```http
-POST /api/v1/auth/register
+POST /api/v1/auth/register/driver
 Content-Type: application/json
 
 {
@@ -74,18 +71,14 @@ Content-Type: application/json
   "firstName": "Văn B",
   "lastName": "Trần",
   "phoneNumber": "0901234567",
-  "dateOfBirth": "1990-05-15",
-  "role": 2
+  "dateOfBirth": "1990-05-15"
 }
 ```
 
-`role`: Customer=1, Driver=2, Admin=3
+> **Không dùng** `POST /api/v1/auth/register` (endpoint đó tạo Customer). Driver dùng `/register/driver`.
 
 ```json
-{
-  "success": true,
-  "data": { "userId": "550e8400-e29b-41d4-a716-446655440000" }
-}
+{ "userId": "550e8400-e29b-41d4-a716-446655440000" }
 ```
 
 ### 3.2 Đăng nhập
@@ -94,22 +87,16 @@ Content-Type: application/json
 POST /api/v1/auth/login
 Content-Type: application/json
 
-{
-  "email": "driver@example.com",
-  "password": "P@ssw0rd123"
-}
+{ "email": "driver@example.com", "password": "P@ssw0rd123" }
 ```
 
 ```json
 {
-  "success": true,
-  "data": {
-    "accessToken": "eyJhbGci...",
-    "refreshToken": "550e8400-...",
-    "expiresAt": "2026-06-01T10:30:00Z",
-    "role": "Driver",
-    "userId": "550e8400-..."
-  }
+  "accessToken": "eyJhbGci...",
+  "refreshToken": "abc123...",
+  "expiresAt": "2026-06-01T10:30:00Z",
+  "role": "Driver",
+  "userId": "550e8400-..."
 }
 ```
 
@@ -117,62 +104,94 @@ Content-Type: application/json
 
 ```http
 POST /api/v1/auth/refresh
-Content-Type: application/json
 
-{
-  "userId": "550e8400-...",
-  "refreshToken": "abc123..."
-}
+{ "userId": "550e8400-...", "refreshToken": "abc123..." }
 ```
 
-Rotation được enforce: mỗi lần refresh → old token bị invalidate ngay. TTL refresh token: 30 ngày.
+Rotation enforced: old token bị invalidate ngay. TTL 30 ngày.
 
-**Khuyến nghị:** Auto-refresh khi còn 60s trước khi hết hạn. Lưu cả `accessToken` và `refreshToken` vào secure storage (Keychain / Keystore).
+### 3.4 Logout
 
-### 3.4 Headers bắt buộc cho mọi request
+```http
+POST /api/v1/auth/logout
+Authorization: Bearer <token>
+```
+
+Response: `204 No Content`
+
+### 3.5 Headers bắt buộc cho mọi request
 
 ```http
 Authorization: Bearer <accessToken>
-X-Correlation-Id: <uuid-v4>       (app tự sinh, giữ trong session)
+X-Correlation-Id: <uuid-v4>
 Content-Type: application/json
 ```
 
-### 3.5 Lấy thông tin tài khoản hiện tại
+### 3.6 Lấy profile tài khoản hiện tại
 
 ```http
-GET /api/v1/drivers/me
-Authorization: Bearer <token>     (role=Driver)
+GET /api/v1/auth/me
+Authorization: Bearer <token>
 ```
 
 ```json
 {
-  "id": "7b2f4c8e-...",
+  "id": "550e8400-...",
   "email": "driver@example.com",
   "firstName": "Văn B",
   "lastName": "Trần",
+  "role": "Driver",
   "phoneNumber": "0901234567",
-  "licenseNumber": "123456789012",
-  "status": "Offline",
-  "verificationStatus": "OcrVerified",
-  "licenseGrade": "C",
-  "trustScore": 70,
-  "currentVehicleId": "a1b2c3d4-...",
+  "dateOfBirth": "1990-05-15",
   "isActive": true,
-  "createdAt": "2026-04-30T08:00:00Z"
+  "createdAt": "2026-04-30T08:00:00Z",
+  "lastLoginAt": "2026-05-09T05:00:00Z"
 }
 ```
 
-> **Lưu ý:** `id` trong response chính là `driverId` — lưu lại để dùng cho các API sau (`report-breakdown`, `status update`, v.v.). Endpoint này không cần biết `driverId` trước — chỉ cần JWT token.
+---
+
+## 4. Onboarding — Bước 2: Upload giấy tờ lên MinIO
+
+### 4.1 Xin pre-signed URL (7 ảnh giấy tờ)
+
+```http
+GET /api/v1/uploads/presigned-url?type=driver-document
+Authorization: Bearer <token>   (role=Driver)
+```
+
+```json
+{
+  "urls": [
+    { "field": "portrait",          "uploadUrl": "http://minio:9000/driver-documents/uuid-portrait.jpg?X-Amz-Signature=...", "finalUrl": "http://minio:9000/driver-documents/{driverId}/portrait-{uuid}.jpg" },
+    { "field": "id-card-front",     "uploadUrl": "...", "finalUrl": "http://minio:9000/driver-documents/{driverId}/id-card-front-{uuid}.jpg" },
+    { "field": "id-card-back",      "uploadUrl": "...", "finalUrl": "http://minio:9000/driver-documents/{driverId}/id-card-back-{uuid}.jpg" },
+    { "field": "license-front",     "uploadUrl": "...", "finalUrl": "http://minio:9000/driver-documents/{driverId}/license-front-{uuid}.jpg" },
+    { "field": "license-back",      "uploadUrl": "...", "finalUrl": "http://minio:9000/driver-documents/{driverId}/license-back-{uuid}.jpg" },
+    { "field": "vehicle-reg-front", "uploadUrl": "...", "finalUrl": "http://minio:9000/driver-documents/{driverId}/vehicle-reg-front-{uuid}.jpg" },
+    { "field": "vehicle-reg-back",  "uploadUrl": "...", "finalUrl": "http://minio:9000/driver-documents/{driverId}/vehicle-reg-back-{uuid}.jpg" }
+  ]
+}
+```
+
+### 4.2 Upload từng ảnh lên MinIO
+
+```http
+PUT <entry.uploadUrl>
+Content-Type: image/jpeg
+
+<binary image data>
+```
+
+Response: `200 OK`. URL TTL: 15 phút.
 
 ---
 
-## 4. Onboarding — Bước 2: Đăng ký thông tin tài xế + xe (all-in-one)
-
-> Sau khi upload ảnh giấy tờ lên MinIO (§5), gọi một endpoint duy nhất để tạo Driver + Vehicle và submit documents.
+## 5. Onboarding — Bước 3: Đăng ký thông tin tài xế + xe (all-in-one)
 
 ```http
 POST /api/v1/drivers/register
-Authorization: Bearer <token>     (role=Driver)
+Authorization: Bearer <token>   (role=Driver)
 Content-Type: application/json
 
 {
@@ -183,13 +202,13 @@ Content-Type: application/json
   "licenseGrade": "C",
   "licenseExpiryDate": "2028-12-31",
   "photos": {
-    "portraitUrl": "driver-documents/uuid-portrait.jpg",
-    "idCardFrontUrl": "driver-documents/uuid-id-front.jpg",
-    "idCardBackUrl": "driver-documents/uuid-id-back.jpg",
-    "licenseFrontUrl": "driver-documents/uuid-lic-front.jpg",
-    "licenseBackUrl": "driver-documents/uuid-lic-back.jpg",
-    "vehicleRegFrontUrl": "driver-documents/uuid-reg-front.jpg",
-    "vehicleRegBackUrl": "driver-documents/uuid-reg-back.jpg"
+    "portraitUrl": "http://minio:9000/driver-documents/{driverId}/portrait-{uuid}.jpg",
+    "idCardFrontUrl": "http://minio:9000/driver-documents/{driverId}/id-card-front-{uuid}.jpg",
+    "idCardBackUrl": "http://minio:9000/driver-documents/{driverId}/id-card-back-{uuid}.jpg",
+    "licenseFrontUrl": "http://minio:9000/driver-documents/{driverId}/license-front-{uuid}.jpg",
+    "licenseBackUrl": "http://minio:9000/driver-documents/{driverId}/license-back-{uuid}.jpg",
+    "vehicleRegFrontUrl": "http://minio:9000/driver-documents/{driverId}/vehicle-reg-front-{uuid}.jpg",
+    "vehicleRegBackUrl": "http://minio:9000/driver-documents/{driverId}/vehicle-reg-back-{uuid}.jpg"
   },
   "vehicle": {
     "licensePlate": "51A-12345",
@@ -208,550 +227,178 @@ Content-Type: application/json
 }
 ```
 
-> **Lưu ý:** `userId`, `email`, `firstName`, `lastName`, `phoneNumber` được lấy tự động từ JWT claims — không cần truyền lên trong body.
-> Dùng `finalUrl` từ presigned URL response (§5.2) làm giá trị cho từng field trong `photos`.
+> `userId`, `email`, `firstName`, `lastName`, `phoneNumber` lấy tự động từ JWT — không cần truyền.
+> `finalUrl` từ §4.1 làm giá trị các trường trong `photos`.
 
 ```json
 {
-  "success": true,
-  "data": {
-    "driverId": "7b2f4c8e-...",
-    "verificationStatus": "PendingOcrVerification"
-  }
+  "driverId": "7b2f4c8e-...",
+  "vehicleId": "a1b2c3d4-...",
+  "verificationStatus": "PendingOcrVerification"
 }
 ```
 
-> **Lưu `driverId`** — dùng cho tất cả request sau này.
+**Lưu `driverId`** — dùng cho tất cả API sau.
 
-Sau khi gọi endpoint này, backend tự động publish `DriverDocumentsSubmittedEvent` → OCR service xử lý bất đồng bộ.
+**Error codes:**
+| HTTP | Code | Ý nghĩa |
+|---|---|---|
+| 409 | `Driver.Conflict` | userId đã có driver profile |
+| 409 | `Driver.IdCard.Conflict` | IdCardNumber đã tồn tại |
+| 409 | `Vehicle.LicensePlate.Conflict` | Biển số đã tồn tại |
+| 400 | `Driver.LicenseExpiryDate` | Bằng lái đã hết hạn |
+| 400 | `Driver.LicenseGrade` | Hạng bằng không hợp lệ (B1, E không được dùng) |
+
+**`licenseGrade` hợp lệ để chạy xe tải:** `B2`, `C`, `D`, `FC`, `FD`
+
+**`type` (VehicleType):** `Motorbike`, `Van`, `Truck3T`, `Truck5T`, `Truck10T`, `Truck15T`
 
 ---
 
-## 5. Onboarding — Bước 3: Upload giấy tờ & OCR xác minh
-
-### 5.1 Luồng tổng quan
-
-```
-1. Driver app xin pre-signed URL từ backend (7 URLs)
-2. Upload 7 ảnh trực tiếp lên MinIO qua pre-signed URL
-3. (Optional) Gọi OCR extract endpoints → nhận data tự động điền form
-4. Driver review, chỉnh sửa nếu cần
-5. Submit toàn bộ data + photo URLs qua POST /api/v1/drivers/register (all-in-one)
-6. Backend tự động publish DriverDocumentsSubmittedEvent → OCR verify async
-7. App poll hoặc nhận push notification về verification status
-```
-
-### 5.2 Xin pre-signed URL upload (7 URLs cho 7 ảnh)
+## 6. Onboarding — Theo dõi trạng thái xác minh
 
 ```http
-GET /api/v1/uploads/presigned-url?type=driver-document
-Authorization: Bearer <token>
+GET /api/v1/drivers/me
+Authorization: Bearer <token>   (role=Driver)
 ```
 
 ```json
 {
-  "success": true,
-  "data": {
-    "urls": [
-      { "field": "portraitUrl",        "uploadUrl": "http://minio:9000/driver-documents/uuid-portrait.jpg?X-Amz-Signature=...",       "finalUrl": "driver-documents/uuid-portrait.jpg" },
-      { "field": "idCardFrontUrl",     "uploadUrl": "http://minio:9000/driver-documents/uuid-id-front.jpg?X-Amz-Signature=...",       "finalUrl": "driver-documents/uuid-id-front.jpg" },
-      { "field": "idCardBackUrl",      "uploadUrl": "http://minio:9000/driver-documents/uuid-id-back.jpg?X-Amz-Signature=...",        "finalUrl": "driver-documents/uuid-id-back.jpg" },
-      { "field": "licenseFrontUrl",    "uploadUrl": "http://minio:9000/driver-documents/uuid-lic-front.jpg?X-Amz-Signature=...",      "finalUrl": "driver-documents/uuid-lic-front.jpg" },
-      { "field": "licenseBackUrl",     "uploadUrl": "http://minio:9000/driver-documents/uuid-lic-back.jpg?X-Amz-Signature=...",       "finalUrl": "driver-documents/uuid-lic-back.jpg" },
-      { "field": "vehicleRegFrontUrl", "uploadUrl": "http://minio:9000/driver-documents/uuid-reg-front.jpg?X-Amz-Signature=...",      "finalUrl": "driver-documents/uuid-reg-front.jpg" },
-      { "field": "vehicleRegBackUrl",  "uploadUrl": "http://minio:9000/driver-documents/uuid-reg-back.jpg?X-Amz-Signature=...",       "finalUrl": "driver-documents/uuid-reg-back.jpg" }
-    ]
-  }
+  "id": "7b2f4c8e-...",
+  "email": "driver@example.com",
+  "firstName": "Văn B",
+  "lastName": "Trần",
+  "phoneNumber": "0901234567",
+  "licenseNumber": "123456789012",
+  "status": "Offline",
+  "verificationStatus": "PendingOcrVerification",
+  "licenseGrade": "C",
+  "trustScore": 70,
+  "currentVehicleId": "a1b2c3d4-...",
+  "isActive": true,
+  "createdAt": "2026-04-30T08:00:00Z"
 }
 ```
 
-Mỗi entry trong `urls` gồm: `field` (tên field trong body §4), `uploadUrl` (dùng để PUT ảnh lên MinIO), `finalUrl` (dùng làm giá trị trong `photos` khi submit §4).
-
-**Tiến hành upload từng ảnh:**
-
-```http
-PUT <entry.uploadUrl>
-Content-Type: image/jpeg
-
-<binary image data>
-```
-
-Response: `200 OK` (MinIO direct upload). URL TTL: 15 phút.
-
-### 5.3 OCR Auto-fill — CCCD/CMND (optional, direct to OCR service)
-
-> **Lưu ý:** Các endpoint OCR extract bên dưới gọi trực tiếp tới OCR Service `:8090` — **không đi qua Gateway**. Chỉ dùng khi muốn auto-fill form cho driver. Xác minh chính thức vẫn diễn ra async qua Kafka sau khi submit.
-
-Sau khi upload ảnh CCCD mặt trước + mặt sau:
-
-```http
-POST http://ocr-service:8090/api/v1/ocr/extract/id-card
-Content-Type: application/json
-
-{
-  "front_url": "http://minio:9000/trucker-driver-docs/uuid-front-id.jpg",
-  "back_url": "http://minio:9000/trucker-driver-docs/uuid-back-id.jpg"
-}
-```
-
-```json
-{
-  "success": true,
-  "data": {
-    "id_number": "079123456789",
-    "full_name": "TRẦN VĂN B",
-    "date_of_birth": "1990-05-15",
-    "gender": "Nam",
-    "nationality": "Việt Nam",
-    "place_of_origin": "TP. Hồ Chí Minh",
-    "place_of_residence": "123 Nguyễn Huệ, Quận 1, TP.HCM",
-    "expiry_date": "2030-05-15",
-    "confidence": 0.91,
-    "suggested_form_values": {
-      "id_number": "079123456789",
-      "full_name": "Trần Văn B",
-      "date_of_birth": "1990-05-15"
-    }
-  }
-}
-```
-
-> Dùng `suggested_form_values` để pre-fill form. `full_name` đã được normalize từ ALL-CAPS.
-
-### 5.4 OCR Auto-fill — Giấy phép lái xe
-
-```http
-POST http://ocr-service:8090/api/v1/ocr/extract/license
-Content-Type: application/json
-
-{
-  "front_url": "http://minio:9000/trucker-driver-docs/uuid-front-lic.jpg",
-  "back_url": "http://minio:9000/trucker-driver-docs/uuid-back-lic.jpg"
-}
-```
-
-```json
-{
-  "success": true,
-  "data": {
-    "license_number": "123456789012",
-    "grade": "C",
-    "full_name": "Trần Văn B",
-    "date_of_birth": "1990-05-15",
-    "issue_date": "2015-03-20",
-    "expiry_date": "2025-03-20",
-    "issuing_authority": "Cục Đường bộ Việt Nam",
-    "confidence": 0.88,
-    "suggested_form_values": {
-      "license_number": "123456789012",
-      "license_grade": "C",
-      "license_expiry": "2025-03-20"
-    }
-  }
-}
-```
-
-**Hạng bằng lái hợp lệ để chạy xe tải:** `B2`, `C`, `D`, `E`, `FC`, `FD`
-
-### 5.5 OCR Auto-fill — Đăng ký xe
-
-> **Lưu ý:** Endpoint gọi trực tiếp tới OCR Service `:8090` — không đi qua Gateway.
-
-```http
-POST http://ocr-service:8090/api/v1/ocr/extract/vehicle-reg
-Content-Type: application/json
-
-{
-  "front_url": "http://minio:9000/trucker-driver-docs/uuid-vehicle-reg.jpg",
-  "back_url": null
-}
-```
-
-```json
-{
-  "success": true,
-  "data": {
-    "license_plate": "51C-12345",
-    "brand": "HINO",
-    "model": "XZU720L",
-    "year_of_manufacture": 2020,
-    "chassis_number": "JHDFF1JK1NX000123",
-    "engine_number": "A05C0000456",
-    "registration_number": "HCM-20-1234",
-    "owner_name": "TRẦN VĂN B",
-    "owner_id_number": "079123456789",
-    "expiry_date": "2025-12-31",
-    "confidence": 0.85,
-    "suggested_form_values": {
-      "license_plate": "51C-12345",
-      "registration_number": "HCM-20-1234"
-    }
-  }
-}
-```
-
-### 5.6 Kiểm tra trạng thái xác minh
-
-```http
-GET /api/v1/drivers/{driverId}
-Authorization: Bearer <token>
-```
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": "7b2f4c8e-...",
-    "fullName": "Trần Văn B",
-    "verificationStatus": "OcrVerified",
-    "status": "Offline",
-    "assignedVehicle": null
-  }
-}
-```
+> `id` trong response chính là `driverId`. Dùng endpoint này thay vì `/drivers/{id}` để không cần lưu driverId trước.
 
 **`verificationStatus` enum:**
 
-| Value | Ý nghĩa | Hành động cần làm |
+| Value | Ý nghĩa | Hành động |
 |---|---|---|
-| `PendingOcrVerification` | Chờ OCR xử lý (vài phút) | Polling hoặc chờ push notification |
-| `OcrVerified` | OCR xác minh tự động thành công | Có thể bắt đầu nhận đơn |
-| `ManualReview` | Confidence thấp, Admin đang review | Chờ Admin duyệt (có thể mất 1–2 ngày) |
-| `Rejected` | Bị từ chối | Xem lý do, upload lại giấy tờ |
-| `AdminVerified` | Admin đã duyệt thủ công | Có thể bắt đầu nhận đơn |
+| `Draft` | Chưa submit giấy tờ | Hoàn tất Bước 3 |
+| `PendingOcrVerification` | Chờ OCR xử lý (vài phút) | Polling hoặc chờ push |
+| `OcrVerified` | OCR xác minh thành công | Có thể set Available |
+| `ManualReview` | Confidence thấp, Admin đang review | Chờ 1–2 ngày |
+| `AdminVerified` | Admin duyệt thủ công | Có thể set Available |
+| `Rejected` | Bị từ chối | Xem lý do, liên hệ support |
 
-> **Chỉ khi `verificationStatus = OcrVerified | AdminVerified`** thì driver mới có thể set status `Available`.
+> **Chỉ khi `verificationStatus = OcrVerified | AdminVerified`** thì mới được set status `Available`.
 
 ---
 
-## 6. Dashboard — Màn hình chính
+## 7. Dashboard — Màn hình chính
 
-### 6.1 Xem thông tin tài xế
+### 7.1 Lấy thông tin tài xế + xe
 
-> **Khuyến nghị:** Dùng `GET /api/v1/drivers/me` (§3.5) thay vì `GET /api/v1/drivers/{driverId}` để không cần lưu `driverId` trong app storage.
+Gọi **2 requests song song** (parallel) để tối ưu thời gian load:
 
 ```http
-GET /api/v1/drivers/{driverId}
+GET /api/v1/drivers/me
 Authorization: Bearer <token>
 ```
 
+```http
+GET /api/v1/vehicles/mine
+Authorization: Bearer <token>   (role=Driver)
+```
+
+> `GET /vehicles/mine` là endpoint mới — không cần biết `vehicleId` trước. Trả `404` khi driver chưa được gán xe.
+
+**Response `GET /vehicles/mine`:**
+
 ```json
 {
-  "success": true,
-  "data": {
-    "id": "7b2f4c8e-...",
-    "fullName": "Trần Văn B",
-    "phone": "0901234567",
-    "status": "Available",
-    "verificationStatus": "OcrVerified",
-    "trustScore": 70,
-    "assignedVehicle": {
-      "id": "a1b2c3d4-...",
-      "licensePlate": "51A-12345",
-      "type": "Truck3T",
-      "maxWeightKg": 3000,
-      "lengthM": 4.2,
-      "widthM": 1.8,
-      "heightM": 1.8
-    }
-  }
+  "id": "a1b2c3d4-...",
+  "licensePlate": "51A-12345",
+  "brand": "Hino",
+  "model": "XZU720L",
+  "type": "Truck3T",
+  "maxWeightKg": 3000,
+  "maxVolumeCbm": 15.0,
+  "lengthM": 4.2,
+  "widthM": 1.8,
+  "heightM": 1.8,
+  "yearOfManufacture": 2020,
+  "registrationNumber": "HCM-20-1234",
+  "registrationExpiryDate": "2026-12-31",
+  "status": "Available",
+  "assignedDriverId": "7b2f4c8e-...",
+  "createdAt": "2026-04-30T08:00:00Z"
 }
 ```
 
-### 6.2 Đổi trạng thái
+### 7.2 Bắt đầu/dừng nhận đơn
 
 ```http
 PUT /api/v1/drivers/{driverId}/status
-Authorization: Bearer <token>
+Authorization: Bearer <token>   (role=Driver — chỉ update status của chính mình)
 
-{
-  "status": "Available"
-}
+{ "status": "Available" }
 ```
+
+**`status` hợp lệ cho Driver role:** `"Offline"`, `"Available"` — không set được `"Busy"` hay `"Suspended"`.
+
+Response: `204 No Content`
 
 **Luồng trạng thái driver:**
-
 ```
-Offline  ←→  Available  →  Busy (hệ thống tự set khi nhận đơn)
-               ↑
-         (chỉ khi đã Verified)
+Offline ←→ Available → Busy (hệ thống set khi nhận đơn)
+              ↑
+        (chỉ khi đã OcrVerified | AdminVerified)
 ```
 
-| Action | Status gửi lên | Khi nào |
-|---|---|---|
-| Bắt đầu nhận đơn | `Available` | Sau khi verified, sẵn sàng chạy |
-| Nghỉ ngơi / Tắt app | `Offline` | Cuối ngày hoặc muốn tạm dừng |
-| Hệ thống auto | `Busy` | Khi được assign shipment (không cần gọi API) |
-
-### 6.3 Xem shipment đang được giao
+### 7.3 Xem shipment đang thực hiện
 
 ```http
-GET /api/v1/shipments/{shipmentId}
+GET /api/v1/shipments?driverId={driverId}&status=InProgress
 Authorization: Bearer <token>
 ```
 
 ```json
 {
-  "success": true,
-  "data": {
-    "id": "c4d5e6f7-...",
-    "orderId": "a1b2c3d4-...",
-    "status": "InProgress",
-    "assignedDriverId": "7b2f4c8e-...",
-    "assignedVehicleId": "a1b2c3d4-...",
-    "pickupAddress": {
-      "street": "123 Nguyễn Huệ",
-      "city": "TP. Hồ Chí Minh",
-      "province": "Hồ Chí Minh"
-    },
-    "deliveryAddress": {
-      "street": "456 Lê Lợi",
-      "city": "Hà Nội",
-      "province": "Hà Nội"
-    },
-    "packages": [
-      {
-        "productName": "Tủ lạnh Samsung",
-        "weightKg": 45.0,
-        "lengthM": 0.6,
-        "widthM": 0.7,
-        "heightM": 1.8
-      }
-    ],
-    "createdAt": "2026-04-30T08:00:00Z"
-  }
-}
-```
-
----
-
-## 7. Active Delivery — Màn hình giao hàng
-
-### 7.1 GPS Push Loop
-
-Gửi vị trí định kỳ khi đang giao hàng:
-
-```http
-POST /api/v1/tracking/location
-Authorization: Bearer <token>
-
-{
-  "latitude": 10.7769,
-  "longitude": 106.7009,
-  "speedKmh": 45.5,
-  "headingDeg": 270.0
-}
-```
-
-`driverId` được lấy tự động từ JWT `sub` — không cần truyền trong body.
-
-Response: `204 No Content`
-
-**Adaptive interval (tiết kiệm battery):**
-
-| Trạng thái xe | Interval | Logic |
-|---|---|---|
-| Đang di chuyển (speed > 5km/h) | 1–2 giây | GPS thay đổi nhanh |
-| Dừng ngắn (speed ≤ 5km/h, < 30s) | 5 giây | Có thể đèn đỏ |
-| Dừng lâu (> 30s bất động) | 15–30 giây | Đang bốc/dỡ hàng |
-| Shipment = `Delivered` hoặc `Completed` | Dừng hẳn | Không cần push nữa |
-
-**Offline handling:** Cache các location points khi mất kết nối, gửi batch khi có mạng lại (tối đa 100 points/batch). Xem §7.1.1.
-
-### 7.1.1 Flush Offline GPS Cache (batch)
-
-Khi driver mất kết nối, app cache GPS points locally. Sau khi có mạng lại, gửi tất cả cùng một lúc:
-
-```http
-POST /api/v1/tracking/batch
-Authorization: Bearer <token>
-Rate limit: 10 requests/minute/user
-
-{
-  "points": [
+  "items": [
     {
-      "latitude": 10.7769,
-      "longitude": 106.7009,
-      "recordedAt": "2026-05-03T10:05:00Z",
-      "speedKmh": 45.5,
-      "headingDeg": 270.0
-    },
-    {
-      "latitude": 10.7812,
-      "longitude": 106.6987,
-      "recordedAt": "2026-05-03T10:05:02Z",
-      "speedKmh": 46.0,
-      "headingDeg": 268.0
+      "id": "c4d5e6f7-...",
+      "orderId": "a1b2c3d4-...",
+      "customerId": "...",
+      "status": "InProgress",
+      "pickupCity": "TP. Hồ Chí Minh",
+      "pickupProvince": "Hồ Chí Minh",
+      "deliveryCity": "Hà Nội",
+      "deliveryProvince": "Hà Nội",
+      "totalWeightKg": 45.0,
+      "totalVolumeCbm": 0.756,
+      "assignedDriverId": "7b2f4c8e-...",
+      "assignedVehicleId": "a1b2c3d4-...",
+      "distanceMeters": 1730000,
+      "createdAt": "2026-04-30T08:00:00Z"
     }
-  ]
-}
-```
-
-Response: `204 No Content`
-
-**Giới hạn & ràng buộc:**
-
-| Constraint | Giá trị |
-|---|---|
-| Max points per call | 100 |
-| Rate limit | 10 req/phút/user (= tối đa 1000 points/phút) |
-| `recordedAt` | Phải ≤ hiện tại và ≥ 24 giờ trước |
-| `recordedAt` | Dùng timestamp thực tế khi GPS ghi (không dùng thời điểm gửi) |
-
-**Logic phía backend:**
-- Bulk insert tất cả points vào MongoDB (1 DB call)
-- Chỉ gửi SignalR `LocationUpdated` và Kafka event cho **point mới nhất** (point có `recordedAt` lớn nhất)
-- Các point lịch sử được lưu nhưng không trigger real-time notification
-
-**Tại sao không dùng endpoint đơn khi reconnect?**
-
-`POST /api/v1/tracking/location` có rate limit 120 req/phút. Nếu flush 100 points qua đó sau khi offline, sẽ dùng hết toàn bộ quota của minute đó. Batch endpoint giải quyết 100 points chỉ tốn 1 trong 10 lần cho phép.
-
-### 7.2 Cập nhật trạng thái shipment
-
-```http
-PUT /api/v1/shipments/{shipmentId}/status
-Authorization: Bearer <token>
-
-{
-  "status": "PickedUp"
-}
-```
-
-**Hành trình trạng thái cho driver:**
-
-```
-InProgress (hệ thống set khi bắt đầu)
-     ↓  [Driver đến nơi, lấy hàng xong]
-  PickedUp
-     ↓  [Driver bắt đầu chạy]
-  InTransit
-     ↓  [Driver giao hàng, khách ký nhận]
-  Delivered
-```
-
-| Màn hình | Action của driver | Status gửi lên |
-|---|---|---|
-| Đến nơi lấy hàng, đã lấy xong | Nhấn "Đã lấy hàng" | `PickedUp` |
-| Đang chạy trên đường | Nhấn "Bắt đầu giao" | `InTransit` |
-| Đến nơi giao, khách ký nhận | Nhấn "Đã giao thành công" | `Delivered` |
-
-### 7.3 Xem lịch sử vị trí (debug / review)
-
-```http
-GET /api/v1/tracking/shipments/{shipmentId}/points
-Authorization: Bearer <token>
-```
-
-```json
-{
-  "success": true,
-  "data": [
-    { "latitude": 10.7769, "longitude": 106.7009, "recordedAt": "2026-04-30T08:05:00Z" },
-    { "latitude": 10.7812, "longitude": 106.6987, "recordedAt": "2026-04-30T08:06:00Z" }
-  ]
-}
-```
-
----
-
-## 8. Báo cáo hỏng xe (Breakdown)
-
-### 8.1 Luồng báo hỏng xe
-
-```
-1. Driver nhấn "Báo hỏng xe"
-2. App yêu cầu chụp ≥1 ảnh hỏng hóc
-3. App lấy GPS hiện tại
-4. POST /api/v1/drivers/{driverId}/report-breakdown
-5. Hệ thống Anti-Fraud Gate kiểm tra:
-   - TrustScore ≥ 30?
-   - Có ≥1 ảnh?
-   - GPS có khớp với vị trí tracking gần nhất không?
-6. Nếu pass → Shipment vào trạng thái Reassigning
-7. Hệ thống tự tìm driver mới (Breakdown Saga)
-```
-
-### 8.2 API báo hỏng xe
-
-**Trước khi gọi API, upload ảnh hỏng xe qua pre-signed URL:**
-
-```http
-GET /api/v1/uploads/presigned-url?type=breakdown-photo&count=2
-Authorization: Bearer <token>
-```
-
-```json
-{
-  "success": true,
-  "data": {
-    "urls": [
-      { "field": "photo_1", "uploadUrl": "http://minio:9000/breakdown-photos/uuid1.jpg?X-Amz-Signature=...", "finalUrl": "breakdown-photos/uuid1.jpg" },
-      { "field": "photo_2", "uploadUrl": "http://minio:9000/breakdown-photos/uuid2.jpg?X-Amz-Signature=...", "finalUrl": "breakdown-photos/uuid2.jpg" }
-    ]
-  }
-}
-```
-
-Upload từng ảnh với `PUT <entry.uploadUrl>`, sau đó dùng `entry.finalUrl` làm giá trị trong `photoUrls`.
-
-```http
-POST /api/v1/drivers/{driverId}/report-breakdown
-Authorization: Bearer <token>     (role=Driver)
-Content-Type: application/json
-
-{
-  "latitude": 10.7769,
-  "longitude": 106.7009,
-  "photoUrls": [
-    "breakdown-photos/uuid1.jpg",
-    "breakdown-photos/uuid2.jpg"
   ],
-  "description": "Xe bị nổ lốp, không thể tiếp tục"
+  "total": 1,
+  "page": 1,
+  "pageSize": 20
 }
 ```
-
-```json
-{
-  "success": true,
-  "data": {
-    "breakdownReportId": "d5e6f7a8-...",
-    "riskLevel": "Low",
-    "message": "Đã ghi nhận sự cố. Hệ thống đang tìm tài xế thay thế."
-  }
-}
-```
-
-**Trường hợp bị từ chối (422 Unprocessable Entity):**
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "BREAKDOWN_GATE_REJECTED",
-    "message": "Yêu cầu không hợp lệ: TrustScore quá thấp hoặc thiếu ảnh chứng minh"
-  }
-}
-```
-
-**`riskLevel` enum:**
-
-| Level | Điều kiện |
-|---|---|
-| `Low` | GPS của driver khớp với tracking hiện tại (≤2km) |
-| `Medium` | GPS cách xa tracking hiện tại (>2km) |
-| `High` | Nhiều yếu tố bất thường |
-
-**Lưu ý cho UI:** Luôn upload ảnh lên MinIO trước, lấy pre-signed URL qua `?type=breakdown-photo&count=N` (1–10 ảnh). Tối thiểu 1 ảnh, Anti-Fraud Gate sẽ reject nếu `photoUrls` rỗng.
 
 ---
 
-## 9. Real-time qua SignalR (`/hubs/tracking`)
+## 8. Nhận assignment qua SignalR
 
-### 9.1 Kết nối
+### 8.1 Kết nối
 
 ```dart
-// Flutter example (signalr_netcore package)
+// Flutter (signalr_netcore)
 final connection = HubConnectionBuilder()
   .withUrl(
     "https://api.example.com/hubs/tracking",
@@ -765,215 +412,268 @@ final connection = HubConnectionBuilder()
 await connection.start();
 ```
 
-```kotlin
-// Android (Kotlin) — microsoft-signalr library
-val connection = HubConnectionBuilder
-  .create("https://api.example.com/hubs/tracking")
-  .withAccessTokenProvider { getAccessToken() }
-  .build()
-connection.start().blockingAwait()
-```
-
-### 9.2 Subscribe vào Driver Group
-
-Sau khi kết nối, join group để nhận events cho tài xế này:
+### 8.2 Join driver group
 
 ```dart
 await connection.invoke("JoinDriverGroup", args: [driverId]);
 ```
 
-### 9.3 Events nhận từ server
-
-#### Nhận assignment mới
+### 8.3 Event: DriverAssigned
 
 ```dart
 connection.on("DriverAssigned", (args) {
-  // args[0] là JSON object:
-  // {
-  //   "shipmentId": "c4d5e6f7-...",
-  //   "orderId": "a1b2c3d4-...",
-  //   "vehicleId": "a1b2c3d4-...",
-  //   "assignedAt": "2026-04-30T08:05:00Z"
-  // }
-  // Sau khi nhận event, gọi GET /api/v1/shipments/{shipmentId} để lấy chi tiết địa chỉ và hàng hoá
+  // args[0]: { "shipmentId": "...", "orderId": "...", "vehicleId": "...", "assignedAt": "..." }
   final shipmentId = args[0]['shipmentId'];
-  fetchShipmentDetail(shipmentId);
+  fetchShipmentDetail(shipmentId);  // GET /api/v1/shipments/{shipmentId}
   showAssignmentNotification();
 });
 ```
 
-> **Lưu ý:** `DriverAssigned` SignalR event chỉ gửi `shipmentId`, `orderId`, `vehicleId`, `assignedAt`. App cần gọi thêm `GET /api/v1/shipments/{shipmentId}` để lấy địa chỉ lấy/giao hàng và danh sách kiện hàng.
-
-### 9.4 Xử lý reconnect
+### 8.4 Xử lý reconnect
 
 ```dart
-connection.onreconnecting((error) {
-  showReconnectingBanner();
-});
-
 connection.onreconnected((connectionId) async {
-  hideBanner();
-  // Re-join group sau khi reconnect
   await connection.invoke("JoinDriverGroup", args: [driverId]);
-});
-
-connection.onclose((error) {
-  showOfflineBanner();
-  // Trigger manual reconnect sau 5 giây
-  Future.delayed(Duration(seconds: 5), () => connection.start());
 });
 ```
 
 ---
 
-## 10. Push Notifications (FCM)
+## 9. Active Delivery
 
-### 10.1 Đăng ký FCM token
+### 9.1 GPS Push (mỗi 1–5 giây)
 
-Sau khi login, gửi FCM token lên server:
+```http
+POST /api/v1/tracking/location
+Authorization: Bearer <token>   (role=Driver)
+Rate limit: 120 req/phút/user
+
+{
+  "latitude": 10.7769,
+  "longitude": 106.7009,
+  "speedKmh": 45.5,
+  "headingDeg": 270.0
+}
+```
+
+Response: `204 No Content`. `driverId` lấy tự động từ JWT `sub`.
+
+**Adaptive interval:**
+| Trạng thái | Interval |
+|---|---|
+| Đang di chuyển (speed > 5km/h) | 1–2s |
+| Dừng ngắn (≤ 5km/h, < 30s) | 5s |
+| Dừng lâu (> 30s bất động) | 15–30s |
+| Shipment Completed | Dừng hẳn |
+
+### 9.2 Flush offline cache (batch)
+
+```http
+POST /api/v1/tracking/batch
+Authorization: Bearer <token>
+Rate limit: 10 req/phút/user
+
+{
+  "points": [
+    {
+      "latitude": 10.7769,
+      "longitude": 106.7009,
+      "recordedAt": "2026-05-09T10:05:00Z",
+      "speedKmh": 45.5,
+      "headingDeg": 270.0
+    }
+  ]
+}
+```
+
+| Constraint | Giá trị |
+|---|---|
+| Max points/call | 100 |
+| `recordedAt` | ≤ hiện tại, ≥ 24h trước |
+
+Response: `204 No Content`
+
+### 9.3 Cập nhật trạng thái shipment
+
+```http
+PUT /api/v1/shipments/{shipmentId}/status
+Authorization: Bearer <token>   (role=Driver)
+
+{ "status": "InProgress" }
+```
+
+**Driver được phép set:**
+
+| Status | Ý nghĩa | Khi nào |
+|---|---|---|
+| `InProgress` | Đã lấy hàng và đang giao | Sau khi lấy hàng |
+| `Completed` | Giao thành công | Khách ký nhận xong |
+
+> **Lưu ý thực tế:** `ShipmentStatus` chỉ có `InProgress` và `Completed` từ góc độ driver. Các status như `PickedUp`, `InTransit`, `Delivered` thuộc về `OrderStatus` (phản ánh sang Order service tự động qua Kafka — driver không cần gọi).
+
+Response: `204 No Content` | `403 Forbidden` nếu set status khác
+
+### 9.4 Xem lịch sử GPS (debug)
+
+```http
+GET /api/v1/tracking/shipments/{shipmentId}/points?limit=100
+Authorization: Bearer <token>
+```
+
+```json
+[
+  { "driverId": "...", "latitude": 10.7769, "longitude": 106.7009, "speedKmh": 45.5, "recordedAt": "..." }
+]
+```
+
+---
+
+## 10. Báo cáo hỏng xe (Breakdown)
+
+### 10.1 Luồng
+
+```
+1. Driver nhấn "Báo hỏng xe"
+2. Upload ảnh hỏng xe (≥1 ảnh)
+3. Lấy GPS hiện tại
+4. POST /api/v1/drivers/{driverId}/report-breakdown
+5. Anti-Fraud Gate kiểm tra: TrustScore ≥ 30, ≥1 ảnh, GPS hợp lệ
+6. Pass → Shipment → Reassigning → Backend tìm driver mới
+```
+
+### 10.2 Xin presigned URL ảnh hỏng xe
+
+```http
+GET /api/v1/uploads/presigned-url?type=breakdown-photo&count=2
+Authorization: Bearer <token>
+```
+
+```json
+{
+  "urls": [
+    { "field": "photo_1", "uploadUrl": "http://minio:9000/breakdown-photos/uuid1.jpg?...", "finalUrl": "breakdown-photos/uuid1.jpg" },
+    { "field": "photo_2", "uploadUrl": "...", "finalUrl": "breakdown-photos/uuid2.jpg" }
+  ]
+}
+```
+
+`count`: 1–10. Upload từng ảnh qua `PUT <uploadUrl>`.
+
+### 10.3 Báo hỏng xe
+
+```http
+POST /api/v1/drivers/{driverId}/report-breakdown
+Authorization: Bearer <token>   (role=Driver)
+
+{
+  "latitude": 10.7769,
+  "longitude": 106.7009,
+  "photoUrls": [
+    "breakdown-photos/uuid1.jpg",
+    "breakdown-photos/uuid2.jpg"
+  ]
+}
+```
+
+```json
+{
+  "reportId": "d5e6f7a8-...",
+  "fraudRiskLevel": "Low",
+  "accepted": true
+}
+```
+
+**`fraudRiskLevel`:** `Unknown`, `Low`, `Medium`, `High`, `Confirmed`
+
+**Trường hợp bị từ chối (422):**
+- TrustScore < 30
+- `photoUrls` rỗng
+- GPS cách xa vị trí tracking hiện tại quá nhiều
+
+> TrustScore bị trừ -3 mỗi lần báo hỏng (dù accepted). Mặc định 70, tối thiểu 0, tối đa 100.
+
+---
+
+## 11. Push Notifications (FCM)
+
+### 11.1 Đăng ký FCM token
 
 ```http
 POST /api/v1/notifications/register-device
 Authorization: Bearer <token>
 
-{
-  "token": "fcm-token-here...",
-  "platform": "Android"     // "Android" | "Ios"
-}
+{ "token": "fcm-device-token...", "platform": "Android" }
 ```
 
-### 10.2 Các notification driver nhận được
+`platform`: `"Android"` | `"Ios"`. Response: `204 No Content`.
+Gọi lại khi token FCM thay đổi (mỗi lần app khởi động là thực hành tốt).
 
-| Trigger | Notification | Action khi tap |
+### 11.2 Notifications driver nhận được
+
+| Trigger | Nội dung | Hành động khi tap |
 |---|---|---|
-| Được assign shipment | "Bạn có đơn hàng mới" + địa chỉ lấy | Mở màn hình delivery |
-| Admin confirm dispatch (sau bin-check) | "Đơn đã được duyệt, bắt đầu giao" | Mở màn hình delivery |
-| Shipment bị reassign về | "Có đơn chuyển đến bạn từ xe gặp sự cố" | Mở màn hình delivery |
-| Verification completed | "Xác minh hoàn tất: [OcrVerified / ManualReview / Rejected]" | Mở màn hình profile |
-
-### 10.3 Notification payload format
-
-```json
-{
-  "notification": {
-    "title": "Đơn hàng mới",
-    "body": "Lấy hàng tại 123 Nguyễn Huệ, TP.HCM"
-  },
-  "data": {
-    "type": "DRIVER_ASSIGNED",
-    "shipmentId": "c4d5e6f7-...",
-    "orderId": "a1b2c3d4-..."
-  }
-}
-```
+| Được giao đơn | "Bạn vừa được giao đơn hàng mới" | Mở màn hình shipment detail |
+| OCR xác minh xong | "Tài khoản đã được xác minh" | Mở dashboard |
+| ManualReview | "Giấy tờ đang chờ Admin duyệt" | Mở màn hình verification status |
+| Bị từ chối | "Giấy tờ bị từ chối, vui lòng liên hệ support" | Mở màn hình support |
 
 ---
 
-## 11. Profile & Verification Status
+## 12. Offline & Resilience
 
-### 11.1 Xem thông tin verification
-
-```http
-GET /api/v1/drivers/{driverId}
-Authorization: Bearer <token>
-```
-
-Xem field `verificationStatus` trong response (mục 6.1).
-
-### 11.2 Màn hình trạng thái xác minh
-
-```
-┌──────────────────────────────────────────┐
-│  Trạng thái hồ sơ                        │
-│                                          │
-│  CCCD/CMND      ✅ Đã xác minh           │
-│  GPLX           ✅ Đã xác minh           │
-│  Đăng ký xe     ⚠️  Đang xem xét thủ công │
-│                                          │
-│  Overall: ManualReview                   │
-│  "Hồ sơ đang được Admin xem xét.        │
-│   Vui lòng chờ 1-2 ngày làm việc."      │
-│                                          │
-│  [Liên hệ hỗ trợ]                        │
-└──────────────────────────────────────────┘
-```
-
-### 11.3 TrustScore
-
-TrustScore hiển thị trong profile (0–100, default 70):
-
-- Mỗi lần báo hỏng xe: -3 điểm
-- Collusion bị phát hiện (swap với cùng 1 tài xế > 3 lần): -10 điểm
-- Driver cần duy trì TrustScore ≥ 30 để báo hỏng xe
-
----
-
-## 12. Escrow Payment (khi nhận đơn từ xe hỏng)
-
-Nếu driver nhận đơn từ xe khác bị hỏng (reassignment), một khoản phụ phí escrow 50.000 VNĐ có thể được áp dụng:
-
-```http
-GET /api/v1/payments/escrow/{escrowId}
-Authorization: Bearer <token>
-```
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": "...",
-    "shipmentId": "...",
-    "amount": 50000,
-    "status": "Locked",
-    "createdAt": "2026-04-30T09:00:00Z"
-  }
-}
-```
-
----
-
-## 13. Offline & Resilience
-
-| Tình huống | Xử lý đề xuất |
+| Tình huống | Xử lý |
 |---|---|
-| Mất mạng khi push GPS | Cache tối đa 100 points locally, gửi batch khi có mạng lại |
-| Token hết hạn giữa chuyến | Auto-refresh silent, không interrupt delivery |
-| SignalR disconnect | `withAutomaticReconnect()` + rejoin group sau reconnect |
-| Shipment status update thất bại | Retry 3 lần với exponential backoff (1s, 3s, 9s) |
-| OCR extract timeout | Timeout sau 30s, cho phép manual fill form |
-| Mất mạng khi upload ảnh | Retry với resumable upload; hiển thị progress bar |
+| Mất mạng khi giao hàng | Cache GPS points, dùng batch endpoint khi có mạng |
+| Token hết hạn | Auto-refresh silent, nếu thất bại → redirect login |
+| SignalR disconnect | `withAutomaticReconnect()` + re-join group sau reconnect |
+| Báo hỏng bị reject (422) | Show lý do cụ thể, không retry tự động |
 
 ---
 
-## 14. Error Codes
+## 13. Enums tham chiếu
 
-| Code | HTTP | Ý nghĩa | Xử lý |
-|---|---|---|---|
-| `DRIVER_NOT_VERIFIED` | 403 | Driver chưa được xác minh | Chuyển sang màn hình verification |
-| `DRIVER_NOT_FOUND` | 404 | driverId không tồn tại | Log, show lỗi generic |
-| `BREAKDOWN_GATE_REJECTED` | 422 | Anti-fraud gate reject | Show lý do cụ thể |
-| `INVALID_STATUS_TRANSITION` | 422 | Chuyển trạng thái không hợp lệ | Reload shipment, show lỗi |
-| `SHIPMENT_NOT_FOUND` | 404 | shipmentId không tồn tại | Reload dashboard |
-| `UNAUTHORIZED` | 401 | Token hết hạn hoặc không hợp lệ | Auto-refresh hoặc re-login |
-| `FORBIDDEN` | 403 | Role không có quyền | Show lỗi rõ ràng |
-| `VALIDATION_ERROR` | 400 | Dữ liệu gửi không hợp lệ | Hiển thị lỗi theo field |
-| `DOMAIN_ERROR` | 422 | Lỗi business logic | Hiển thị message từ server |
-| `SERVER_ERROR` | 500 | Lỗi nội bộ | Retry hoặc báo support |
+### DriverStatus
+| Value | Int | Ý nghĩa |
+|---|---|---|
+| `Offline` | 1 | Không nhận đơn |
+| `Available` | 2 | Sẵn sàng nhận đơn |
+| `Busy` | 3 | Đang giao hàng (hệ thống set) |
+| `Suspended` | 4 | Bị khóa |
+
+### DriverVerificationStatus
+| Value | Int |
+|---|---|
+| `Draft` | 0 |
+| `PendingOcrVerification` | 1 |
+| `OcrVerified` | 2 |
+| `ManualReview` | 3 |
+| `AdminVerified` | 4 |
+| `Rejected` | 5 |
+
+### ShipmentStatus (driver-visible)
+| Value | Ý nghĩa |
+|---|---|
+| `InProgress` | Đang giao (driver set) |
+| `Completed` | Giao xong (driver set) |
+| `Reassigning` | Đang tìm driver khác (sau breakdown) |
+
+### LicenseGrade (hợp lệ cho xe tải)
+`B2`, `C`, `D`, `FC`, `FD` *(B1, E không được nhận đơn)*
+
+### VehicleType
+`Motorbike`, `Van`, `Truck3T`, `Truck5T`, `Truck10T`, `Truck15T`
 
 ---
 
-## 15. Checklist tích hợp
+## 14. Error Codes tham chiếu
 
-- [ ] Implement auth flow (register → login → refresh token)
-- [ ] Implement onboarding 3 bước
-- [ ] Integrate PaddleOCR auto-fill (3 endpoints)
-- [ ] Implement pre-signed URL upload flow
-- [ ] Implement GPS push loop với adaptive interval
-- [ ] Connect SignalR và handle `DriverAssigned` event
-- [ ] Implement shipment status update
-- [ ] Implement breakdown report flow
-- [ ] Register FCM token sau login
-- [ ] Handle notification tap → navigate to correct screen
-- [ ] Implement offline GPS caching + batch flush khi reconnect (`POST /api/v1/tracking/batch`)
-- [ ] Handle token expiry (silent refresh)
-- [ ] Handle SignalR reconnect + group rejoin
+| Code | HTTP | Xử lý UI |
+|---|---|---|
+| `Driver.NotFound` | 404 | Driver profile chưa tồn tại — redirect onboarding |
+| `Driver.Conflict` | 409 | UserId đã có driver profile |
+| `Driver.IdCard.Conflict` | 409 | CCCD đã đăng ký |
+| `Vehicle.LicensePlate.Conflict` | 409 | Biển số đã đăng ký |
+| `Driver.Verification` | 400 | Chưa verified, không thể set Available |
+| `Driver.Forbidden` | 403 | Driver cố update status của người khác |
+| `Breakdown.FraudGate` | 422 | Báo hỏng bị reject — show lý do |
+| `Unauthorized` | 401 | Token hết hạn — refresh hoặc re-login |

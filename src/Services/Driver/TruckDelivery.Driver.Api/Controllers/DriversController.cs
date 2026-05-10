@@ -9,6 +9,7 @@ using TruckDelivery.Driver.Application.Commands.RegisterDriver;
 using TruckDelivery.Driver.Application.Commands.ReportBreakdown;
 using TruckDelivery.Driver.Application.Commands.SelfRegisterDriver;
 using TruckDelivery.Driver.Application.Commands.UpdateDriverStatus;
+using TruckDelivery.Driver.Application.DTOs;
 using TruckDelivery.Driver.Application.Queries.GetDriverById;
 using TruckDelivery.Driver.Application.Queries.GetMyDriverProfile;
 using TruckDelivery.Driver.Application.Queries.ListAvailableDrivers;

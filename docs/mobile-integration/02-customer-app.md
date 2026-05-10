@@ -1,59 +1,48 @@
 # Customer App — Mobile Integration Guide
 
 > Truck Delivery Backend · Tài liệu tích hợp cho ứng dụng mobile khách hàng
-> Cập nhật: 2026-05-01 (Sprint 4)
+> Cập nhật: 2026-05-09 (audit từ source code thực tế)
 
 ---
 
-## 1. Tổng quan kiến trúc
+## 1. Kiến trúc tổng quan
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │                    Customer App (Mobile)                     │
-│                                                              │
-│  [Auth] [Create Order] [Order List] [Tracking] [Payment]     │
+│  [Auth] [Estimate] [Create Order] [Orders] [Tracking] [Pay]  │
 └────────────────────────┬─────────────────────────────────────┘
-                         │ HTTPS + JWT Bearer
-                         │ X-Correlation-Id header
+                         │ HTTPS + JWT Bearer + X-Correlation-Id
                          ▼
              ┌───────────────────────┐
-             │  API Gateway — YARP   │
-             │        :8080          │
+             │  API Gateway — YARP   │  :8080
              └───────────┬───────────┘
-                         │ path prefix routing
-        ┌────────────────┼───────────────────┐
-        ▼                ▼                   ▼
-  Identity :8081   Order :8082         Tracking :8087
-  Payment  :8089   Shipment :8086      (SignalR /hubs/tracking)
-
-[Push Notifications]  ← Notification Service :8088 → FCM
-[Real-time tracking]  ← SignalR WebSocket (/hubs/tracking)
+        ┌────────────────┼─────────────────────┐
+        ▼                ▼                     ▼
+  Identity :8081   Order :8082          Tracking :8087
+  Payment  :8089   Shipment :8086       SignalR /hubs/tracking
+  Notification :8088
 ```
 
 ---
 
-## 2. Luồng màn hình tổng quan
+## 2. Luồng tổng quan
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  ONBOARDING (1 lần)                                         │
-│                                                             │
-│  Đăng ký tài khoản (role=Customer) → Đăng nhập              │
-└─────────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────────┐
-│  MAIN FLOW                                                  │
-│                                                             │
-│  Tạo đơn hàng (nhập địa chỉ + kiện hàng)                    │
-│      ↓                                                      │
-│  Theo dõi xử lý đơn (Pending → Confirmed → Assigned)        │
-│      ↓                                                      │
-│  Theo dõi tài xế real-time trên bản đồ                      │
-│      ↓                                                      │
-│  Nhận thông báo khi giao thành công                         │
-│      ↓                                                      │
-│  Xem hoá đơn thanh toán (COD / VNPay)                       │
-└─────────────────────────────────────────────────────────────┘
+ONBOARDING
+  POST /api/v1/auth/register          đăng ký
+  POST /api/v1/auth/login             đăng nhập
+
+MAIN FLOW
+  GET  /api/v1/orders/pricing/estimate  (optional, không cần token)
+  POST /api/v1/orders                   tạo đơn
+  GET  /api/v1/orders?customerId=X      danh sách đơn
+  GET  /api/v1/orders/{id}              chi tiết đơn (có shipmentId)
+  GET  /api/v1/shipments/{id}           theo dõi shipment
+  ← SignalR LocationUpdated event       real-time tracking
+  GET  /api/v1/payments/orders/{id}     xem thanh toán
+  POST /api/v1/payments/orders/{id}/initiate  khởi tạo VNPay
+  POST /api/v1/payments/escrow/{id}/confirm   xác nhận nhận hàng (escrow)
 ```
 
 ---
@@ -72,18 +61,14 @@ Content-Type: application/json
   "firstName": "Văn A",
   "lastName": "Nguyễn",
   "phoneNumber": "0901234567",
-  "dateOfBirth": "1990-01-15",
-  "role": 1
+  "dateOfBirth": "1990-01-15"
 }
 ```
 
-`role`: Customer=1, Driver=2, Admin=3
+> `dateOfBirth` là optional cho Customer.
 
 ```json
-{
-  "success": true,
-  "data": { "userId": "550e8400-e29b-41d4-a716-446655440000" }
-}
+{ "userId": "550e8400-e29b-41d4-a716-446655440000" }
 ```
 
 ### 3.2 Đăng nhập
@@ -92,22 +77,16 @@ Content-Type: application/json
 POST /api/v1/auth/login
 Content-Type: application/json
 
-{
-  "email": "customer@example.com",
-  "password": "P@ssw0rd123"
-}
+{ "email": "customer@example.com", "password": "P@ssw0rd123" }
 ```
 
 ```json
 {
-  "success": true,
-  "data": {
-    "accessToken": "eyJhbGci...",
-    "refreshToken": "550e8400-...",
-    "expiresAt": "2026-06-01T10:30:00Z",
-    "role": "Customer",
-    "userId": "550e8400-..."
-  }
+  "accessToken": "eyJhbGci...",
+  "refreshToken": "abc123...",
+  "expiresAt": "2026-06-01T10:30:00Z",
+  "role": "Customer",
+  "userId": "550e8400-..."
 }
 ```
 
@@ -115,31 +94,26 @@ Content-Type: application/json
 
 ```http
 POST /api/v1/auth/refresh
-Content-Type: application/json
 
-{
-  "userId": "550e8400-...",
-  "refreshToken": "550e8400-..."
-}
+{ "userId": "550e8400-...", "refreshToken": "abc123..." }
 ```
 
-Rotation được enforce: mỗi lần refresh → old token bị invalidate ngay. TTL refresh token: 30 ngày.
+Rotation enforced. TTL 30 ngày.
 
-**Lưu ý:** Lưu cả `accessToken` và `refreshToken` vào secure storage (Keychain / Keystore). Auto-refresh khi còn 60 giây trước hết hạn.
-
-### 3.4 Headers bắt buộc
+### 3.4 Logout
 
 ```http
-Authorization: Bearer <accessToken>
-X-Correlation-Id: <uuid-v4>       (app tự sinh mỗi request hoặc per-session)
-Content-Type: application/json
+POST /api/v1/auth/logout
+Authorization: Bearer <token>
 ```
 
-### 3.5 Lấy thông tin tài khoản hiện tại
+Response: `204 No Content`
+
+### 3.5 Lấy profile tài khoản hiện tại
 
 ```http
 GET /api/v1/auth/me
-Authorization: Bearer <token>     (bất kỳ role nào: Customer, Driver, Admin)
+Authorization: Bearer <token>
 ```
 
 ```json
@@ -153,48 +127,55 @@ Authorization: Bearer <token>     (bất kỳ role nào: Customer, Driver, Admin
   "dateOfBirth": "1990-01-15",
   "isActive": true,
   "createdAt": "2026-04-30T08:00:00Z",
-  "lastLoginAt": "2026-05-09T05:00:00Z"
+  "lastLoginAt": "2026-05-09T13:00:00Z"
 }
 ```
 
-> Dùng endpoint này để hiển thị thông tin profile trên màn hình "Tài khoản". Không lưu `userId` trong storage — lấy tự động từ JWT claims bên server.
+### 3.6 Headers bắt buộc
+
+```http
+Authorization: Bearer <accessToken>
+X-Correlation-Id: <uuid-v4>
+Content-Type: application/json
+```
 
 ---
 
-## 4. Tạo đơn hàng
+## 4. Ước tính giá (không cần đăng nhập)
 
-### 4.1 Màn hình tạo đơn
-
-```
-┌──────────────────────────────────────────┐
-│  Tạo đơn giao hàng                       │
-│                                          │
-│  Địa chỉ lấy hàng: [_________________]   │
-│  Thành phố:        [_________________]   │
-│  Tỉnh/TP:          [_________________]   │
-│                                          │
-│  Địa chỉ giao hàng: [________________]   │
-│  Thành phố:         [________________]   │
-│  Tỉnh/TP:           [________________]   │
-│                                          │
-│  ─── Kiện hàng ───────────────────────── │
-│  Tên hàng:    [__________________]       │
-│  Khối lượng:  [_____] kg                 │
-│  Dài × Rộng × Cao: [__]×[__]×[__] m      │
-│  Có thể nghiêng: [✓] / [✗]               │
-│  Số lượng:    [___]                      │
-│                                          │
-│  [+ Thêm kiện]           [Tạo đơn hàng]  │
-└──────────────────────────────────────────┘
+```http
+GET /api/v1/orders/pricing/estimate
+  ?vehicleType=Truck3T
+  &pickupLat=10.7769&pickupLng=106.7009
+  &deliveryLat=21.0278&deliveryLng=105.8342
+  &weightKg=500
 ```
 
-### 4.2 API tạo đơn hàng
+```json
+{
+  "vehicleType": "Truck3T",
+  "distanceKm": 1730.5,
+  "baseFee": 500000,
+  "distanceFee": 3461000,
+  "weightSurcharge": 0,
+  "totalFee": 3961000,
+  "currency": "VND"
+}
+```
+
+`vehicleType`: `Motorbike`, `Van`, `Truck3T`, `Truck5T`, `Truck10T`, `Truck15T`
+
+---
+
+## 5. Tạo đơn hàng
 
 ```http
 POST /api/v1/orders
 Authorization: Bearer <token>
+Content-Type: application/json
 
 {
+  "customerId": "550e8400-...",
   "pickupAddress": {
     "street": "123 Nguyễn Huệ",
     "city": "TP. Hồ Chí Minh",
@@ -208,132 +189,78 @@ Authorization: Bearer <token>
   "items": [
     {
       "productName": "Tủ lạnh Samsung",
+      "quantity": 1,
       "weightKg": 45.0,
       "volumeCbm": 0.756,
       "lengthM": 0.6,
       "widthM": 0.7,
       "heightM": 1.8,
       "canTilt": false,
-      "quantity": 1
-    },
-    {
-      "productName": "Máy giặt LG",
-      "weightKg": 60.0,
-      "volumeCbm": 0.432,
-      "lengthM": 0.6,
-      "widthM": 0.6,
-      "heightM": 1.2,
-      "canTilt": false,
-      "quantity": 2
+      "notes": null
     }
-  ]
+  ],
+  "notes": null
 }
 ```
 
-**Giải thích các trường kiện hàng:**
-
-| Trường | Bắt buộc | Mô tả |
+| Field | Bắt buộc | Mô tả |
 |---|---|---|
+| `customerId` | ✅ | UserId từ login response |
 | `productName` | ✅ | Tên hàng hoá |
-| `weightKg` | ✅ | Khối lượng (kg) |
-| `volumeCbm` | ✅ | Thể tích (m³) — tính từ D×R×C |
-| `lengthM` | Khuyến nghị | Chiều dài (m) — dùng cho bin-check |
-| `widthM` | Khuyến nghị | Chiều rộng (m) — dùng cho bin-check |
-| `heightM` | Khuyến nghị | Chiều cao (m) — dùng cho bin-check |
-| `canTilt` | Khuyến nghị | Có thể đặt nghiêng không |
 | `quantity` | ✅ | Số lượng |
-
-> Nếu có `lengthM`, `widthM`, `heightM`, `canTilt` → hệ thống tự kiểm tra bin-pack (sắp xếp hàng lên xe). Nếu không có → dispatcher phải duyệt thủ công.
+| `weightKg` | ✅ | Khối lượng |
+| `volumeCbm` | ✅ | Thể tích m³ (= L×W×H) |
+| `lengthM/widthM/heightM` | Khuyến nghị | Dùng cho bin-check tự động |
+| `canTilt` | Khuyến nghị | Hàng có thể nghiêng không |
 
 ```json
-{
-  "success": true,
-  "data": {
-    "orderId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-  },
-  "meta": { "correlationId": "uuid" }
-}
+{ "orderId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }
 ```
 
-> **Lưu `orderId`** — dùng để theo dõi đơn hàng và truy vấn shipment.
-
-### 4.3 volumeCbm tính tự động
-
-```dart
-// Tính volumeCbm từ dimensions
-double calculateVolume(double length, double width, double height) {
-  return length * width * height;
-}
-```
+**Lưu `orderId`** — dùng để theo dõi và truy vấn.
 
 ---
 
-## 5. Danh sách đơn hàng
-
-**Query params (tuỳ chọn):**
-
-| Param | Mô tả | Ví dụ |
-|---|---|---|
-| `page` | Trang (default 1) | `?page=2` |
-| `pageSize` | Số phần tử/trang (default 20) | `?pageSize=10` |
-| `status` | Lọc theo trạng thái | `?status=InTransit` |
-| `dateFrom` | Từ ngày (ISO 8601) | `?dateFrom=2026-04-01` |
-| `dateTo` | Đến ngày (ISO 8601) | `?dateTo=2026-04-30` |
+## 6. Danh sách đơn hàng
 
 ```http
-GET /api/v1/orders?page=1&pageSize=20&status=InTransit
+GET /api/v1/orders?customerId={customerId}&page=1&pageSize=20&status=InTransit
 Authorization: Bearer <token>
 ```
 
+**Query params:**
+
+| Param | Mô tả |
+|---|---|
+| `customerId` | **Bắt buộc** — UserId của customer |
+| `page` | Trang (default 1) |
+| `pageSize` | Số phần tử/trang (default 20) |
+| `status` | Lọc: `Pending`, `Confirmed`, `AssignedToDriver`, `PickedUp`, `InTransit`, `Delivered`, `Cancelled`, `Completed` |
+| `dateFrom` / `dateTo` | ISO 8601 datetime |
+
 ```json
 {
-  "success": true,
-  "data": [
+  "items": [
     {
       "id": "a1b2c3d4-...",
-      "shipmentId": "c4d5e6f7-...",
+      "customerId": "550e8400-...",
       "status": "InTransit",
-      "pickupAddress": { "city": "TP. Hồ Chí Minh" },
-      "deliveryAddress": { "city": "Hà Nội" },
-      "totalItems": 2,
-      "createdAt": "2026-04-30T08:00:00Z"
+      "pickupCity": "TP. Hồ Chí Minh",
+      "deliveryCity": "Hà Nội",
+      "totalWeightKg": 45.0,
+      "createdAt": "2026-04-30T08:00:00Z",
+      "shipmentId": "c4d5e6f7-..."
     }
   ],
-  "meta": {
-    "correlationId": "uuid",
-    "page": 1,
-    "pageSize": 20,
-    "total": 5
-  }
+  "total": 5,
+  "page": 1,
+  "pageSize": 20
 }
-```
-
-**Màn hình danh sách:**
-
-```
-┌─────────────────────────────────────────┐
-│  Đơn hàng của tôi                       │
-│                                         │
-│  ┌──────────────────────────────────┐   │
-│  │ #a1b2c3d4... · 30/04/2026      │   │
-│  │ HCM → Hà Nội · 2 kiện            │   │
-│  │ 🚛 Đang trên đường giao đến bạn  │   │
-│  │ [Theo dõi trực tiếp →]           │   │
-│  └──────────────────────────────────┘   │
-│                                         │
-│  ┌──────────────────────────────────┐   │
-│  │ #b2c3d4e5... · 28/04/2026      │   │
-│  │ HCM → Đà Nẵng · 1 kiện           │   │
-│  │ ✅ Đã giao thành công            │   │
-│  └──────────────────────────────────┘   │
-└─────────────────────────────────────────┘
 ```
 
 ---
 
-## 6. Chi tiết đơn hàng
-
-### 6.1 Xem chi tiết đơn
+## 7. Chi tiết đơn hàng
 
 ```http
 GET /api/v1/orders/{orderId}
@@ -342,87 +269,68 @@ Authorization: Bearer <token>
 
 ```json
 {
-  "success": true,
-  "data": {
-    "id": "a1b2c3d4-...",
-    "shipmentId": "c4d5e6f7-...",
-    "status": "InTransit",
-    "pickupAddress": {
-      "street": "123 Nguyễn Huệ",
-      "city": "TP. Hồ Chí Minh",
-      "province": "Hồ Chí Minh"
-    },
-    "deliveryAddress": {
-      "street": "456 Lê Lợi",
-      "city": "Hà Nội",
-      "province": "Hà Nội"
-    },
-    "items": [
-      {
-        "productName": "Tủ lạnh Samsung",
-        "weightKg": 45.0,
-        "quantity": 1
-      }
-    ],
-    "createdAt": "2026-04-30T08:00:00Z",
-    "updatedAt": "2026-04-30T10:30:00Z"
-  }
+  "id": "a1b2c3d4-...",
+  "customerId": "550e8400-...",
+  "status": "InTransit",
+  "pickupStreet": "123 Nguyễn Huệ",
+  "pickupCity": "TP. Hồ Chí Minh",
+  "pickupProvince": "Hồ Chí Minh",
+  "deliveryStreet": "456 Lê Lợi",
+  "deliveryCity": "Hà Nội",
+  "deliveryProvince": "Hà Nội",
+  "totalWeightKg": 45.0,
+  "totalVolumeCbm": 0.756,
+  "notes": null,
+  "cancellationReason": null,
+  "createdAt": "2026-04-30T08:00:00Z",
+  "updatedAt": "2026-04-30T10:30:00Z",
+  "shipmentId": "c4d5e6f7-...",
+  "items": [
+    {
+      "id": "item-uuid",
+      "productName": "Tủ lạnh Samsung",
+      "quantity": 1,
+      "weightKg": 45.0,
+      "volumeCbm": 0.756,
+      "notes": null
+    }
+  ]
 }
 ```
 
-### 6.2 Order Status (từ góc độ Customer)
+**OrderStatus — mapping hiển thị:**
 
-```
-Pending
-  ↓ (hệ thống confirm tự động)
-Confirmed
-  ↓ (Saga tìm driver, bin-check OK)
-AssignedToDriver  ←── Customer nhận push notification
-  ↓ (driver đến lấy hàng)
-PickedUp
-  ↓ (driver bắt đầu chạy)
-InTransit         ←── Real-time tracking bản đồ
-  ↓ (driver giao xong, khách ký nhận)
-Delivered         ←── Push notification + Payment tạo tự động
-```
-
-**Mapping hiển thị:**
-
-| Status | Text hiển thị | Icon/màu |
+| Status | Text hiển thị | Icon |
 |---|---|---|
-| `Pending` | Đơn hàng đang chờ xác nhận | ⏳ Xám |
+| `Pending` | Chờ xác nhận | ⏳ Xám |
 | `Confirmed` | Đã xác nhận, đang tìm tài xế | 🔵 Xanh dương |
-| `AssignedToDriver` | Đã có tài xế, đang đến lấy hàng | 🟡 Vàng |
+| `AssignedToDriver` | Tài xế đang đến lấy hàng | 🟡 Vàng |
 | `PickedUp` | Hàng đã được lấy | 🟠 Cam |
-| `InTransit` | Đang trên đường giao đến bạn | 🚛 Xanh lá |
-| `Delivered` | Đã giao thành công, chờ xác nhận thanh toán | ✅ Xanh lá đậm |
-| `Completed` | Hoàn tất — thanh toán xác nhận xong | ✅✅ Xanh đậm |
-| `Cancelled` | Đơn hàng đã bị huỷ | ❌ Đỏ |
+| `InTransit` | Đang trên đường giao | 🚛 Xanh lá |
+| `Delivered` | Đã giao, chờ xác nhận thanh toán | ✅ Xanh đậm |
+| `Completed` | Hoàn tất | ✅✅ Xanh đậm |
+| `Cancelled` | Đã huỷ | ❌ Đỏ |
 
-### 6.3 Huỷ đơn hàng
+---
+
+## 8. Huỷ đơn hàng
 
 ```http
 DELETE /api/v1/orders/{orderId}
 Authorization: Bearer <token>
+
+{ "reason": "Tôi muốn thay đổi địa chỉ giao hàng" }
 ```
 
 Chỉ huỷ được khi `status = Pending | Confirmed`. Response: `204 No Content`
 
-**Validation trước khi gọi API:**
-
-```dart
-bool canCancelOrder(String status) {
-  return status == 'Pending' || status == 'Confirmed';
-}
-```
-
 ---
 
-## 7. Theo dõi Shipment (Tracking)
+## 9. Theo dõi Shipment
 
-### 7.1 Lấy thông tin shipment từ orderId
+### 9.1 Lấy thông tin shipment từ orderId
 
-Sau khi tạo đơn, hệ thống tự tạo shipment khi order được xử lý. App cần query để lấy `shipmentId`:
+`shipmentId` có trong response của `GET /api/v1/orders/{orderId}` (`shipmentId` field). Hoặc query trực tiếp:
 
 ```http
 GET /api/v1/shipments?orderId={orderId}
@@ -431,73 +339,62 @@ Authorization: Bearer <token>
 
 ```json
 {
-  "success": true,
-  "data": {
-    "id": "c4d5e6f7-...",
-    "orderId": "a1b2c3d4-...",
-    "status": "InProgress",
-    "assignedDriverId": "7b2f4c8e-...",
-    "assignedVehicleId": "a1b2c3d4-...",
-    "createdAt": "2026-04-30T08:05:00Z"
-  }
-}
-```
-
-### 7.2 Lịch sử vị trí GPS
-
-```http
-GET /api/v1/tracking/shipments/{shipmentId}/points
-Authorization: Bearer <token>
-```
-
-```json
-{
-  "success": true,
-  "data": [
-    { "latitude": 10.7769, "longitude": 106.7009, "recordedAt": "2026-04-30T08:05:00Z" },
-    { "latitude": 10.7812, "longitude": 106.6987, "recordedAt": "2026-04-30T08:06:00Z" },
-    { "latitude": 10.7850, "longitude": 106.6940, "recordedAt": "2026-04-30T08:07:00Z" }
+  "items": [
+    {
+      "id": "c4d5e6f7-...",
+      "orderId": "a1b2c3d4-...",
+      "customerId": "550e8400-...",
+      "status": "InProgress",
+      "pickupCity": "TP. Hồ Chí Minh",
+      "pickupProvince": "Hồ Chí Minh",
+      "deliveryCity": "Hà Nội",
+      "deliveryProvince": "Hà Nội",
+      "totalWeightKg": 45.0,
+      "totalVolumeCbm": 0.756,
+      "assignedDriverId": "7b2f4c8e-...",
+      "assignedVehicleId": "a1b2c3d4-...",
+      "distanceMeters": 1730000,
+      "failureReason": null,
+      "createdAt": "2026-04-30T08:00:00Z",
+      "updatedAt": "2026-04-30T10:30:00Z"
+    }
   ]
 }
 ```
 
-Dùng để vẽ polyline tuyến đường trên bản đồ.
+**ShipmentStatus:**
 
-### 7.3 Màn hình Tracking
+| Value | Ý nghĩa |
+|---|---|
+| `Created` | Vừa tạo |
+| `RoutePlanning` | Đang tính tuyến đường |
+| `DriverAssigning` | Đang tìm tài xế |
+| `DriverConfirmed` | Tài xế đã xác nhận |
+| `InProgress` | Đang giao |
+| `Completed` | Giao thành công |
+| `Failed` | Thất bại |
+| `Reassigning` | Đang tìm tài xế thay thế (sau breakdown) |
 
+### 9.2 Lịch sử GPS
+
+```http
+GET /api/v1/tracking/shipments/{shipmentId}/points?limit=100
+Authorization: Bearer <token>
 ```
-┌──────────────────────────────────────────┐
-│  Theo dõi đơn hàng                       │
-│                                          │
-│  ┌────────────────────────────────────┐ │
-│  │         [BẢN ĐỒ]                   │ │
-│  │                                    │ │
-│  │  📍 Điểm lấy hàng                  │ │
-│  │  🚛 Tài xế đang ở đây              │ │
-│  │  📦 Điểm giao hàng                 │ │
-│  │                                    │ │
-│  └────────────────────────────────────┘ │
-│                                          │
-│  Trạng thái: Đang trên đường giao        │
-│  Cập nhật lúc: 10:07:00                  │
-│                                          │
-│  ─── Timeline ────────────────────────── │
-│  ✅ 08:00 Tạo đơn hàng                   │
-│  ✅ 08:05 Tài xế được giao đơn           │
-│  ✅ 09:30 Đã lấy hàng                    │
-│  🔵 10:07 Đang giao hàng...              │
-│  ⬜ Giao thành công                      │
-└──────────────────────────────────────────┘
+
+```json
+[
+  { "driverId": "...", "latitude": 10.7769, "longitude": 106.7009, "speedKmh": 45.5, "recordedAt": "..." }
+]
 ```
 
 ---
 
-## 8. Real-time Tracking qua SignalR (`/hubs/tracking`)
+## 10. Real-time Tracking qua SignalR
 
-### 8.1 Kết nối
+### 10.1 Kết nối
 
 ```dart
-// Flutter (signalr_netcore)
 final connection = HubConnectionBuilder()
   .withUrl(
     "https://api.example.com/hubs/tracking",
@@ -507,102 +404,44 @@ final connection = HubConnectionBuilder()
   )
   .withAutomaticReconnect()
   .build();
-
 await connection.start();
 ```
 
-```swift
-// iOS (Swift) — microsoft-signalr
-let connection = HubConnectionBuilder(url: URL(string: "https://api.example.com/hubs/tracking")!)
-  .withHttpConnectionOptions { opts in
-    opts.accessTokenProvider = { [weak self] in self?.getAccessToken() }
-  }
-  .build()
-try await connection.start()
-```
-
-### 8.2 Subscribe vào Shipment Group
+### 10.2 Join Shipment Group
 
 ```dart
-// Join group để theo dõi shipment cụ thể
 await connection.invoke("JoinShipmentGroup", args: [shipmentId]);
 
 // Cleanup khi thoát màn hình
 await connection.invoke("LeaveShipmentGroup", args: [shipmentId]);
 ```
 
-### 8.3 Events nhận từ server
-
-#### Cập nhật vị trí tài xế (real-time)
+### 10.3 Event: LocationUpdated
 
 ```dart
 connection.on("LocationUpdated", (args) {
-  // args[0]:
-  // {
-  //   "driverId": "7b2f4c8e-...",
-  //   "latitude": 10.7850,
-  //   "longitude": 106.6940,
-  //   "speedKmh": 52.3,
-  //   "recordedAt": "2026-04-30T10:07:00Z"
-  // }
+  // args[0]: { "driverId": "...", "latitude": 10.785, "longitude": 106.694,
+  //            "speedKmh": 52.3, "recordedAt": "..." }
   updateDriverMarkerOnMap(args[0]['latitude'], args[0]['longitude']);
-  updateLastUpdatedTime(args[0]['recordedAt']);
 });
 ```
 
-> **Lưu ý:** `ShipmentStatusUpdated` không được phát qua SignalR. Dùng polling `GET /api/v1/orders/{orderId}` mỗi 30 giây để cập nhật timeline trạng thái đơn hàng.
+> Không có `ShipmentStatusUpdated` qua SignalR — dùng polling `GET /orders/{id}` mỗi 30 giây.
 
-### 8.4 Xử lý reconnect
+### 10.4 Reconnect
 
 ```dart
-connection.onreconnecting((error) {
-  showReconnectingBanner("Đang kết nối lại...");
-});
-
 connection.onreconnected((connectionId) async {
-  hideBanner();
-  // Quan trọng: phải join lại group sau reconnect
   await connection.invoke("JoinShipmentGroup", args: [shipmentId]);
-  // Reload lịch sử GPS để vẽ lại polyline
   await reloadTrackingPoints();
 });
-
-connection.onclose((error) {
-  showOfflineBanner("Mất kết nối. Bản đồ không cập nhật.");
-});
-```
-
-### 8.5 Lifecycle màn hình tracking
-
-```dart
-@override
-void initState() {
-  super.initState();
-  _setupSignalR();
-}
-
-Future<void> _setupSignalR() async {
-  await connection.start();
-  await connection.invoke("JoinShipmentGroup", args: [widget.shipmentId]);
-  // Load initial GPS points
-  final points = await trackingApi.getPoints(widget.shipmentId);
-  setState(() { _trackingPoints = points; });
-}
-
-@override
-void dispose() {
-  connection.invoke("LeaveShipmentGroup", args: [widget.shipmentId]);
-  super.dispose();
-}
 ```
 
 ---
 
-## 9. Thanh toán
+## 11. Thanh toán
 
-Hệ thống hỗ trợ 2 phương thức: **COD** (thanh toán tiền mặt khi nhận hàng) và **VNPay** (thanh toán online).
-
-### 9.1 Xem thông tin thanh toán
+### 11.1 Xem thông tin thanh toán
 
 ```http
 GET /api/v1/payments/orders/{orderId}
@@ -611,271 +450,155 @@ Authorization: Bearer <token>
 
 ```json
 {
-  "success": true,
-  "data": {
-    "id": "p1q2r3s4-...",
-    "orderId": "a1b2c3d4-...",
-    "status": "Completed",
-    "amount": 350000,
-    "method": "Cod",
-    "completedAt": "2026-04-30T15:35:00Z"
-  }
+  "id": "p1q2r3s4-...",
+  "orderId": "a1b2c3d4-...",
+  "customerId": "550e8400-...",
+  "amount": 3961000,
+  "currency": "VND",
+  "status": "Completed",
+  "failureReason": null,
+  "createdAt": "2026-04-30T08:00:00Z"
 }
 ```
 
-**`status` enum:**
+**PaymentStatus:**
 
 | Status | Ý nghĩa | Hiển thị |
 |---|---|---|
-| `Created` | Đơn hàng vừa tạo, chưa tính phí | — |
+| `Created` | Vừa tạo | — |
 | `Pending` | Chờ xử lý | "Đang xử lý" |
-| `Authorized` | VNPay đã xác nhận, chờ capture | "Đang xử lý" |
-| `Completed` | Thanh toán hoàn tất | "Đã thanh toán ✅" |
-| `Failed` | Thất bại | "Thanh toán thất bại ❌" |
+| `Authorized` | VNPay đã xác nhận | "Đang xử lý" |
+| `Captured` | Đã capture | "Đang xử lý" |
+| `Completed` | Hoàn tất | "Đã thanh toán ✅" |
+| `Failed` | Thất bại | "Thất bại ❌" |
 | `Refunded` | Đã hoàn tiền | "Đã hoàn tiền" |
 
-**`method` enum:** `Cod` | `VnPay`
+### 11.2 COD (tiền mặt)
 
-### 9.2 Luồng COD (thanh toán tiền mặt)
+COD hoàn tất tự động khi driver set shipment = `Completed`. App chỉ cần poll `GET /payments/orders/{id}` hoặc nhận push `PAYMENT_COMPLETED`.
 
-COD tự động complete khi driver set status `Delivered`. App không cần gọi thêm API — chỉ poll payment status hoặc nhận push `PAYMENT_COMPLETED`.
+### 11.3 VNPay (thanh toán online)
 
-### 9.3 Luồng VNPay (thanh toán online)
-
-```
-1. Customer chọn "Thanh toán VNPay" → app gọi initiate API
-2. Backend tạo Payment record + sinh URL redirect VNPay
-3. App mở WebView / deep link đến paymentUrl
-4. Customer thanh toán trên trang VNPay
-5. VNPay callback về backend → backend verify HMAC → complete Payment
-6. Customer nhận push notification "Thanh toán thành công"
-```
-
-**Bước 1: Khởi tạo thanh toán VNPay**
+**Bước 1: Khởi tạo**
 
 ```http
 POST /api/v1/payments/orders/{orderId}/initiate
-Authorization: Bearer <token>     (role=Customer)
-Content-Type: application/json
+Authorization: Bearer <token>   (role=Customer)
 
 {
-  "method": "VnPay"
+  "customerId": "550e8400-...",
+  "amount": 3961000,
+  "method": "VnPay",
+  "currency": "VND"
 }
 ```
 
 ```json
 {
-  "success": true,
-  "data": {
-    "paymentId": "p1q2r3s4-...",
-    "paymentUrl": "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?vnp_..."
-  }
+  "paymentId": "p1q2r3s4-...",
+  "paymentUrl": "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?vnp_..."
 }
 ```
 
 **Bước 2: Mở WebView**
 
 ```dart
-// Mở URL VNPay trong WebView
-launchUrl(Uri.parse(data.paymentUrl), mode: LaunchMode.inAppWebView);
-
-// Lắng nghe redirect về returnUrl (cấu hình trong appsettings.json: VnPay:ReturnUrl)
-// VD: https://app.truckdelivery.vn/payment/result?vnp_ResponseCode=00&...
+launchUrl(Uri.parse(data['paymentUrl']), mode: LaunchMode.inAppWebView);
+// Lắng nghe redirect về ReturnUrl (cấu hình trong appsettings: VnPay:ReturnUrl)
 // vnp_ResponseCode == "00" → thành công
-// vnp_ResponseCode != "00" → thất bại
 ```
 
-**Bước 3: Sau khi WebView đóng, kiểm tra trạng thái**
+**Bước 3: Kiểm tra kết quả**
 
 ```http
 GET /api/v1/payments/orders/{orderId}
+```
+
+### 11.4 Xác nhận/Khiếu nại nhận hàng (Escrow — chỉ khi driver bị swap)
+
+Khi driver bị thay thế do breakdown, payment đi qua escrow. Customer cần xác nhận sau khi nhận hàng từ driver mới:
+
+```http
+GET /api/v1/payments/orders/{orderId}/escrow
 Authorization: Bearer <token>
 ```
 
-Nếu `status == "Completed"` → hiển thị màn hình thành công. Nếu `Failed` → cho phép retry.
-
-### 9.4 Màn hình hoá đơn
-
+```json
+{
+  "id": "escrow-uuid",
+  "shipmentId": "c4d5e6f7-...",
+  "orderId": "a1b2c3d4-...",
+  "originalDriverId": "...",
+  "replacementDriverId": "...",
+  "lockedAmount": 3961000,
+  "currency": "VND",
+  "status": "Locked",
+  "resolutionNote": null,
+  "lockedAt": "...",
+  "resolvedAt": null
+}
 ```
-┌──────────────────────────────────────────┐
-│  Hoá đơn giao hàng                       │
-│                                          │
-│  Đơn hàng #a1b2c3d4                      │
-│  Ngày giao: 30/04/2026 15:30             │
-│                                          │
-│  ─── Chi tiết ────────────────────────── │
-│  Tủ lạnh Samsung × 1                    │
-│  Máy giặt LG × 2                        │
-│  Tuyến: HCM → Hà Nội (~1.700 km)         │
-│                                          │
-│  ─── Thanh toán ───────────────────────  │
-│  Phương thức: Tiền mặt (COD)             │
-│       hoặc: VNPay                        │
-│  Số tiền: 350.000 ₫                     │
-│  Trạng thái: ✅ Đã thanh toán            │
-│                                          │
-│  [Tải hoá đơn PDF]   [Tạo đơn mới]      │
-└──────────────────────────────────────────┘
+
+```http
+POST /api/v1/payments/escrow/{escrowId}/confirm
+Authorization: Bearer <token>   (role=Customer)
+
+{ "note": "Đã nhận hàng đầy đủ" }
 ```
+
+```http
+POST /api/v1/payments/escrow/{escrowId}/dispute
+Authorization: Bearer <token>   (role=Customer)
+
+{ "note": "Hàng bị hư hỏng" }
+```
+
+Response: `204 No Content`
 
 ---
 
-## 10. Push Notifications (FCM)
+## 12. Push Notifications (FCM)
 
-### 10.1 Đăng ký FCM token
+### 12.1 Đăng ký FCM token
 
 ```http
 POST /api/v1/notifications/register-device
 Authorization: Bearer <token>
 
-{
-  "token": "fcm-device-token-here...",
-  "platform": "Android"     // "Android" | "Ios"
-}
+{ "token": "fcm-device-token...", "platform": "Android" }
 ```
 
-### 10.2 Các notification customer nhận được
+`platform`: `"Android"` | `"Ios"`. Response: `204 No Content`.
 
-| Trigger | Notification | Action khi tap |
+### 12.2 Notifications customer nhận được
+
+| Trigger | Type | Hành động khi tap |
 |---|---|---|
-| Tài xế được assign | "Tài xế đang đến lấy hàng" | Mở màn hình tracking |
-| Hàng đã lấy | "Tài xế đã lấy hàng, đang giao" | Mở màn hình tracking |
-| Giao thành công | "Đơn hàng đã giao thành công!" | Mở màn hình hoá đơn |
-| Thanh toán COD hoàn tất | "Thanh toán COD đã được xác nhận" | Mở màn hình hoá đơn |
-| Thanh toán VNPay hoàn tất | "Thanh toán VNPay thành công" | Mở màn hình hoá đơn |
-| Đơn bị huỷ | "Đơn hàng #... đã bị huỷ" | Mở màn hình chi tiết đơn |
+| Tài xế được assign | `DRIVER_ASSIGNED` | Mở tracking screen |
+| Hàng đã lấy | `SHIPMENT_PICKED_UP` | Mở tracking screen |
+| Giao thành công | `SHIPMENT_DELIVERED` | Mở payment screen |
+| Thanh toán hoàn tất | `PAYMENT_COMPLETED` | Mở invoice screen |
+| Đơn bị huỷ | `ORDER_CANCELLED` | Mở order detail |
 
-### 10.3 Notification payload format
+---
 
-```json
-{
-  "notification": {
-    "title": "Tài xế đang đến lấy hàng",
-    "body": "Tài xế Trần Văn B đang trên đường đến 123 Nguyễn Huệ, TP.HCM"
-  },
-  "data": {
-    "type": "DRIVER_ASSIGNED",
-    "orderId": "a1b2c3d4-...",
-    "shipmentId": "c4d5e6f7-..."
-  }
-}
-```
+## 13. Offline & Resilience
 
-**Các `type` values:**
-
-| Type | Màn hình navigate |
+| Tình huống | Xử lý |
 |---|---|
-| `DRIVER_ASSIGNED` | Tracking screen |
-| `SHIPMENT_PICKED_UP` | Tracking screen |
-| `SHIPMENT_DELIVERED` | Invoice screen |
-| `PAYMENT_COMPLETED` | Invoice screen |
-| `ORDER_CANCELLED` | Order detail screen |
+| Mất mạng khi xem tracking | Banner "Offline"; show last known position |
+| Token hết hạn | Auto-refresh silent; nếu fail → redirect login |
+| SignalR disconnect | `withAutomaticReconnect()` + rejoin group + reload GPS |
+| Tạo đơn thất bại | Show lỗi + cho retry |
+| Huỷ đơn sau Confirmed | Show "Không thể huỷ đơn đang giao" |
 
 ---
 
-## 11. Màn hình chủ (Home / Dashboard)
+## 14. Error Codes
 
-```
-┌──────────────────────────────────────────┐
-│  Xin chào, Nguyễn Văn A 👋               │
-│                                          │
-│  ─── Đơn đang giao ──────────────────── │
-│  ┌──────────────────────────────────┐   │
-│  │ 🚛 Đang giao · HCM → Hà Nội     │   │
-│  │ Tài xế cách đây ~15 phút         │   │
-│  │ [Xem bản đồ →]                   │   │
-│  └──────────────────────────────────┘   │
-│                                          │
-│  ─── Đơn đang xử lý ─────────────────── │
-│  ┌──────────────────────────────────┐   │
-│  │ ⏳ Đang tìm tài xế · HCM → ĐN   │   │
-│  │ Tạo lúc: 10:00 30/04/2026        │   │
-│  └──────────────────────────────────┘   │
-│                                          │
-│  [+ Tạo đơn hàng mới]                   │
-└──────────────────────────────────────────┘
-```
-
-**Logic hiển thị:**
-- Lấy danh sách orders với status khác `Delivered` và `Cancelled`
-- Sort by `createdAt` DESC
-- Show "đang giao" card với link sang tracking nếu status = `InTransit` hoặc `PickedUp`
-
----
-
-## 12. Offline & Resilience
-
-| Tình huống | Xử lý đề xuất |
-|---|---|
-| Mất mạng khi xem tracking | Hiển thị banner "Offline — bản đồ không cập nhật"; show last known position |
-| Token hết hạn | Auto-refresh silent; nếu refresh thất bại → redirect login |
-| SignalR disconnect | `withAutomaticReconnect()` + rejoin group sau reconnect + reload GPS points |
-| Tạo đơn thất bại | Hiển thị lỗi cụ thể (validation / server), cho phép retry |
-| Huỷ đơn sau khi đã assigned | Show lỗi "Không thể huỷ đơn đang giao" |
-
----
-
-## 13. Error Codes
-
-| Code | HTTP | Ý nghĩa | Xử lý UI |
-|---|---|---|---|
-| `ORDER_NOT_FOUND` | 404 | orderId không tồn tại | Show lỗi, reload list |
-| `ORDER_CANNOT_CANCEL` | 422 | Không thể huỷ ở trạng thái hiện tại | Show "Đơn đang giao, không thể huỷ" |
-| `SHIPMENT_NOT_FOUND` | 404 | Shipment chưa tạo hoặc không tồn tại | Retry sau 3 giây |
-| `VALIDATION_ERROR` | 400 | Dữ liệu gửi không hợp lệ | Highlight field lỗi |
-| `UNAUTHORIZED` | 401 | Token hết hạn | Auto-refresh hoặc redirect login |
-| `FORBIDDEN` | 403 | Không có quyền | Show lỗi rõ ràng |
-| `DOMAIN_ERROR` | 422 | Lỗi business logic | Show message từ server |
-| `SERVER_ERROR` | 500 | Lỗi nội bộ | "Hệ thống đang gặp sự cố, vui lòng thử lại" |
-
----
-
-## 14. Polling vs Real-time Strategy
-
-| Màn hình | Strategy | Lý do |
+| Code | HTTP | Xử lý UI |
 |---|---|---|
-| Order detail | Polling mỗi 30s | Status thay đổi chậm |
-| Tracking (tài xế di chuyển) | SignalR `LocationUpdated` | Real-time 1–5s |
-| Home / Order list | Polling mỗi 60s hoặc pull-to-refresh | Không cần real-time |
-| Payment | Poll every 30s | Sau khi nhận push `PAYMENT_COMPLETED` hoặc polling |
-
-**Khi nào dừng SignalR subscription:**
-
-SignalR (`LocationUpdated`) chỉ cần khi tài xế đang di chuyển. Khi nào thoát khỏi màn hình tracking thì leave group. Trạng thái đơn hàng theo dõi bằng polling.
-
-```dart
-// Poll trạng thái đơn mỗi 30 giây
-Timer.periodic(Duration(seconds: 30), (_) async {
-  final order = await orderApi.getOrder(orderId);
-  updateStatusTimeline(order.status);
-
-  if (order.status == 'Delivered' || order.status == 'Completed' || order.status == 'Cancelled') {
-    // Thoát màn hình tracking, sang màn hình hoá đơn
-    await connection.invoke("LeaveShipmentGroup", args: [shipmentId]);
-    pollingTimer?.cancel();
-    navigateToInvoiceScreen();
-  }
-});
-```
-
----
-
-## 15. Checklist tích hợp
-
-- [ ] Implement auth flow (register → login → refresh token)
-- [ ] Implement tạo đơn hàng với form nhập kiện hàng
-- [ ] Tính `volumeCbm` tự động từ dimensions
-- [ ] Implement danh sách đơn hàng (paginated)
-- [ ] Implement chi tiết đơn + order status timeline
-- [ ] Implement huỷ đơn với guard status check
-- [ ] Implement tracking screen với bản đồ
-- [ ] Load GPS history (polyline) khi mở tracking
-- [ ] Connect SignalR `LocationUpdated` → update map marker
-- [ ] Poll `GET /api/v1/orders/{orderId}` mỗi 30s → update status timeline
-- [ ] Leave SignalR group khi thoát màn hình
-- [ ] Implement invoice / payment screen (COD auto + VNPay WebView flow)
-- [ ] Register FCM token sau login
-- [ ] Handle notification tap → navigate to correct screen
-- [ ] Handle token expiry (silent refresh)
-- [ ] Handle SignalR reconnect + group rejoin
-- [ ] Offline banner khi mất kết nối
+| `Order.NotFound` | 404 | Show lỗi, reload |
+| `Order.CancelForbidden` | 400 | "Không thể huỷ đơn ở trạng thái này" |
+| `Payment.Conflict` | 409 | Payment đã tồn tại cho đơn này |
+| `Unauthorized` | 401 | Refresh token hoặc re-login |

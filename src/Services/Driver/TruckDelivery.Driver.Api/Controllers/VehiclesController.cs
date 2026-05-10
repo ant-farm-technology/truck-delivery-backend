@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using TruckDelivery.Driver.Application.Commands.RegisterVehicle;
 using TruckDelivery.Driver.Application.Commands.UpdateVehicleStatus;
 using TruckDelivery.Driver.Application.Queries.GetVehicleById;
+using TruckDelivery.Driver.Application.Queries.GetMyVehicle;
 using TruckDelivery.Driver.Application.Queries.ListVehicles;
 using TruckDelivery.Driver.Domain.ValueObjects;
 
@@ -37,6 +38,21 @@ public sealed class VehiclesController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new ListVehiclesQuery(status, driverId, type, page, pageSize), ct);
         return Ok(result);
+    }
+
+    /// <summary>Returns the vehicle currently assigned to the authenticated driver.</summary>
+    [HttpGet("mine")]
+    [Authorize(Roles = "Driver")]
+    [ProducesResponseType(typeof(TruckDelivery.Driver.Application.DTOs.VehicleDto), 200)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> GetMyVehicle(CancellationToken ct)
+    {
+        var userId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? throw new InvalidOperationException("Missing user ID in token"));
+        var result = await mediator.Send(new GetMyVehicleQuery(userId), ct);
+        if (result.IsFailure)
+            return NotFound(new { result.Error.Code, result.Error.Description });
+        return Ok(result.Value);
     }
 
     [HttpGet("{id:guid}")]

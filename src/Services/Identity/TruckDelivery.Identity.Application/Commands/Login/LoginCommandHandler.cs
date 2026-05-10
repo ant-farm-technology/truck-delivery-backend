@@ -31,6 +31,6 @@ public sealed class LoginCommandHandler(IUserRepository userRepository, IJwtServ
         userRepository.Update(user);
         await unitOfWork.SaveChangesAsync(ct);
 
-        return Result.Success(new LoginResult(accessToken, refreshToken, expiresAt));
+        return Result.Success(new LoginResult(accessToken, refreshToken, expiresAt, user.Id, user.Role.ToString()));
     }
 }

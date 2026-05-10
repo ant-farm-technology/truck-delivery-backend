@@ -30,7 +30,12 @@ public sealed record VehicleDto(
     string Type,
     decimal MaxWeightKg,
     decimal MaxVolumeCbm,
+    decimal LengthM,
+    decimal WidthM,
+    decimal HeightM,
     int YearOfManufacture,
+    string RegistrationNumber,
+    DateOnly RegistrationExpiryDate,
     string Status,
     Guid? AssignedDriverId,
     DateTime CreatedAt);

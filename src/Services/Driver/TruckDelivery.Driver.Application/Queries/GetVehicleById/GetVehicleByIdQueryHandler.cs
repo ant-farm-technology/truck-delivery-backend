@@ -15,7 +15,9 @@ public sealed class GetVehicleByIdQueryHandler(IDbConnectionFactory dbConnection
 
         const string sql = """
             SELECT Id, LicensePlate, Brand, Model, Type, MaxWeightKg, MaxVolumeCbm,
-                   YearOfManufacture, Status, AssignedDriverId, CreatedAt
+                   LengthM, WidthM, HeightM,
+                   YearOfManufacture, RegistrationNumber, RegistrationExpiryDate,
+                   Status, AssignedDriverId, CreatedAt
             FROM driver.vehicles
             WHERE Id = @VehicleId
             """;
